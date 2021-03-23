@@ -100,6 +100,10 @@ export class ClientSidePages extends HandlerBase {
               const serverProcessedContent = this.tokenHelper.replaceTokens(
                 JSON.stringify(control.ServerProcessedContent)
               )
+              super.log_info(
+                'processClientSidePage',
+                `Adding serverProcessedContent ${serverProcessedContent} to client side page ${clientSidePage.Name}`
+              )
               part.data.webPartData.serverProcessedContent = JSON.parse(
                 serverProcessedContent
               )
