@@ -50,8 +50,8 @@ export class Files extends HandlerBase {
         Promise.resolve()
       )
       super.scope_ended()
-    } catch {
-      super.scope_ended()
+    } catch(error) {
+      super.scope_ended(error)
     }
   }
 

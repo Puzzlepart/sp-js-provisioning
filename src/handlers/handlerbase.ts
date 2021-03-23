@@ -20,13 +20,13 @@ export class HandlerBase {
     this.name = name
     this.config = config
   }
-  
+
   /**
    * Provisioning objects
    */
   public ProvisionObjects(web: Web, templatePart: any, _context?: ProvisioningContext): Promise<void> {
-      Logger.log({ data: templatePart, level: LogLevel.Warning, message: `Handler ${this.name} for web [${web.toUrl()}] does not override ProvisionObjects.` });
-      return Promise.resolve();
+    Logger.log({ data: templatePart, level: LogLevel.Warning, message: `Handler ${this.name} for web [${web.toUrl()}] does not override ProvisionObjects.` });
+    return Promise.resolve();
   }
 
   /**
@@ -38,9 +38,12 @@ export class HandlerBase {
 
   /**
    * Writes to Logger when scope has stopped
+   * 
+   * @param error Error
    */
-  public scope_ended() {
-    this.log_info('ProvisionObjects', 'Code execution scope ended')
+  public scope_ended(error?: Error) {
+    if (error) this.log_error('ProvisionObjects', `Code execution scope ended with error: ${error.message}`)
+    else this.log_info('ProvisionObjects', 'Code execution scope ended')
   }
 
   /**
@@ -63,7 +66,7 @@ export class HandlerBase {
   }
 
   /**
-   * Writes to Logger
+   * Writes a warning to the logger
    *
    * @param scope - Scope
    * @param message - Message
@@ -78,6 +81,25 @@ export class HandlerBase {
       message: `${prefix}(${this.name}): (${scope}): ${message}`,
       data: data,
       level: LogLevel.Warning
+    })
+  }
+
+  /**
+   * Writes an error to the logger
+   *
+   * @param scope - Scope
+   * @param message - Message
+   * @param data - Data
+   */
+  public log_error(scope: string, message: string, data?: any) {
+    const prefix =
+      this.config.logging && this.config.logging.prefix
+        ? `${this.config.logging.prefix} `
+        : ''
+    Logger.log({
+      message: `${prefix}(${this.name}): (${scope}): ${message}`,
+      data: data,
+      level: LogLevel.Error
     })
   }
 }

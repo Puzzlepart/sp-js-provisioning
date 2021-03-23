@@ -47,7 +47,7 @@ export class CustomActions extends HandlerBase {
       await batch.execute()
       super.scope_ended()
     } catch (error) {
-      super.scope_ended()
+      super.scope_ended(error)
       throw error
     }
   }

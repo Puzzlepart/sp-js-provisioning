@@ -32,7 +32,7 @@ export class Features extends HandlerBase {
       }, Promise.resolve<any>({}))
       super.scope_ended()
     } catch (error) {
-      super.scope_ended()
+      super.scope_ended(error)
       throw error
     }
   }

@@ -45,9 +45,7 @@ export class ClientSidePages extends HandlerBase {
         Promise.resolve()
       )
     } catch (error) {
-      // eslint-disable-next-line no-console
-      console.log(error)
-      super.scope_ended()
+      super.scope_ended(error)
       throw error
     }
   }
@@ -112,8 +110,6 @@ export class ClientSidePages extends HandlerBase {
             )
             column.addControl(part)
           } catch (error) {
-            // eslint-disable-next-line no-console
-            console.log(error)
             super.log_info(
               'processClientSidePage',
               `Failed adding part ${partDef.Name} to client side page ${clientSidePage.Name}`

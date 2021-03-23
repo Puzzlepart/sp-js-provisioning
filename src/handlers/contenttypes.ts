@@ -71,7 +71,7 @@ export class ContentTypes extends HandlerBase {
           Promise.resolve()
         )
     } catch (error) {
-      super.scope_ended()
+      super.scope_ended(error)
       throw error
     }
   }
