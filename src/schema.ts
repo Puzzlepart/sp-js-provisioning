@@ -1,228 +1,232 @@
-import { TypedHash } from '@pnp/common';
+import { TypedHash } from '@pnp/common'
 
 export interface Schema {
-    Parameters?: TypedHash<string>;
-    Version?: string;
-    Navigation?: INavigation;
-    CustomActions?: ICustomAction[];
-    ComposedLook?: IComposedLook;
-    WebSettings?: IWebSettings;
-    Features?: IFeature[];
-    Lists?: IList[];
-    Files?: IFile[];
-    PropertyBagEntries?: IPropertyBagEntry[];
-    ClientSidePages?: IClientSidePage[];
-    SiteFields?: string[];
-    ContentTypes?: IContentType[];
-    [key: string]: any;
+  Parameters?: TypedHash<string>
+  Version?: string
+  Navigation?: INavigation
+  CustomActions?: ICustomAction[]
+  ComposedLook?: IComposedLook
+  WebSettings?: IWebSettings
+  Features?: IFeature[]
+  Lists?: IList[]
+  Files?: IFile[]
+  PropertyBagEntries?: IPropertyBagEntry[]
+  ClientSidePages?: IClientSidePage[]
+  SiteFields?: string[]
+  ContentTypes?: IContentType[]
+  [key: string]: any
 }
 
-export default Schema;
+export default Schema
 
-export interface IFieldRef {
-    ID: string;
-    Name?: string;
-    Required?: boolean;
-    Hidden?: boolean;
+export interface IFieldReference {
+  ID: string
+  Name?: string
+  Required?: boolean
+  Hidden?: boolean
 }
 
 export interface IContentType {
-    ID: string;
-    Name: string;
-    Description: string;
-    Group: string;
-    FieldRefs: IFieldRef[];
+  ID: string
+  Name: string
+  Description: string
+  Group: string
+  FieldRefs: IFieldReference[]
 }
 
 export interface IClientSideControl {
-    Id: string;
-    Properties: {[key: string]: any};
+  Id: string
+  Properties: { [key: string]: any }
+  ServerProcessedContent?: {
+    htmlStrings: TypedHash<string>
+    searchablePlainTexts: TypedHash<string>
+    imageSources: TypedHash<string>
+    links: TypedHash<string>
+  }
 }
 
 export interface IClientSidePageColumn {
-    Factor: any;
-    Controls: IClientSideControl[];
+  Factor: any
+  Controls: IClientSideControl[]
 }
 
 export interface IClientSidePageSection {
-    Columns: IClientSidePageColumn[];
+  Columns: IClientSidePageColumn[]
 }
 
 export interface IClientSidePage {
-    Name: string;
-    Title: string;
-    PageLayoutType: any;
-    CommentsDisabled?: boolean;
-    Sections?: IClientSidePageSection[];
+  Name: string
+  Title: string
+  PageLayoutType: any
+  CommentsDisabled?: boolean
+  Sections?: IClientSidePageSection[]
 }
 
 export interface IFeature {
-    id: string;
-    deactivate: boolean;
-    force: boolean;
+  id: string
+  deactivate: boolean
+  force: boolean
 }
 
 export interface IFile {
-    Folder: string;
-    Src: string;
-    Url: string;
-    Overwrite?: boolean;
-    RemoveExistingWebParts?: boolean;
-    WebParts?: IWebPart[];
-    Properties?: { [key: string]: string | number };
+  Folder: string
+  Src: string
+  Url: string
+  Overwrite?: boolean
+  RemoveExistingWebParts?: boolean
+  WebParts?: IWebPart[]
+  Properties?: { [key: string]: string | number }
 }
 
 export interface IWebPartPropertyOverride {
-    name: string;
-    type: string;
-    value: string;
+  name: string
+  type: string
+  value: string
 }
 
 export interface IWebPart {
-    Title: string;
-    Zone: string;
-    Order: number;
-    Contents: IWebPartContents;
-    PropertyOverrides?: IWebPartPropertyOverride[];
-    ListView?: {
-        List: string;
-        View: IListView;
-    };
+  Title: string
+  Zone: string
+  Order: number
+  Contents: IWebPartContents
+  PropertyOverrides?: IWebPartPropertyOverride[]
+  ListView?: {
+    List: string
+    View: IListView
+  }
 }
 
 export interface IWebPartContents {
-    Xml?: string;
-    FileSrc?: string;
+  Xml?: string
+  FileSrc?: string
 }
 
 export interface IComposedLook {
-    ColorPaletteUrl: string;
-    FontSchemeUrl: string;
-    BackgroundImageUrl: string;
+  ColorPaletteUrl: string
+  FontSchemeUrl: string
+  BackgroundImageUrl: string
 }
 
 export interface ICustomAction {
-    Name: string;
-    Description?: string;
-    Title: string;
-    Location: string;
-    Url: string;
+  Name: string
+  Description?: string
+  Title: string
+  Location: string
+  Url: string
 
-    [key: string]: string;
+  [key: string]: string
 }
 
 export interface IWebSettings {
-    WelcomePage?: string;
-    AlternateCssUrl?: string;
-    SaveSiteAsTemplateEnabled?: boolean;
-    MasterUrl?: string;
-    CustomMasterUrl?: string;
-    RecycleBinEnabled?: boolean;
-    TreeViewEnabled?: boolean;
-    QuickLaunchEnabled?: boolean;
-    SiteLogoUrl?: string;
+  WelcomePage?: string
+  AlternateCssUrl?: string
+  SaveSiteAsTemplateEnabled?: boolean
+  MasterUrl?: string
+  CustomMasterUrl?: string
+  RecycleBinEnabled?: boolean
+  TreeViewEnabled?: boolean
+  QuickLaunchEnabled?: boolean
+  SiteLogoUrl?: string
 
-    [key: string]: string | boolean;
+  [key: string]: string | boolean
 }
 
 export interface INavigation {
-    QuickLaunch?: INavigationNode[];
-    TopNavigationBar?: INavigationNode[];
+  QuickLaunch?: INavigationNode[]
+  TopNavigationBar?: INavigationNode[]
 }
 
 export interface INavigationNode {
-    Title: string;
-    Url: string;
-    IgnoreExisting?: boolean;
-    Children?: INavigationNode[];
+  Title: string
+  Url: string
+  IgnoreExisting?: boolean
+  Children?: INavigationNode[]
 }
 
 export interface IRoleAssignment {
-    Principal: string;
-    RoleDefinition: string;
+  Principal: string
+  RoleDefinition: string
 }
 
 export interface IListSecurity {
-    BreakRoleInheritance?: boolean;
-    CopyRoleAssignments?: boolean;
-    ClearSubscopes?: boolean;
-    RoleAssignments?: IRoleAssignment[];
+  BreakRoleInheritance?: boolean
+  CopyRoleAssignments?: boolean
+  ClearSubscopes?: boolean
+  RoleAssignments?: IRoleAssignment[]
 }
 
 export interface IList {
-    Title: string;
-    Description: string;
-    Template: number;
-    ContentTypesEnabled: boolean;
-    RemoveExistingContentTypes?: boolean;
-    ContentTypeBindings?: IContentTypeBinding[];
-    Fields?: string[];
-    FieldRefs?: IListInstanceFieldRef[];
-    Views?: IListView[];
-    Security?: IListSecurity;
+  Title: string
+  Description: string
+  Template: number
+  ContentTypesEnabled: boolean
+  RemoveExistingContentTypes?: boolean
+  ContentTypeBindings?: IContentTypeBinding[]
+  Fields?: string[]
+  FieldRefs?: IListInstanceFieldReference[]
+  Views?: IListView[]
+  Security?: IListSecurity
 
-    AdditionalSettings?: {
-        DefaultContentApprovalWorkflowId?: string;
-        DefaultDisplayFormUrl?: string;
-        DefaultEditFormUrl?: string;
-        DefaultNewFormUrl?: string;
-        Description?: string;
-        Direction?: string;
-        DocumentTemplateUrl?: string;
-        /**
-         * Reader = 0; Author = 1; Approver = 2.
-         */
-        DraftVersionVisibility?: number;
-        EnableAttachments?: boolean;
-        EnableFolderCreation?: boolean;
-        EnableMinorVersions?: boolean;
-        EnableModeration?: boolean;
-        EnableVersioning?: boolean;
-        ForceCheckout?: boolean;
-        Hidden?: boolean;
-        IrmEnabled?: boolean;
-        IrmExpire?: boolean;
-        IrmReject?: boolean;
-        IsApplicationList?: boolean;
-        NoCrawl?: boolean;
-        OnQuickLaunch?: boolean;
-        Title?: string;
-        ValidationFormula?: string;
-        ValidationMessage?: string;
+  AdditionalSettings?: {
+    DefaultContentApprovalWorkflowId?: string
+    DefaultDisplayFormUrl?: string
+    DefaultEditFormUrl?: string
+    DefaultNewFormUrl?: string
+    Description?: string
+    Direction?: string
+    DocumentTemplateUrl?: string
+    /**
+     * Reader = 0; Author = 1; Approver = 2.
+     */
+    DraftVersionVisibility?: number
+    EnableAttachments?: boolean
+    EnableFolderCreation?: boolean
+    EnableMinorVersions?: boolean
+    EnableModeration?: boolean
+    EnableVersioning?: boolean
+    ForceCheckout?: boolean
+    Hidden?: boolean
+    IrmEnabled?: boolean
+    IrmExpire?: boolean
+    IrmReject?: boolean
+    IsApplicationList?: boolean
+    NoCrawl?: boolean
+    OnQuickLaunch?: boolean
+    Title?: string
+    ValidationFormula?: string
+    ValidationMessage?: string
 
-        [key: string]: string | boolean | number;
-    };
+    [key: string]: string | boolean | number
+  }
 }
 
-
-
-export interface IListInstanceFieldRef extends IFieldRef {
-    DisplayName?: string;
+export interface IListInstanceFieldReference extends IFieldReference {
+  DisplayName?: string
 }
 
 export interface IContentTypeBinding {
-    ContentTypeID: string;
-    Name?: string;
+  ContentTypeID: string
+  Name?: string
 }
 
 export interface IListView {
-    Title: string;
-    PersonalView?: boolean;
-    ViewFields?: string[];
-    AdditionalSettings?: {
-        ViewQuery?: string;
-        RowLimit?: number;
-        Paged?: boolean;
-        Hidden?: boolean;
-        Scope?: 0 | 1;
-        DefaultView?: boolean;
-        JSLink?: string;
-    };
+  Title: string
+  PersonalView?: boolean
+  ViewFields?: string[]
+  AdditionalSettings?: {
+    ViewQuery?: string
+    RowLimit?: number
+    Paged?: boolean
+    Hidden?: boolean
+    Scope?: 0 | 1
+    DefaultView?: boolean
+    JSLink?: string
+  }
 }
 
 export interface IPropertyBagEntry {
-    Key: string;
-    Value: string;
-    Indexed?: boolean;
-    Overwrite?: boolean;
+  Key: string
+  Value: string
+  Indexed?: boolean
+  Overwrite?: boolean
 }

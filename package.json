@@ -15,49 +15,131 @@
     "xml-js": "1.6.11"
   },
   "devDependencies": {
-    "@microsoft/sp-tslint-rules": "^1.7.1",
-    "@types/chai": "^4.0.4",
-    "@types/chai-as-promised": "^7.1.0",
+    "@commitlint/config-conventional": "^12.0.1",
     "@types/es6-promise": "0.0.33",
-    "@types/mocha": "^2.2.32",
     "@types/node": "^8.0.28",
     "@types/sharepoint": "^2016.1.2",
     "@types/webpack-env": "1.13.1",
-    "babel-core": "6.26.0",
-    "babel-loader": "^7.1.2",
-    "babel-preset-es2015": "6.24.1",
-    "chai": "4.1.2",
-    "chai-as-promised": "7.1.1",
-    "del": "3.0.0",
-    "gulp": "3.9.1",
-    "gulp-if": "2.0.2",
-    "gulp-istanbul": "1.1.2",
-    "gulp-jsdoc3": "^1.0.1",
-    "gulp-mocha": "^4.3.1",
-    "gulp-sourcemaps": "2.6.1",
-    "gulp-tslint": "8.1.2",
-    "gulp-util": "3.0.8",
-    "gulp-watch": "^5.0.1",
-    "jsdoc": "3.5.5",
+    "@typescript-eslint/eslint-plugin": "4.6.1",
+    "@typescript-eslint/parser": "4.6.1",
+    "commitlint": "^12.0.1",
+    "eslint": "^6.8.0",
+    "eslint-config-prettier": "7.2.0",
+    "eslint-plugin-prettier": "3.3.1",
+    "eslint-plugin-react": "7.22.0",
+    "eslint-plugin-react-hooks": "^4.2.0",
+    "eslint-plugin-tsdoc": "0.2.11",
+    "eslint-plugin-unicorn": "^28.0.2",
+    "husky": "^5.2.0",
     "merge": "1.2.0",
     "merge2": "^1.0.2",
-    "mocha": "3.5.3",
-    "node-fetch": "1.7.3",
-    "run-sequence": "^2.2.1",
-    "semver": "5.4.1",
-    "ts-loader": "^2.3.7",
-    "tslint": "^5.9.1",
-    "tslint-microsoft-contrib": "^6.0.0",
-    "typescript": "2.4.2",
-    "gulp-typescript": "^3.2.2",
-    "webpack": "3.6.0",
-    "yargs": "9.0.1"
+    "prettier": "2.2.1",
+    "typescript": "4.0.7"
   },
   "scripts": {
-    "build": "gulp build",
-    "package": "gulp package",
+    "build": "tsc",
+    "lint": "eslint --ext .ts ./src --color --fix && prettier '**/*.ts*' --write --loglevel silent",
+    "prepare": "husky install",
     "watch": "tsc --watch",
-    "postversion": "gulp build && npm publish"
+    "postversion": "npm run build && npm publish"
+  },
+  "commitlint": {
+    "extends": [
+      "@commitlint/config-conventional"
+    ]
+  },
+  "eslintConfig": {
+    "env": {
+      "browser": true,
+      "node": true
+    },
+    "parser": "@typescript-eslint/parser",
+    "extends": [
+      "prettier",
+      "plugin:react/recommended",
+      "plugin:@typescript-eslint/recommended",
+      "plugin:unicorn/recommended"
+    ],
+    "plugins": [
+      "prettier",
+      "react-hooks",
+      "eslint-plugin-tsdoc",
+      "unicorn"
+    ],
+    "parserOptions": {
+      "ecmaVersion": 2018,
+      "sourceType": "module",
+      "ecmaFeatures": {
+        "jsx": true
+      }
+    },
+    "rules": {
+      "@typescript-eslint/no-explicit-any": 0,
+      "@typescript-eslint/member-delimiter-style": 0,
+      "@typescript-eslint/explicit-function-return-type": 0,
+      "@typescript-eslint/explicit-module-boundary-types": 0,
+      "@typescript-eslint/no-inferrable-types": 0,
+      "react/prop-types": 0,
+      "no-inferrable-types": 0,
+      "react/display-name": 0,
+      "no-compare-neg-zero": 1,
+      "no-console": 2,
+      "eqeqeq": 1,
+      "max-classes-per-file": 1,
+      "jsx-quotes": [
+        "error",
+        "prefer-single"
+      ],
+      "quotes": [
+        "error",
+        "single"
+      ],
+      "yoda": 2,
+      "require-await": 2,
+      "semi": [
+        "error",
+        "never",
+        {}
+      ],
+      "default-case": 0,
+      "react-hooks/rules-of-hooks": "error",
+      "react-hooks/exhaustive-deps": "warn",
+      "tsdoc/syntax": "warn",
+      "unicorn/filename-case": 0,
+      "unicorn/no-array-reduce": 0,
+      "unicorn/no-null": 0,
+      "unicorn/prevent-abbreviations": [
+        2,
+        {
+          "checkDefaultAndNamespaceImports": true,
+          "checkProperties": false,
+          "replacements": {
+            "args": false,
+            "props": false
+          }
+        }
+      ],
+      "unicorn/no-process-exit": 0
+    },
+    "settings": {
+      "react": {
+        "version": "detect"
+      }
+    }
+  },
+  "eslintIgnore": [
+    "src/**/*.d.ts"
+  ],
+  "prettier": {
+    "tabWidth": 2,
+    "singleQuote": true,
+    "semi": false,
+    "arrowParens": "always",
+    "printWidth": 80,
+    "trailingComma": "none",
+    "bracketSpacing": true,
+    "jsxBracketSameLine": true,
+    "jsxSingleQuote": true
   },
   "repository": {
     "type": "git",
