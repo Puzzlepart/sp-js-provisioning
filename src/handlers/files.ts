@@ -35,13 +35,10 @@ export class Files extends HandlerBase {
   public async ProvisionObjects(
     web: Web,
     files: IFile[],
-    context: ProvisioningContext
+    context?: ProvisioningContext
   ): Promise<void> {
     this.tokenHelper = new TokenHelper(context, this.config)
     super.scope_started()
-    if (typeof window === 'undefined') {
-      throw 'Files Handler not supported in Node.'
-    }
     if (this.config.spfxContext) {
       throw 'Files Handler not supported in SPFx.'
     }
