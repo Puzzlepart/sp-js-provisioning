@@ -13,7 +13,7 @@ export class CustomActions extends HandlerBase {
    * @param config - Provisioning config
    */
   constructor(config: IProvisioningConfig) {
-    super('CustomActions', config)
+    super(CustomActions.name, config)
   }
 
   /**

@@ -22,7 +22,7 @@ export class Files extends HandlerBase {
    * @param config - Provisioning config
    */
   constructor(config: IProvisioningConfig) {
-    super('Files', config)
+    super(Files.name, config)
   }
 
   /**

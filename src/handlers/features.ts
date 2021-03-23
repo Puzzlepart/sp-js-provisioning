@@ -13,7 +13,7 @@ export class Features extends HandlerBase {
    * @param config - Provisioning config
    */
   constructor(config: IProvisioningConfig) {
-    super('Features', config)
+    super(Features.name, config)
   }
 
   /**

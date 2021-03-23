@@ -15,7 +15,7 @@ export class Navigation extends HandlerBase {
    * @param config - Provisioning config
    */
   constructor(config: IProvisioningConfig) {
-    super('Navigation', config)
+    super(Navigation.name, config)
   }
 
   /**

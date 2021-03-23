@@ -16,7 +16,7 @@ export class SiteFields extends HandlerBase {
    * Creates a new instance of the ObjectSiteFields class
    */
   constructor(config: IProvisioningConfig) {
-    super('SiteFields', config)
+    super(SiteFields.name, config)
   }
 
   /**

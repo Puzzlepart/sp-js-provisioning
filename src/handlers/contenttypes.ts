@@ -16,7 +16,7 @@ export class ContentTypes extends HandlerBase {
    * Creates a new instance of the ObjectSiteFields class
    */
   constructor(config: IProvisioningConfig) {
-    super('ContentTypes', config)
+    super(ContentTypes.name, config)
   }
 
   /**

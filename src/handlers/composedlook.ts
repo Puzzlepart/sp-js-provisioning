@@ -12,7 +12,7 @@ export class ComposedLook extends HandlerBase {
    * Creates a new instance of the ObjectComposedLook class
    */
   constructor(config: IProvisioningConfig) {
-    super('ComposedLook', config)
+    super(ComposedLook.name, config)
   }
 
   /**

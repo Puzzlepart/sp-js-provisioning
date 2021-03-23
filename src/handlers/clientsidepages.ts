@@ -18,7 +18,7 @@ export class ClientSidePages extends HandlerBase {
    * Creates a new instance of the ObjectClientSidePages class
    */
   constructor(config: IProvisioningConfig) {
-    super('ClientSidePages', config)
+    super(ClientSidePages.name, config)
   }
 
   /**

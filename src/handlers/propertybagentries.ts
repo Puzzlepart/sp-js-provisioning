@@ -15,7 +15,7 @@ export class PropertyBagEntries extends HandlerBase {
    * @param config - Provisioning config
    */
   constructor(config: IProvisioningConfig) {
-    super('PropertyBagEntries', config)
+    super(PropertyBagEntries.name, config)
   }
 
   /**

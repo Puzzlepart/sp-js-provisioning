@@ -34,7 +34,7 @@ export class Lists extends HandlerBase {
    * @param config - Provisioning config
    */
   constructor(config: IProvisioningConfig) {
-    super('Lists', config)
+    super(Lists.name, config)
   }
 
   /**
