@@ -29,7 +29,7 @@ export class SiteFields extends HandlerBase {
   public async ProvisionObjects(
     web: Web,
     siteFields: string[],
-    context: ProvisioningContext
+    context?: ProvisioningContext
   ): Promise<void> {
     this.context = context
     this.tokenHelper = new TokenHelper(this.context, this.config)
