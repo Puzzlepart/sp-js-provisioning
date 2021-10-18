@@ -312,11 +312,9 @@ export class Lists extends HandlerBase {
       const [listFields, webFields] = await Promise.all([
         list.fields
           .select('Id', 'InternalName', 'SchemaXml')
-          .usingCaching()
           .get<ISPField[]>(),
         web.fields
           .select('Id', 'InternalName', 'SchemaXml')
-          .usingCaching()
           .get<ISPField[]>()
       ])
       super.log_info(
