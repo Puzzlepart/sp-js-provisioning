@@ -2,7 +2,7 @@
 
 ## Get Started
 
-**NPM**
+### NPM
 
 Add the npm packages to your project
 
