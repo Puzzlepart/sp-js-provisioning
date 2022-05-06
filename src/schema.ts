@@ -137,7 +137,7 @@ export interface IHooks {
   Url: string
   Method: string
   Headers?: Headers
-  Body?: string
+  Body?: Body
 }
 
 export interface INavigation {
