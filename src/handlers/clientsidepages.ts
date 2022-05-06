@@ -113,7 +113,7 @@ export class ClientSidePages extends HandlerBase {
               `Adding ${partDef.Name} to client side page ${clientSidePage.Name}`
             )
             column.addControl(part)
-          } catch (error) {
+          } catch {
             super.log_info(
               'processClientSidePage',
               `Failed adding part ${partDef.Name} to client side page ${clientSidePage.Name}`

@@ -29,7 +29,7 @@ export class Hooks extends HandlerBase {
     const promises = []
 
 
-    hooks.forEach(async (hook, idx) => {
+    hooks.forEach(async (hook, index) => {
       if (hook.Method === 'GET') {
         super.log_info(
           'processHooks',
@@ -45,7 +45,7 @@ export class Hooks extends HandlerBase {
           const result = await Hooks.getJsonResult(res)
 
           if (!res.ok) {
-            throw new Error(`${(result ? ` | ${result} \n\n` : ``)}- Hook ${idx + 1}/${hooks.length}: ${hook.Title}`)
+            throw new Error(`${(result ? ` | ${result} \n\n` : '')}- Hook ${index + 1}/${hooks.length}: ${hook.Title}`)
           }
         }))
       } else if (hook.Method === 'POST') {
@@ -65,20 +65,20 @@ export class Hooks extends HandlerBase {
         promises.push(fetch(hook.Url, postRequest).then(async (res) => {
           if (!res.ok) {
             const result = await Hooks.getJsonResult(res)
-            throw new Error(`${(result ? ` | ${result} \n\n` : ``)}- Hook ${idx + 1}/${hooks.length}: ${hook.Title}`)
+            throw new Error(`${(result ? ` | ${result} \n\n` : '')}- Hook ${index + 1}/${hooks.length}: ${hook.Title}`)
           } else if (res.status === 202) {
             const getPendingRequest = {
               method: 'GET',
               headers: hook.Headers || {},
             }
 
-            let getPendingResult = (url: string): Promise<any> => {
+            const getPendingResult = (url: string): Promise<any> => {
               return new Promise((resolvePending, reject) => {
                 setTimeout(async () => {
                   await fetch(url, getPendingRequest).then(async (res) => {
                     if (!res.ok) {
                       const result = await Hooks.getJsonResult(res)
-                      reject(new Error(`${(result ? ` | ${result} \n\n` : ``)}- Hook ${idx + 1}/${hooks.length}: ${hook.Title}`))
+                      reject(new Error(`${(result ? ` | ${result} \n\n` : '')}- Hook ${index + 1}/${hooks.length}: ${hook.Title}`))
                     } else if (res.status == 202) {
                       resolvePending(getPendingResult(url))
                     }
@@ -89,7 +89,7 @@ export class Hooks extends HandlerBase {
               })
             }
 
-            let pendingResultLocation = res.headers.get("location");
+            const pendingResultLocation = res.headers.get('location')
             await getPendingResult(pendingResultLocation)
           }
         }))
@@ -115,10 +115,10 @@ export class Hooks extends HandlerBase {
       if (!res.ok) {
         try {
           const jsonResponse = await res.json()
-          resolve(`${res.status}${res.statusText ? ` - ${res.statusText}` : ``}${(jsonResponse["error"] ? ` | ${jsonResponse["error"]}` : ``)}`)
-        } catch (error) { }
+          resolve(`${res.status}${res.statusText ? ` - ${res.statusText}` : ''}${(jsonResponse['error'] ? ` | ${jsonResponse['error']}` : '')}`)
+        } catch {}
       }
-      resolve(`${res.status}${res.statusText ? ` - ${res.statusText}` : ``}`)
+      resolve(`${res.status}${res.statusText ? ` - ${res.statusText}` : ''}`)
     })
   }
 }
