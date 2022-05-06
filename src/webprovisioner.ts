@@ -28,7 +28,6 @@ export class WebProvisioner {
 
   private async onSetup() {
     if (this.config && this.config.spfxContext) {
-      console.log('onSetup:', this.config, this.config.spfxContext)
       sp.setup({
         spfxContext: this.config.spfxContext,
         ...(this.config.spConfiguration || {})
@@ -54,12 +53,11 @@ export class WebProvisioner {
     handlers?: string[],
     progressCallback?: (message: string) => void
   ): Promise<any> {
-    console.log('applyTemplate, template:', template, handlers)
 
     Logger.log({
       message: `${this.config.logging.prefix} (WebProvisioner): (applyTemplate): Applying template to web`,
       data: { handlers },
-      level: LogLevel.Warning
+      level: LogLevel.Info
     })
     await this.onSetup()
 
@@ -74,8 +72,6 @@ export class WebProvisioner {
         return sort1 - sort2
       }
     )
-
-    console.log('operations', operations)
 
     if (handlers) {
       operations = operations.filter((op) => handlers.includes(op))
@@ -108,9 +104,7 @@ export class WebProvisioner {
    * @param config - Provisioning config
    */
   public setup(config: IProvisioningConfig): WebProvisioner {
-    
     this.config = config
-    console.log('setup, Sets up the web provisioner, config:', config)
     return this
   }
 }

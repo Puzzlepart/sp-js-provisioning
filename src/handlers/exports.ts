@@ -43,5 +43,5 @@ export const DefaultHandlerSort: TypedHash<number> = {
   PropertyBagEntries: 8,
   WebSettings: 10,
   SiteFields: 0,
-  Hook: 11
+  Hooks: 11
 }
