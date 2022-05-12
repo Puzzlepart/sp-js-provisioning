@@ -3,6 +3,7 @@ import { TypedHash } from '@pnp/common'
 export interface Schema {
   Parameters?: TypedHash<string>
   Version?: string
+  Hooks?: IHooks[]
   Navigation?: INavigation
   CustomActions?: ICustomAction[]
   ComposedLook?: IComposedLook
@@ -129,6 +130,14 @@ export interface IWebSettings {
   SiteLogoUrl?: string
 
   [key: string]: string | boolean
+}
+
+export interface IHooks {
+  Title?: string
+  Url: string
+  Method: string
+  Headers?: Headers
+  Body?: Body
 }
 
 export interface INavigation {

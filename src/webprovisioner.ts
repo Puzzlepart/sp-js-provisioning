@@ -53,6 +53,7 @@ export class WebProvisioner {
     handlers?: string[],
     progressCallback?: (message: string) => void
   ): Promise<any> {
+
     Logger.log({
       message: `${this.config.logging.prefix} (WebProvisioner): (applyTemplate): Applying template to web`,
       data: { handlers },

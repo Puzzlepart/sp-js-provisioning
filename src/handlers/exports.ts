@@ -4,6 +4,7 @@ import { ComposedLook } from './composedlook'
 import { CustomActions } from './customactions'
 import { Features } from './features'
 import { WebSettings } from './websettings'
+import { Hooks } from './hooks'
 import { Navigation } from './navigation'
 import { Lists } from './lists'
 import { Files } from './files'
@@ -26,7 +27,8 @@ export const DefaultHandlerMap = (
   Navigation: new Navigation(config),
   PropertyBagEntries: new PropertyBagEntries(config),
   WebSettings: new WebSettings(config),
-  SiteFields: new SiteFields(config)
+  SiteFields: new SiteFields(config),
+  Hooks: new Hooks(config)
 })
 
 export const DefaultHandlerSort: TypedHash<number> = {
@@ -40,5 +42,6 @@ export const DefaultHandlerSort: TypedHash<number> = {
   Navigation: 9,
   PropertyBagEntries: 8,
   WebSettings: 10,
-  SiteFields: 0
+  SiteFields: 0,
+  Hooks: 11
 }
