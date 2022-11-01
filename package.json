@@ -6,16 +6,15 @@
   "typings": "./lib/index.d.ts",
   "dependencies": {
     "@pnp/common": "2.14.0",
-    "@pnp/logging": "2.14.0",
+    "@pnp/logging": "3.8.0",
     "@pnp/nodejs": "2.14.0",
     "@pnp/odata": "2.14.0",
-    "@pnp/sp": "2.14.0",
+    "@pnp/sp": "3.8.0",
     "object.omit": "3.0.0",
     "spfx-jsom": "0.6.4",
     "xml-js": "1.6.11"
   },
   "devDependencies": {
-    "@commitlint/config-conventional": "^12.0.1",
     "@types/es6-promise": "0.0.33",
     "@types/node": "^8.0.28",
     "@types/sharepoint": "^2016.1.2",
