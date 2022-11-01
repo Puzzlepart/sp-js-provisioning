@@ -1,9 +1,10 @@
 import { HandlerBase } from './handlerbase'
 import { INavigation, INavigationNode } from '../schema'
-import { Web, NavigationNodes } from '@pnp/sp'
 import { isArray } from '@pnp/common'
 import { replaceUrlTokens } from '../util'
 import { IProvisioningConfig } from '../provisioningconfig'
+import { IWeb } from '@pnp/sp/webs'
+import { INavigationNodes } from '@pnp/sp/navigation'
 
 /**
  * Describes the Navigation Object Handler
@@ -24,7 +25,7 @@ export class Navigation extends HandlerBase {
    * @param navigation - The navigation to provision
    */
   public async ProvisionObjects(
-    web: Web,
+    web: IWeb,
     navigation: INavigation
   ): Promise<void> {
     super.scope_started()
@@ -52,7 +53,7 @@ export class Navigation extends HandlerBase {
   }
 
   private async processNavTree(
-    target: NavigationNodes,
+    target: INavigationNodes,
     nodes: INavigationNode[]
   ): Promise<void> {
     try {
@@ -69,7 +70,7 @@ export class Navigation extends HandlerBase {
   }
 
   private async processNode(
-    target: NavigationNodes,
+    target: INavigationNodes,
     node: INavigationNode,
     existingNodes: any[]
   ): Promise<void> {
@@ -90,7 +91,7 @@ export class Navigation extends HandlerBase {
     }
   }
 
-  private async deleteExistingNodes(target: NavigationNodes) {
+  private async deleteExistingNodes(target: INavigationNodes) {
     try {
       const existingNodes = await target.get()
       await existingNodes.reduce(
@@ -103,7 +104,7 @@ export class Navigation extends HandlerBase {
     }
   }
 
-  private async deleteNode(target: NavigationNodes, id: number): Promise<void> {
+  private async deleteNode(target: INavigationNodes, id: number): Promise<void> {
     try {
       await target.getById(id).delete()
     } catch (error) {

@@ -1,4 +1,3 @@
-import { TypedHash } from '@pnp/common'
 import { HandlerBase } from './handlerbase'
 import { ComposedLook } from './composedlook'
 import { CustomActions } from './customactions'
@@ -16,7 +15,7 @@ import { ContentTypes } from './contenttypes'
 
 export const DefaultHandlerMap = (
   config: IProvisioningConfig
-): TypedHash<HandlerBase> => ({
+): Record<string, HandlerBase> => ({
   ClientSidePages: new ClientSidePages(config),
   ComposedLook: new ComposedLook(config),
   ContentTypes: new ContentTypes(config),
@@ -31,7 +30,7 @@ export const DefaultHandlerMap = (
   Hooks: new Hooks(config)
 })
 
-export const DefaultHandlerSort: TypedHash<number> = {
+export const DefaultHandlerSort: Record<string, number> = {
   ClientSidePages: 7,
   ComposedLook: 6,
   ContentTypes: 1,

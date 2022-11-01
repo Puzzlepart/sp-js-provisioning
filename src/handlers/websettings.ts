@@ -1,9 +1,9 @@
 import { HandlerBase } from './handlerbase'
 import { IWebSettings } from '../schema'
-import { Web } from '@pnp/sp'
 import * as omit from 'object.omit'
 import { replaceUrlTokens } from '../util'
 import { IProvisioningConfig } from '../provisioningconfig'
+import { IWeb } from '@pnp/sp/webs'
 
 /**
  * Describes the WebSettings Object Handler
@@ -25,7 +25,7 @@ export class WebSettings extends HandlerBase {
    * @param settings - The settings
    */
   public async ProvisionObjects(
-    web: Web,
+    web: IWeb,
     settings: IWebSettings
   ): Promise<void> {
     super.scope_started()

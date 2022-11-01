@@ -1,7 +1,7 @@
 import { HandlerBase } from './handlerbase'
 import { IHooks } from '../schema'
-import { Web } from '@pnp/sp'
 import { IProvisioningConfig } from '../provisioningconfig'
+import { IWeb } from '@pnp/sp/webs'
 
 /**
  * Describes the Hooks Object Handler
@@ -22,14 +22,15 @@ export class Hooks extends HandlerBase {
    * @param hooks - The hook(s) to apply
    */
   public async ProvisionObjects(
-    web: Web,
+    web: IWeb,
     hooks: IHooks[],
   ): Promise<void> {
     super.scope_started()
     const promises = []
 
 
-    hooks.forEach(async (hook, index) => {
+    // eslint-disable-next-line unicorn/no-array-for-each
+    hooks.forEach((hook, index) => {
       if (hook.Method === 'GET') {
         super.log_info(
           'processHooks',
@@ -41,10 +42,10 @@ export class Hooks extends HandlerBase {
           headers: hook.Headers || {},
         }
 
-        promises.push(fetch(hook.Url, getRequest).then(async (res) => {
-          const result = await Hooks.getJsonResult(res)
+        promises.push(fetch(hook.Url, getRequest).then(async (response) => {
+          const result = await Hooks.getJsonResult(response)
 
-          if (!res.ok) {
+          if (!response.ok) {
             throw new Error(`${(result ? ` | ${result} \n\n` : '')}- Hook ${index + 1}/${hooks.length}: ${hook.Title}`)
           }
         }))
@@ -62,11 +63,11 @@ export class Hooks extends HandlerBase {
           headers: hook.Headers || {},
         }
 
-        promises.push(fetch(hook.Url, postRequest).then(async (res) => {
-          if (!res.ok) {
-            const result = await Hooks.getJsonResult(res)
+        promises.push(fetch(hook.Url, postRequest).then(async (response) => {
+          if (!response.ok) {
+            const result = await Hooks.getJsonResult(response)
             throw new Error(`${(result ? ` | ${result} \n\n` : '')}- Hook ${index + 1}/${hooks.length}: ${hook.Title}`)
-          } else if (res.status === 202) {
+          } else if (response.status === 202) {
             const getPendingRequest = {
               method: 'GET',
               headers: hook.Headers || {},
@@ -75,11 +76,11 @@ export class Hooks extends HandlerBase {
             const getPendingResult = (url: string): Promise<any> => {
               return new Promise((resolvePending, reject) => {
                 setTimeout(async () => {
-                  await fetch(url, getPendingRequest).then(async (res) => {
-                    if (!res.ok) {
-                      const result = await Hooks.getJsonResult(res)
+                  await fetch(url, getPendingRequest).then(async (respone) => {
+                    if (!respone.ok) {
+                      const result = await Hooks.getJsonResult(respone)
                       reject(new Error(`${(result ? ` | ${result} \n\n` : '')}- Hook ${index + 1}/${hooks.length}: ${hook.Title}`))
-                    } else if (res.status == 202) {
+                    } else if (respone.status == 202) {
                       resolvePending(getPendingResult(url))
                     }
                   })
@@ -89,7 +90,7 @@ export class Hooks extends HandlerBase {
               })
             }
 
-            const pendingResultLocation = res.headers.get('location')
+            const pendingResultLocation = response.headers.get('location')
             await getPendingResult(pendingResultLocation)
           }
         }))
@@ -110,15 +111,15 @@ export class Hooks extends HandlerBase {
     }
   }
 
-  public static async getJsonResult(res: any): Promise<any> {
+  public static getJsonResult(response: any): Promise<any> {
     return new Promise(async (resolve) => {
-      if (!res.ok) {
+      if (!response.ok) {
         try {
-          const jsonResponse = await res.json()
-          resolve(`${res.status}${res.statusText ? ` - ${res.statusText}` : ''}${(jsonResponse['error'] ? ` | ${jsonResponse['error']}` : '')}`)
+          const jsonResponse = await response.json()
+          resolve(`${response.status}${response.statusText ? ` - ${response.statusText}` : ''}${(jsonResponse['error'] ? ` | ${jsonResponse['error']}` : '')}`)
         } catch {}
       }
-      resolve(`${res.status}${res.statusText ? ` - ${res.statusText}` : ''}`)
+      resolve(`${response.status}${response.statusText ? ` - ${response.statusText}` : ''}`)
     })
   }
 }

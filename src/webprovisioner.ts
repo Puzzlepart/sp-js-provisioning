@@ -1,29 +1,30 @@
 // we need to import HandlerBase & TypedHash to avoid naming issues in ts transpile
 import { Schema } from './schema'
 import { HandlerBase } from './handlers/handlerbase'
-import { sp, Web } from '@pnp/sp'
-import { TypedHash } from '@pnp/common'
 import { Logger, LogLevel, ConsoleListener } from '@pnp/logging'
 import { DefaultHandlerMap, DefaultHandlerSort } from './handlers/exports'
 import { ProvisioningContext } from './provisioningcontext'
 import { IProvisioningConfig } from './provisioningconfig'
+import { IWeb } from '@pnp/sp/webs'
+import { sp } from '@pnp/sp'
+import '@pnp/sp/webs'
 
 /**
  * Root class of Provisioning
  */
 export class WebProvisioner {
-  public handlerMap: TypedHash<HandlerBase>
+  public handlerMap: Record<string, HandlerBase>
   private context: ProvisioningContext = new ProvisioningContext()
   private config: IProvisioningConfig
   /**
    * Creates a new instance of the Provisioner class
    *
    * @param web - The Web instance to which we want to apply templates
-   * @param handlermap - A set of handlers we want to apply. The keys of the map need to match the property names in the template
+   * @param handlerSort - A set of handlers we want to apply. The keys of the map need to match the property names in the template
    */
   constructor(
-    private web: Web,
-    public handlerSort: TypedHash<number> = DefaultHandlerSort
+    private web: IWeb,
+    public handlerSort: Record<string, number> = DefaultHandlerSort
   ) {}
 
   private async onSetup() {

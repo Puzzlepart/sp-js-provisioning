@@ -1,7 +1,7 @@
 import { HandlerBase } from './handlerbase'
 import { ICustomAction } from '../schema'
-import { Web } from '@pnp/sp'
 import { IProvisioningConfig } from '../provisioningconfig'
+import { IWeb } from '@pnp/sp/webs'
 
 /**
  * Describes the Custom Actions Object Handler
@@ -20,10 +20,10 @@ export class CustomActions extends HandlerBase {
    * Provisioning Custom Actions
    *
    * @param web - The web
-   * @param customactions - The Custom Actions to provision
+   * @param customActions - The Custom Actions to provision
    */
   public async ProvisionObjects(
-    web: Web,
+    web: IWeb,
     customActions: ICustomAction[]
   ): Promise<void> {
     super.scope_started()

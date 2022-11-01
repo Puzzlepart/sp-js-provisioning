@@ -1,6 +1,5 @@
 import { IProvisioningConfig } from '../provisioningconfig'
 import * as xmljs from 'xml-js'
-import { TypedHash } from '@pnp/common'
 
 export function replaceUrlTokens(
   string: string,
@@ -48,7 +47,7 @@ export function isNode(): boolean {
 
 export function addFieldAttributes(
   schemaXml: string,
-  attributes: TypedHash<any>
+  attributes: Record<string, any>
 ) {
   const fieldXmlJson = JSON.parse(xmljs.xml2json(schemaXml))
   fieldXmlJson.elements[0].attributes = {

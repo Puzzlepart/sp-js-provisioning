@@ -1,9 +1,10 @@
 import * as xmljs from 'xml-js'
 import { HandlerBase } from './handlerbase'
-import { Web, FieldAddResult } from '@pnp/sp'
 import { ProvisioningContext } from '../provisioningcontext'
 import { IProvisioningConfig } from '../provisioningconfig'
 import { TokenHelper } from '../util/tokenhelper'
+import { IWeb } from '@pnp/sp/webs'
+import { IFieldAddResult } from '@pnp/sp/fields'
 
 /**
  * Describes the Site Fields Object Handler
@@ -27,7 +28,7 @@ export class SiteFields extends HandlerBase {
    * @param context - Provisioning context
    */
   public async ProvisionObjects(
-    web: Web,
+    web: IWeb,
     siteFields: string[],
     context?: ProvisioningContext
   ): Promise<void> {
@@ -58,12 +59,12 @@ export class SiteFields extends HandlerBase {
    * Provision a site field
    *
    * @param web - The web
-   * @param clientSidePage - Cient side page
+   * @param schemaXml - Schema XML
    */
   private async processSiteField(
-    web: Web,
+    web: IWeb,
     schemaXml: string
-  ): Promise<FieldAddResult> {
+  ): Promise<IFieldAddResult> {
     try {
       schemaXml = this.tokenHelper.replaceTokens(schemaXml)
       const schemaXmlJson = JSON.parse(xmljs.xml2json(schemaXml))
