@@ -1,12 +1,11 @@
-import {
-  ClientSidePage, ClientSidePageComponent, ClientSideWebpart, Web
-} from '@pnp/sp'
 import { IProvisioningConfig } from '../provisioningconfig'
 import { ProvisioningContext } from '../provisioningcontext'
 import { IClientSidePage } from '../schema'
 import { replaceUrlTokens } from '../util'
 import { TokenHelper } from '../util/tokenhelper'
 import { HandlerBase } from './handlerbase'
+import { CreateClientsidePage, IClientsidePageComponent, ClientsideWebpart } from '@pnp/sp/clientside-pages'
+import { IWeb } from '@pnp/sp/webs/types'
 
 /**
  * Describes the Composed Look Object Handler
@@ -29,18 +28,18 @@ export class ClientSidePages extends HandlerBase {
    * @param context - Provisioning context
    */
   public async ProvisionObjects(
-    web: Web,
+    web: IWeb,
     clientSidePages: IClientSidePage[],
     context?: ProvisioningContext
   ): Promise<void> {
     this.tokenHelper = new TokenHelper(context, this.config)
     super.scope_started()
     try {
-      const partDefinitions = await web.getClientSideWebParts()
+      const clientsideWebParts = await web.getClientsideWebParts()
       await clientSidePages.reduce(
         (chain: Promise<any>, clientSidePage) =>
           chain.then(() =>
-            this.processClientSidePage(web, clientSidePage, partDefinitions)
+            this.processClientSidePage(web, clientSidePage, clientsideWebParts)
           ),
         Promise.resolve()
       )
@@ -55,18 +54,18 @@ export class ClientSidePages extends HandlerBase {
    *
    * @param web - The web
    * @param clientSidePage - Cient side page
-   * @param partDefinitions - Cient side web parts
+   * @param clientsideWebParts - Cient side web parts
    */
   private async processClientSidePage(
-    web: Web,
+    web: IWeb,
     clientSidePage: IClientSidePage,
-    partDefinitions: ClientSidePageComponent[]
+    clientsideWebParts: IClientsidePageComponent[]
   ) {
     super.log_info(
       'processClientSidePage',
       `Processing client side page ${clientSidePage.Name}`
     )
-    const page = await ClientSidePage.create(
+    const page = await CreateClientsidePage(
       web,
       clientSidePage.Name,
       clientSidePage.Title,
@@ -78,7 +77,7 @@ export class ClientSidePages extends HandlerBase {
       for (const col of s.Columns) {
         const column = section.addColumn(col.Factor)
         for (const control of col.Controls) {
-          const partDef = partDefinitions.find((c) =>
+          const partDef = clientsideWebParts.find((c) =>
             c.Id.toLowerCase().includes(control.Id.toLowerCase())
           )
           if (!partDef) {
@@ -93,7 +92,7 @@ export class ClientSidePages extends HandlerBase {
               JSON.stringify(control.Properties)
             )
             properties = replaceUrlTokens(properties, this.config)
-            const part = ClientSideWebpart.fromComponentDef(
+            const part = ClientsideWebpart.fromComponentDef(
               partDef
             ).setProperties<any>(JSON.parse(properties))
             if (control.ServerProcessedContent) {
@@ -126,13 +125,7 @@ export class ClientSidePages extends HandlerBase {
       'processClientSidePage',
       `Saving client side page ${clientSidePage.Name}`
     )
+    page.commentsDisabled = clientSidePage.CommentsDisabled
     await page.save()
-    if (clientSidePage.CommentsDisabled) {
-      super.log_info(
-        'processClientSidePage',
-        `Disabling comments for client side page ${clientSidePage.Name}`
-      )
-      await page.disableComments()
-    }
   }
 }

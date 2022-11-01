@@ -2,8 +2,8 @@ import { HandlerBase } from './handlerbase'
 import { IPropertyBagEntry } from '../schema'
 import * as Util from '../util'
 import { Logger, LogLevel } from '@pnp/logging'
-import { Web } from '@pnp/sp'
 import { IProvisioningConfig } from '../provisioningconfig'
+import { IWeb } from '@pnp/sp/webs'
 
 /**
  * Describes the PropertyBagEntries Object Handler
@@ -25,7 +25,7 @@ export class PropertyBagEntries extends HandlerBase {
    * @param entries - The property bag entries to provision
    */
   public ProvisionObjects(
-    web: Web,
+    web: IWeb,
     entries: IPropertyBagEntry[]
   ): Promise<void> {
     super.scope_started()

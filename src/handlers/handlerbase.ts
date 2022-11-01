@@ -1,5 +1,5 @@
 import { Logger, LogLevel } from '@pnp/logging'
-import { Web } from '@pnp/sp'
+import { IWeb } from '@pnp/sp/webs'
 import { IProvisioningConfig } from '../provisioningconfig'
 import { ProvisioningContext } from '../provisioningcontext'
 
@@ -24,7 +24,7 @@ export class HandlerBase {
   /**
    * Provisioning objects
    */
-  public ProvisionObjects(web: Web, templatePart: any, _context?: ProvisioningContext): Promise<void> {
+  public ProvisionObjects(web: IWeb, templatePart: any, _context?: ProvisioningContext): Promise<void> {
     Logger.log({ data: templatePart, level: LogLevel.Warning, message: `Handler ${this.name} for web [${web.toUrl()}] does not override ProvisionObjects.` })
     return Promise.resolve()
   }
@@ -39,7 +39,7 @@ export class HandlerBase {
   /**
    * Writes to Logger when scope has stopped
    * 
-   * @param error Error
+   * @param error - Error
    */
   public scope_ended(error?: Error) {
     if (error) this.log_error('ProvisionObjects', `Code execution scope ended with error: ${error.message}`)

@@ -1,14 +1,15 @@
 /* eslint-disable unicorn/prevent-abbreviations */
 import * as xmljs from 'xml-js'
 import { HandlerBase } from './handlerbase'
-import { IFile, IWebPart } from '../schema'
-import { Web, File, FileAddResult } from '@pnp/sp'
+import { IFileInstance, IWebPart } from '../schema'
 import { combine, isArray } from '@pnp/common'
 import { Logger, LogLevel } from '@pnp/logging'
 import { replaceUrlTokens } from '../util'
 import { ProvisioningContext } from '../provisioningcontext'
 import { IProvisioningConfig } from '../provisioningconfig'
 import { TokenHelper } from '../util/tokenhelper'
+import { IWeb } from '@pnp/sp/webs'
+import { IFile, IFileAddResult } from '@pnp/sp/files'
 
 /**
  * Describes the Features Object Handler
@@ -33,8 +34,8 @@ export class Files extends HandlerBase {
    * @param context - Provisioning context
    */
   public async ProvisionObjects(
-    web: Web,
-    files: IFile[],
+    web: IWeb,
+    files: IFileInstance[],
     context?: ProvisioningContext
   ): Promise<void> {
     this.tokenHelper = new TokenHelper(context, this.config)
@@ -60,7 +61,7 @@ export class Files extends HandlerBase {
    *
    * @param file - The file
    */
-  private async getFileBlob(file: IFile): Promise<Blob> {
+  private async getFileBlob(file: IFileInstance): Promise<Blob> {
     const fileSourceWithoutTokens = replaceUrlTokens(
       this.tokenHelper.replaceTokens(file.Src),
       this.config
@@ -82,8 +83,8 @@ export class Files extends HandlerBase {
    * @param webServerRelativeUrl - ServerRelativeUrl for the web
    */
   private async processFile(
-    web: Web,
-    file: IFile,
+    web: IWeb,
+    file: IFileInstance,
     webServerRelativeUrl: string
   ): Promise<void> {
     Logger.log({
@@ -105,8 +106,8 @@ export class Files extends HandlerBase {
         folderServerRelativeUrl,
         file.Url
       )
-      let fileAddResult: FileAddResult
-      let pnpFile: File
+      let fileAddResult: IFileAddResult
+      let pnpFile: IFile
       try {
         fileAddResult = await pnpFolder.files.add(
           file.Url,
@@ -179,7 +180,7 @@ export class Files extends HandlerBase {
    * @param fileServerRelativeUrl - ServerRelativeUrl for the file
    */
   private processWebParts(
-    file: IFile,
+    file: IFileInstance,
     webServerRelativeUrl: string,
     fileServerRelativeUrl: string
   ) {
@@ -315,7 +316,7 @@ export class Files extends HandlerBase {
    * @param fileServerRelativeUrl - ServerRelativeUrl for the file
    */
   private processPageListViews(
-    web: Web,
+    web: IWeb,
     webParts: Array<IWebPart>,
     fileServerRelativeUrl: string
   ): Promise<void> {
@@ -373,7 +374,7 @@ export class Files extends HandlerBase {
    * @param fileServerRelativeUrl - ServerRelativeUrl for the file
    */
   private processPageListView(
-    web: Web,
+    web: IWeb,
     listView,
     fileServerRelativeUrl: string
   ) {
@@ -448,7 +449,7 @@ export class Files extends HandlerBase {
    * @param pnpFile - The PnP file
    * @param properties - The properties to set
    */
-  private async processProperties(web: Web, pnpFile: File, file: IFile) {
+  private async processProperties(web: IWeb, pnpFile: IFile, file: IFileInstance) {
     const hasProperties =
       file.Properties && Object.keys(file.Properties).length > 0
     if (hasProperties) {

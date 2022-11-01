@@ -1,7 +1,5 @@
-import { TypedHash } from '@pnp/common'
-
 export interface Schema {
-  Parameters?: TypedHash<string>
+  Parameters?: Record<string, string>
   Version?: string
   Hooks?: IHooks[]
   Navigation?: INavigation
@@ -9,8 +7,8 @@ export interface Schema {
   ComposedLook?: IComposedLook
   WebSettings?: IWebSettings
   Features?: IFeature[]
-  Lists?: IList[]
-  Files?: IFile[]
+  Lists?: IListInstance[]
+  Files?: IFileInstance[]
   PropertyBagEntries?: IPropertyBagEntry[]
   ClientSidePages?: IClientSidePage[]
   SiteFields?: string[]
@@ -39,10 +37,10 @@ export interface IClientSideControl {
   Id: string
   Properties: { [key: string]: any }
   ServerProcessedContent?: {
-    htmlStrings: TypedHash<string>
-    searchablePlainTexts: TypedHash<string>
-    imageSources: TypedHash<string>
-    links: TypedHash<string>
+    htmlStrings: Record<string, string>
+    searchablePlainTexts: Record<string, string>
+    imageSources: Record<string, string>
+    links: Record<string, string>
   }
 }
 
@@ -69,7 +67,7 @@ export interface IFeature {
   force: boolean
 }
 
-export interface IFile {
+export interface IFileInstance {
   Folder: string
   Src: string
   Url: string
@@ -164,7 +162,7 @@ export interface IListSecurity {
   RoleAssignments?: IRoleAssignment[]
 }
 
-export interface IList {
+export interface IListInstance {
   Title: string
   Description: string
   Template: number

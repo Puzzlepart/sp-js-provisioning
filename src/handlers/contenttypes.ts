@@ -1,9 +1,10 @@
 import initSpfxJsom, { ExecuteJsomQuery, JsomContext } from 'spfx-jsom'
 import { HandlerBase } from './handlerbase'
-import { Web, ContentTypeAddResult } from '@pnp/sp'
 import { ProvisioningContext } from '../provisioningcontext'
 import { IProvisioningConfig } from '../provisioningconfig'
 import { IContentType } from '../schema'
+import { IWeb } from '@pnp/sp/webs'
+import { IContentTypeAddResult } from '@pnp/sp/content-types'
 
 /**
  * Describes the Content Types Object Handler
@@ -27,7 +28,7 @@ export class ContentTypes extends HandlerBase {
    * @param context - Provisioning context
    */
   public async ProvisionObjects(
-    web: Web,
+    web: IWeb,
     contentTypes: IContentType[],
     context: ProvisioningContext
   ): Promise<void> {
@@ -83,14 +84,14 @@ export class ContentTypes extends HandlerBase {
    * @param contentType - Content type
    */
   private async processContentType(
-    web: Web,
+    web: IWeb,
     contentType: IContentType
   ): Promise<void> {
     try {
       let contentTypeId = this.context.contentTypes[contentType.Name].ID
       if (!contentTypeId) {
         const contentTypeAddResult = await this.addContentType(web, contentType)
-        contentTypeId = contentTypeAddResult.data.Id
+        contentTypeId = contentTypeAddResult.data.Id.StringValue
       }
       super.log_info(
         'processContentType',
@@ -122,9 +123,9 @@ export class ContentTypes extends HandlerBase {
    * @param contentType - Content type
    */
   private async addContentType(
-    web: Web,
+    web: IWeb,
     contentType: IContentType
-  ): Promise<ContentTypeAddResult> {
+  ): Promise<IContentTypeAddResult> {
     try {
       super.log_info(
         'addContentType',

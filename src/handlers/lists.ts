@@ -1,18 +1,19 @@
 /* eslint-disable unicorn/no-array-for-each */
-import { List, Web } from '@pnp/sp'
 import initSpfxJsom, { JsomContext } from 'spfx-jsom'
 import * as xmljs from 'xml-js'
 import { IProvisioningConfig } from '../provisioningconfig'
 import { ProvisioningContext } from '../provisioningcontext'
 import {
   IContentTypeBinding,
-  IList,
+  IListInstance,
   IListInstanceFieldReference,
   IListView
 } from '../schema'
 import { TokenHelper } from '../util/tokenhelper'
 import { HandlerBase } from './handlerbase'
 import { addFieldAttributes } from '../util'
+import { IWeb } from '@pnp/sp/webs'
+import { IList } from '@pnp/sp/lists'
 
 export interface ISPField {
   Id: string
@@ -44,8 +45,8 @@ export class Lists extends HandlerBase {
    * @param lists - The lists to provision
    */
   public async ProvisionObjects(
-    web: Web,
-    lists: IList[],
+    web: IWeb,
+    lists: IListInstance[],
     context: ProvisioningContext
   ): Promise<void> {
     this.jsomContext = (
@@ -103,9 +104,9 @@ export class Lists extends HandlerBase {
    * @param web - The web
    * @param lc - The list
    */
-  private async processList(web: Web, lc: IList): Promise<void> {
+  private async processList(web: IWeb, lc: IListInstance): Promise<void> {
     super.log_info('processList', `Processing list ${lc.Title}`)
-    let list: List
+    let list: IList
     if (this.context.lists[lc.Title]) {
       super.log_info(
         'processList',
@@ -153,8 +154,8 @@ export class Lists extends HandlerBase {
    * @param removeExisting - Remove existing content type bindings
    */
   private async processContentTypeBindings(
-    lc: IList,
-    list: List,
+    lc: IListInstance,
+    list: IList,
     contentTypeBindings: IContentTypeBinding[],
     removeExisting: boolean
   ): Promise<any> {
@@ -202,8 +203,8 @@ export class Lists extends HandlerBase {
    * @param contentTypeID - The Content Type ID
    */
   private async processContentTypeBinding(
-    lc: IList,
-    list: List,
+    lc: IListInstance,
+    list: IList,
     contentTypeID: string
   ): Promise<any> {
     try {
@@ -230,7 +231,7 @@ export class Lists extends HandlerBase {
    * @param web - The web
    * @param list - The pnp list
    */
-  private async processListFields(web: Web, list: IList): Promise<any> {
+  private async processListFields(web: IWeb, list: IListInstance): Promise<any> {
     if (list.Fields) {
       await list.Fields.reduce(
         (chain, field) => chain.then(() => this.processField(web, list, field)),
@@ -247,8 +248,8 @@ export class Lists extends HandlerBase {
    * @param fieldXml - Field XML
    */
   private async processField(
-    web: Web,
-    lc: IList,
+    web: IWeb,
+    lc: IListInstance,
     fieldXml: string
   ): Promise<any> {
     const list = web.lists.getByTitle(lc.Title)
@@ -302,7 +303,7 @@ export class Lists extends HandlerBase {
    * @param web - The web
    * @param lc - The list configuration
    */
-  private async processListFieldRefs(web: Web, lc: IList): Promise<any> {
+  private async processListFieldRefs(web: IWeb, lc: IListInstance): Promise<any> {
     if (lc.FieldRefs) {
       super.log_info(
         'processListFieldRefs',
@@ -335,13 +336,13 @@ export class Lists extends HandlerBase {
    *
    * @param list - The list
    * @param lc - The list configuration
-   * @param fieldRef - The list field ref
+   * @param fieldReference - The list field ref
    * @param listFields - The list fields
    * @param webFields - The web fields
    */
   private async processFieldRef(
-    list: List,
-    lc: IList,
+    list: IList,
+    lc: IListInstance,
     fieldReference: IListInstanceFieldReference,
     listFields: ISPField[],
     webFields: ISPField[]
@@ -390,7 +391,7 @@ export class Lists extends HandlerBase {
    * @param web - The web
    * @param lc - The list configuration
    */
-  private async processListViews(web: Web, lc: IList): Promise<any> {
+  private async processListViews(web: IWeb, lc: IListInstance): Promise<any> {
     if (lc.Views) {
       await lc.Views.reduce(
         (chain: any, view) => chain.then(() => this.processView(web, lc, view)),
@@ -416,8 +417,8 @@ export class Lists extends HandlerBase {
    * @param lvc - The view configuration
    */
   private async processView(
-    web: Web,
-    lc: IList,
+    web: IWeb,
+    lc: IListInstance,
     lvc: IListView
   ): Promise<void> {
     super.log_info(
