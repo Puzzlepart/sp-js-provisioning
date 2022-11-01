@@ -1,6 +1,6 @@
 import { IProvisioningConfig } from '../provisioningconfig'
 import { ProvisioningContext } from '../provisioningcontext'
-import { IClientSidePage } from '../schema'
+import { IClientSideControl, IClientSidePage } from '../schema'
 import { replaceUrlTokens } from '../util'
 import { TokenHelper } from '../util/tokenhelper'
 import { HandlerBase } from './handlerbase'
@@ -77,48 +77,18 @@ export class ClientSidePages extends HandlerBase {
       for (const col of s.Columns) {
         const column = section.addColumn(col.Factor)
         for (const control of col.Controls) {
-          const partDef = clientsideWebParts.find((c) =>
-            c.Id.toLowerCase().includes(control.Id.toLowerCase())
-          )
-          if (!partDef) {
-            super.log_warn(
-              'processClientSidePage',
-              `Client side web part with definition id ${control.Id} not found.`
-            )
-            continue
-          }
           try {
-            let properties = this.tokenHelper.replaceTokens(
-              JSON.stringify(control.Properties)
-            )
-            properties = replaceUrlTokens(properties, this.config)
-            const part = ClientsideWebpart.fromComponentDef(
-              partDef
-            ).setProperties<any>(JSON.parse(properties))
-            if (control.ServerProcessedContent) {
-              const serverProcessedContent = this.tokenHelper.replaceTokens(
-                JSON.stringify(control.ServerProcessedContent)
-              )
-              super.log_info(
-                'processClientSidePage',
-                `Adding serverProcessedContent ${serverProcessedContent} to client side page ${clientSidePage.Name}`
-              )
-              part.data.webPartData.serverProcessedContent = JSON.parse(
-                serverProcessedContent
-              )
-            }
-            super.log_info(
-              'processClientSidePage',
-              `Adding ${partDef.Name} to client side page ${clientSidePage.Name}`
-            )
-            column.addControl(part)
-          } catch {
-            super.log_info(
-              'processClientSidePage',
-              `Failed adding part ${partDef.Name} to client side page ${clientSidePage.Name}`
-            )
-          }
+            const columnControl = this.getColumnControl(control, clientsideWebParts)
+            if (columnControl !== null) column.addControl(columnControl)
+          } catch {}
         }
+      }
+    }
+    if (clientSidePage.VerticalSection) {
+      const a = page.addVerticalSection()
+      for (const control of clientSidePage.VerticalSection) {
+        const columnControl = this.getColumnControl(control, clientsideWebParts)
+        a.addControl(columnControl)
       }
     }
     super.log_info(
@@ -127,5 +97,40 @@ export class ClientSidePages extends HandlerBase {
     )
     page.commentsDisabled = clientSidePage.CommentsDisabled
     await page.save()
+  }
+
+  /**
+   * Provision a client side page
+   *
+   * @param control - Control
+   * @param clientsideWebParts - Cient side web parts
+   */
+  private getColumnControl(control: IClientSideControl, clientsideWebParts: IClientsidePageComponent[]) {
+    const partDefinition = clientsideWebParts.find((c) =>
+      c.Id.toLowerCase().includes(control.Id.toLowerCase())
+    )
+    if (!partDefinition) {
+      super.log_warn(
+        'processClientSidePage',
+        `Client side web part with definition id ${control.Id} not found.`
+      )
+      return null
+    }
+    let properties = this.tokenHelper.replaceTokens(
+      JSON.stringify(control.Properties)
+    )
+    properties = replaceUrlTokens(properties, this.config)
+    const part = ClientsideWebpart.fromComponentDef(
+      partDefinition
+    ).setProperties<any>(JSON.parse(properties))
+    if (control.ServerProcessedContent) {
+      const serverProcessedContent = this.tokenHelper.replaceTokens(
+        JSON.stringify(control.ServerProcessedContent)
+      )
+      part.data.webPartData.serverProcessedContent = JSON.parse(
+        serverProcessedContent
+      )
+    }
+    return part
   }
 }

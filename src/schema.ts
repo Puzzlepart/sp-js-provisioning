@@ -59,6 +59,7 @@ export interface IClientSidePage {
   PageLayoutType: any
   CommentsDisabled?: boolean
   Sections?: IClientSidePageSection[]
+  VerticalSection: IClientSideControl[]
 }
 
 export interface IFeature {
