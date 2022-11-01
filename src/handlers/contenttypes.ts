@@ -41,13 +41,12 @@ export class ContentTypes extends HandlerBase {
       this.context.contentTypes = (
         await web.contentTypes
           .select('Id', 'Name', 'FieldLinks')
-          .expand('FieldLinks')
-          .get<any[]>()
+          .expand('FieldLinks')()
       ).reduce((object, contentType) => {
         object[contentType.Name] = {
           ID: contentType.Id.StringValue,
           Name: contentType.Name,
-          FieldRefs: contentType.FieldLinks.map((fieldLink: any) => ({
+          FieldRefs: contentType['FieldLinks'].map((fieldLink: any) => ({
             ID: fieldLink.Id,
             Name: fieldLink.Name,
             Required: fieldLink.Required,

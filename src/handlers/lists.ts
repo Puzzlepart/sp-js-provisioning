@@ -58,8 +58,7 @@ export class Lists extends HandlerBase {
     try {
       this.context.lists = (
         await web.lists
-          .select('Id', 'Title')
-          .get<Array<{ Id: string; Title: string }>>()
+          .select('Id', 'Title')()
       ).reduce((object, l) => {
         object[l.Title] = l.Id
         return object
@@ -85,8 +84,7 @@ export class Lists extends HandlerBase {
       )
       this.context.lists = (
         await web.lists
-          .select('Id', 'Title')
-          .get<Array<{ Id: string; Title: string }>>()
+          .select('Id', 'Title')()
       ).reduce((object, l) => {
         object[l.Title] = l.Id
         return object
@@ -172,7 +170,7 @@ export class Lists extends HandlerBase {
     )
     if (removeExisting) {
       const promises = []
-      const contentTypes = await list.contentTypes.get()
+      const contentTypes = await list.contentTypes()
       contentTypes.forEach(({ Id: { StringValue: ContentTypeId } }) => {
         const shouldRemove =
           contentTypeBindings.filter((ctb) =>
@@ -312,11 +310,9 @@ export class Lists extends HandlerBase {
       const list = web.lists.getByTitle(lc.Title)
       const [listFields, webFields] = await Promise.all([
         list.fields
-          .select('Id', 'InternalName', 'SchemaXml')
-          .get<ISPField[]>(),
+          .select('Id', 'InternalName', 'SchemaXml')(),
         web.fields
-          .select('Id', 'InternalName', 'SchemaXml')
-          .get<ISPField[]>()
+          .select('Id', 'InternalName', 'SchemaXml')()
       ])
       super.log_info(
         'processListFieldRefs',
@@ -401,8 +397,7 @@ export class Lists extends HandlerBase {
     this.context.listViews = (
       await web.lists
         .getByTitle(lc.Title)
-        .views.select('Id', 'Title')
-        .get<Array<{ Id: string; Title: string }>>()
+        .views.select('Id', 'Title')()
     ).reduce((object, view) => {
       object[`${lc.Title}|${view.Title}`] = view.Id
       return object
@@ -430,7 +425,7 @@ export class Lists extends HandlerBase {
       .views.getByTitle(lvc.Title)
     let viewExists = false
     try {
-      await existingView.get()
+      await existingView()
       viewExists = true
     } catch {}
     try {

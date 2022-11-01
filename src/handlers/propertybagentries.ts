@@ -43,7 +43,7 @@ export class PropertyBagEntries extends HandlerBase {
         )
         reject()
       } else {
-        web.get().then(({ ServerRelativeUrl }) => {
+        web().then(({ ServerRelativeUrl }) => {
           const context = new SP.ClientContext(ServerRelativeUrl),
             spWeb = context.get_web(),
             propertyBag = spWeb.get_allProperties(),

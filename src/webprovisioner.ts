@@ -6,7 +6,6 @@ import { DefaultHandlerMap, DefaultHandlerSort } from './handlers/exports'
 import { ProvisioningContext } from './provisioningcontext'
 import { IProvisioningConfig } from './provisioningconfig'
 import { IWeb } from '@pnp/sp/webs'
-import { sp } from '@pnp/sp'
 import '@pnp/sp/webs'
 
 /**
@@ -25,21 +24,15 @@ export class WebProvisioner {
   constructor(
     private web: IWeb,
     public handlerSort: Record<string, number> = DefaultHandlerSort
-  ) {}
+  ) { }
 
   private async onSetup() {
-    if (this.config && this.config.spfxContext) {
-      sp.setup({
-        spfxContext: this.config.spfxContext,
-        ...(this.config.spConfiguration || {})
-      })
-    }
-    if (this.config && this.config.logging) {
-      Logger.subscribe(new ConsoleListener())
+    if (this.config?.logging) {
+      Logger.subscribe(ConsoleListener())
       Logger.activeLogLevel = this.config.logging.activeLogLevel
     }
     this.handlerMap = DefaultHandlerMap(this.config)
-    this.context.web = await this.web.get()
+    this.context.web = await this.web()
   }
 
   /**

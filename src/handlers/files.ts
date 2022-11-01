@@ -380,8 +380,7 @@ export class Files extends HandlerBase {
   ) {
     return new Promise<void>((resolve, reject) => {
       const views = web.lists.getByTitle(listView.List).views
-      views
-        .get()
+      views()
         .then((listViews) => {
           const wpView = listViews.filter(
             (v) => v.ServerRelativeUrl === fileServerRelativeUrl
@@ -459,8 +458,7 @@ export class Files extends HandlerBase {
       })
       const listItemAllFields = await pnpFile.listItemAllFields
         .select('ID', 'ParentList/ID', 'ParentList/Title')
-        .expand('ParentList')
-        .get()
+        .expand('ParentList')()
       await web.lists
         .getById(listItemAllFields.ParentList.Id)
         .items.getById(listItemAllFields.ID)

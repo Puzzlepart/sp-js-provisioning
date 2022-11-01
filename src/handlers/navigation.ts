@@ -57,7 +57,7 @@ export class Navigation extends HandlerBase {
     nodes: INavigationNode[]
   ): Promise<void> {
     try {
-      const existingNodes = await target.get()
+      const existingNodes = await target()
       await this.deleteExistingNodes(target)
       await nodes.reduce(
         (chain: any, node) =>
@@ -93,7 +93,7 @@ export class Navigation extends HandlerBase {
 
   private async deleteExistingNodes(target: INavigationNodes) {
     try {
-      const existingNodes = await target.get()
+      const existingNodes = await target()
       await existingNodes.reduce(
         (chain: Promise<void>, n: any) =>
           chain.then(() => this.deleteNode(target, n.Id)),

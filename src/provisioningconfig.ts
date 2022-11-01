@@ -1,5 +1,4 @@
 import { LogLevel } from '@pnp/logging'
-import { ISPConfiguration } from '@pnp/sp/presets/all'
 
 export type ProvisioningParameters = { [key: string]: string }
 
@@ -15,5 +14,4 @@ export interface IProvisioningConfig {
   parameters?: ProvisioningParameters
   spfxContext?: any
   logging?: IProvisioningLogging
-  spConfiguration?: ISPConfiguration
 }
