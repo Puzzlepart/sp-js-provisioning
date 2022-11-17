@@ -15,7 +15,6 @@
     "xml-js": "1.6.11"
   },
   "devDependencies": {
-    "@commitlint/config-conventional": "^12.0.1",
     "@types/es6-promise": "0.0.33",
     "@types/node": "^8.0.28",
     "@types/sharepoint": "^2016.1.2",
@@ -30,7 +29,6 @@
     "eslint-plugin-react-hooks": "^4.2.0",
     "eslint-plugin-tsdoc": "0.2.11",
     "eslint-plugin-unicorn": "^28.0.2",
-    "husky": "^5.2.0",
     "merge": "1.2.0",
     "merge2": "^1.0.2",
     "prettier": "2.2.1",
@@ -40,7 +38,6 @@
     "build": "tsc",
     "watch": "tsc --watch",
     "lint": "eslint --ext .ts ./src --color --fix && prettier '**/*.ts*' --write --loglevel silent",
-    "prepare": "husky install",
     "postversion": "tsc && npm publish"
   },
   "commitlint": {

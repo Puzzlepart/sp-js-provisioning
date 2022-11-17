@@ -87,11 +87,11 @@ export class ContentTypes extends HandlerBase {
     contentType: IContentType
   ): Promise<void> {
     try {
-      let contentTypeId = this.context.contentTypes[contentType.Name].ID
-      if (!contentTypeId) {
-        const contentTypeAddResult = await this.addContentType(web, contentType)
-        contentTypeId = contentTypeAddResult.data.Id
-      }
+      const contentTypeId = this.context.contentTypes[contentType.Name]?.ID
+      if (!contentTypeId)
+        throw new Error(
+          `Content type with name '${contentType.Name}' does not exist in the web.`
+        )
       super.log_info(
         'processContentType',
         `Processing content type [${contentType.Name}] (${contentTypeId})`

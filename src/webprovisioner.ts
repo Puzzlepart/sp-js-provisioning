@@ -1,3 +1,4 @@
+/* eslint-disable unicorn/empty-brace-spaces */
 // we need to import HandlerBase & TypedHash to avoid naming issues in ts transpile
 import { Schema } from './schema'
 import { HandlerBase } from './handlers/handlerbase'
@@ -7,6 +8,7 @@ import { Logger, LogLevel, ConsoleListener } from '@pnp/logging'
 import { DefaultHandlerMap, DefaultHandlerSort } from './handlers/exports'
 import { ProvisioningContext } from './provisioningcontext'
 import { IProvisioningConfig } from './provisioningconfig'
+import { ProvisioningError } from './provisioningerror'
 
 /**
  * Root class of Provisioning
@@ -19,12 +21,12 @@ export class WebProvisioner {
    * Creates a new instance of the Provisioner class
    *
    * @param web - The Web instance to which we want to apply templates
-   * @param handlermap - A set of handlers we want to apply. The keys of the map need to match the property names in the template
+   * @param handlerSort - A set of handlers we want to apply. The keys of the map need to match the property names in the template
    */
   constructor(
     private web: Web,
     public handlerSort: TypedHash<number> = DefaultHandlerSort
-  ) {}
+  ) { }
 
   private async onSetup() {
     if (this.config && this.config.spfxContext) {
@@ -53,7 +55,6 @@ export class WebProvisioner {
     handlers?: string[],
     progressCallback?: (message: string) => void
   ): Promise<any> {
-
     Logger.log({
       message: `${this.config.logging.prefix} (WebProvisioner): (applyTemplate): Applying template to web`,
       data: { handlers },
@@ -73,12 +74,11 @@ export class WebProvisioner {
       }
     )
 
-    if (handlers) {
-      operations = operations.filter((op) => handlers.includes(op))
-    }
+    if (handlers) operations = operations.filter((op) => handlers.includes(op))
 
     operations = operations.filter((name) => this.handlerMap[name])
 
+    let currentHandler: string
     try {
       await operations.reduce((chain: any, name: string) => {
         const handler = this.handlerMap[name]
@@ -86,6 +86,7 @@ export class WebProvisioner {
           if (progressCallback) {
             progressCallback(name)
           }
+          currentHandler = name
           return handler.ProvisionObjects(
             this.web,
             template[name],
@@ -94,7 +95,7 @@ export class WebProvisioner {
         })
       }, Promise.resolve())
     } catch (error) {
-      throw error
+      throw new ProvisioningError(currentHandler, error)
     }
   }
 

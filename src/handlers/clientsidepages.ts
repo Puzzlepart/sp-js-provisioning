@@ -1,5 +1,8 @@
 import {
-  ClientSidePage, ClientSidePageComponent, ClientSideWebpart, Web
+  ClientSidePage,
+  ClientSidePageComponent,
+  ClientSideWebpart,
+  Web
 } from '@pnp/sp'
 import { IProvisioningConfig } from '../provisioningconfig'
 import { ProvisioningContext } from '../provisioningcontext'
