@@ -1,7 +1,7 @@
-import { HandlerBase } from './handlerbase'
-import { IFeature } from '../schema'
 import { Web } from '@pnp/sp'
 import { IProvisioningConfig } from '../provisioningconfig'
+import { IFeature } from '../schema'
+import { HandlerBase } from './handlerbase'
 
 /**
  * Describes the Features Object Handler
@@ -13,7 +13,7 @@ export class Features extends HandlerBase {
    * @param config - Provisioning config
    */
   constructor(config: IProvisioningConfig) {
-    super(Features.name, config)
+    super('Features', config)
   }
 
   /**

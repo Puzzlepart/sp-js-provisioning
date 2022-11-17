@@ -1,9 +1,9 @@
+import { ContentTypeAddResult, Web } from '@pnp/sp'
 import initSpfxJsom, { ExecuteJsomQuery, JsomContext } from 'spfx-jsom'
-import { HandlerBase } from './handlerbase'
-import { Web, ContentTypeAddResult } from '@pnp/sp'
-import { ProvisioningContext } from '../provisioningcontext'
 import { IProvisioningConfig } from '../provisioningconfig'
+import { ProvisioningContext } from '../provisioningcontext'
 import { IContentType } from '../schema'
+import { HandlerBase } from './handlerbase'
 
 /**
  * Describes the Content Types Object Handler
@@ -16,7 +16,7 @@ export class ContentTypes extends HandlerBase {
    * Creates a new instance of the ObjectSiteFields class
    */
   constructor(config: IProvisioningConfig) {
-    super(ContentTypes.name, config)
+    super('ContentTypes', config)
   }
 
   /**

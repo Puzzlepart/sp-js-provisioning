@@ -13,7 +13,7 @@ export class Hooks extends HandlerBase {
    * @param config - Provisioning config
    */
   constructor(config: IProvisioningConfig) {
-    super(Hooks.name, config)
+    super('Hooks', config)
   }
 
   /**
