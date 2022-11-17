@@ -1,9 +1,9 @@
-import { HandlerBase } from './handlerbase'
-import { INavigation, INavigationNode } from '../schema'
-import { Web, NavigationNodes } from '@pnp/sp'
 import { isArray } from '@pnp/common'
-import { replaceUrlTokens } from '../util'
+import { NavigationNodes, Web } from '@pnp/sp'
 import { IProvisioningConfig } from '../provisioningconfig'
+import { INavigation, INavigationNode } from '../schema'
+import { replaceUrlTokens } from '../util'
+import { HandlerBase } from './handlerbase'
 
 /**
  * Describes the Navigation Object Handler
@@ -15,7 +15,7 @@ export class Navigation extends HandlerBase {
    * @param config - Provisioning config
    */
   constructor(config: IProvisioningConfig) {
-    super(Navigation.name, config)
+    super('Navigation', config)
   }
 
   /**
