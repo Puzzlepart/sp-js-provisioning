@@ -3,11 +3,7 @@
 import { TypedHash } from '@pnp/common'
 import { ConsoleListener, Logger, LogLevel } from '@pnp/logging'
 import { sp, Web } from '@pnp/sp'
-import {
-  DefaultHandlerMap,
-  DefaultHandlerSort,
-  Handler
-} from './handlers/exports'
+import { DefaultHandlerMap, DefaultHandlerSort, Handler } from './handlers/exports'
 import { HandlerBase } from './handlers/handlerbase'
 import { IProvisioningConfig } from './provisioningconfig'
 import { ProvisioningContext } from './provisioningcontext'
