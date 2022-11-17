@@ -1,14 +1,14 @@
 /* eslint-disable unicorn/empty-brace-spaces */
 // we need to import HandlerBase & TypedHash to avoid naming issues in ts transpile
-import { Schema } from './schema'
-import { HandlerBase } from './handlers/handlerbase'
-import { sp, Web } from '@pnp/sp'
 import { TypedHash } from '@pnp/common'
-import { Logger, LogLevel, ConsoleListener } from '@pnp/logging'
-import { DefaultHandlerMap, DefaultHandlerSort } from './handlers/exports'
-import { ProvisioningContext } from './provisioningcontext'
+import { ConsoleListener, Logger, LogLevel } from '@pnp/logging'
+import { sp, Web } from '@pnp/sp'
+import { DefaultHandlerMap, DefaultHandlerSort, Handler } from './handlers/exports'
+import { HandlerBase } from './handlers/handlerbase'
 import { IProvisioningConfig } from './provisioningconfig'
+import { ProvisioningContext } from './provisioningcontext'
 import { ProvisioningError } from './provisioningerror'
+import { Schema } from './schema'
 
 /**
  * Root class of Provisioning
@@ -25,8 +25,8 @@ export class WebProvisioner {
    */
   constructor(
     private web: Web,
-    public handlerSort: TypedHash<number> = DefaultHandlerSort
-  ) { }
+    public handlerSort: Record<Handler, number> = DefaultHandlerSort
+  ) {}
 
   private async onSetup() {
     if (this.config && this.config.spfxContext) {
@@ -53,7 +53,7 @@ export class WebProvisioner {
   public async applyTemplate(
     template: Schema,
     handlers?: string[],
-    progressCallback?: (message: string) => void
+    progressCallback?: (handler: Handler) => void
   ): Promise<any> {
     Logger.log({
       message: `${this.config.logging.prefix} (WebProvisioner): (applyTemplate): Applying template to web`,
@@ -80,7 +80,7 @@ export class WebProvisioner {
 
     let currentHandler: string
     try {
-      await operations.reduce((chain: any, name: string) => {
+      await operations.reduce((chain: any, name: Handler) => {
         const handler = this.handlerMap[name]
         return chain.then(() => {
           if (progressCallback) {

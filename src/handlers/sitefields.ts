@@ -1,9 +1,9 @@
+import { FieldAddResult, Web } from '@pnp/sp'
 import * as xmljs from 'xml-js'
-import { HandlerBase } from './handlerbase'
-import { Web, FieldAddResult } from '@pnp/sp'
-import { ProvisioningContext } from '../provisioningcontext'
 import { IProvisioningConfig } from '../provisioningconfig'
+import { ProvisioningContext } from '../provisioningcontext'
 import { TokenHelper } from '../util/tokenhelper'
+import { HandlerBase } from './handlerbase'
 
 /**
  * Describes the Site Fields Object Handler
@@ -16,7 +16,7 @@ export class SiteFields extends HandlerBase {
    * Creates a new instance of the ObjectSiteFields class
    */
   constructor(config: IProvisioningConfig) {
-    super(SiteFields.name, config)
+    super('SiteFields', config)
   }
 
   /**

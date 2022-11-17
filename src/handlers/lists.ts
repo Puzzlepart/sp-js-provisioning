@@ -10,9 +10,9 @@ import {
   IListInstanceFieldReference,
   IListView
 } from '../schema'
+import { addFieldAttributes } from '../util'
 import { TokenHelper } from '../util/tokenhelper'
 import { HandlerBase } from './handlerbase'
-import { addFieldAttributes } from '../util'
 
 export interface ISPField {
   Id: string
@@ -34,7 +34,7 @@ export class Lists extends HandlerBase {
    * @param config - Provisioning config
    */
   constructor(config: IProvisioningConfig) {
-    super(Lists.name, config)
+    super('Lists', config)
   }
 
   /**

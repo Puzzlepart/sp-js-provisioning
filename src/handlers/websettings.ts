@@ -15,7 +15,7 @@ export class WebSettings extends HandlerBase {
    * @param config - Provisioning config
    */
   constructor(config: IProvisioningConfig) {
-    super(WebSettings.name, config)
+    super('WebSettings', config)
   }
 
   /**

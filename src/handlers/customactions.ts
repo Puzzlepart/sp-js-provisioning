@@ -1,7 +1,7 @@
-import { HandlerBase } from './handlerbase'
-import { ICustomAction } from '../schema'
 import { Web } from '@pnp/sp'
 import { IProvisioningConfig } from '../provisioningconfig'
+import { ICustomAction } from '../schema'
+import { HandlerBase } from './handlerbase'
 
 /**
  * Describes the Custom Actions Object Handler
@@ -13,7 +13,7 @@ export class CustomActions extends HandlerBase {
    * @param config - Provisioning config
    */
   constructor(config: IProvisioningConfig) {
-    super(CustomActions.name, config)
+    super('CustomActions', config)
   }
 
   /**

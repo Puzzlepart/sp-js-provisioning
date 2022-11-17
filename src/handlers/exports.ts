@@ -1,22 +1,35 @@
-import { TypedHash } from '@pnp/common'
-import { HandlerBase } from './handlerbase'
+import { IProvisioningConfig } from '../provisioningconfig'
+import { ClientSidePages } from './clientsidepages'
 import { ComposedLook } from './composedlook'
+import { ContentTypes } from './contenttypes'
 import { CustomActions } from './customactions'
 import { Features } from './features'
-import { WebSettings } from './websettings'
-import { Hooks } from './hooks'
-import { Navigation } from './navigation'
-import { Lists } from './lists'
 import { Files } from './files'
-import { ClientSidePages } from './clientsidepages'
+import { HandlerBase } from './handlerbase'
+import { Hooks } from './hooks'
+import { Lists } from './lists'
+import { Navigation } from './navigation'
 import { PropertyBagEntries } from './propertybagentries'
-import { IProvisioningConfig } from '../provisioningconfig'
 import { SiteFields } from './sitefields'
-import { ContentTypes } from './contenttypes'
+import { WebSettings } from './websettings'
+
+export type Handler =
+  | 'ClientSidePages'
+  | 'ComposedLook'
+  | 'ContentTypes'
+  | 'CustomActions'
+  | 'Features'
+  | 'Files'
+  | 'Lists'
+  | 'Navigation'
+  | 'PropertyBagEntries'
+  | 'WebSettings'
+  | 'SiteFields'
+  | 'Hooks'
 
 export const DefaultHandlerMap = (
   config: IProvisioningConfig
-): TypedHash<HandlerBase> => ({
+): Record<Handler, HandlerBase> => ({
   ClientSidePages: new ClientSidePages(config),
   ComposedLook: new ComposedLook(config),
   ContentTypes: new ContentTypes(config),
@@ -31,7 +44,7 @@ export const DefaultHandlerMap = (
   Hooks: new Hooks(config)
 })
 
-export const DefaultHandlerSort: TypedHash<number> = {
+export const DefaultHandlerSort: Record<Handler, number> = {
   ClientSidePages: 7,
   ComposedLook: 6,
   ContentTypes: 1,

@@ -2,13 +2,14 @@ import { Logger, LogLevel } from '@pnp/logging'
 import { Web } from '@pnp/sp'
 import { IProvisioningConfig } from '../provisioningconfig'
 import { ProvisioningContext } from '../provisioningcontext'
+import { Handler } from './exports'
 
 /**
  * Describes the Object Handler Base
  */
 export class HandlerBase {
   public config: IProvisioningConfig = {}
-  private name: string
+  private name: Handler
 
   /**
    * Creates a new instance of the ObjectHandlerBase class
@@ -16,7 +17,7 @@ export class HandlerBase {
    * @param name - Name
    * @param config - Config
    */
-  constructor(name: string, config: IProvisioningConfig = {}) {
+  constructor(name: Handler, config: IProvisioningConfig = {}) {
     this.name = name
     this.config = config
   }
