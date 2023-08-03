@@ -1,20 +1,19 @@
 /* eslint-disable unicorn/empty-brace-spaces */
-// we need to import HandlerBase & TypedHash to avoid naming issues in ts transpile
-import { TypedHash } from '@pnp/common'
 import { ConsoleListener, Logger, LogLevel } from '@pnp/logging'
-import { sp, Web } from '@pnp/sp'
 import { DefaultHandlerMap, DefaultHandlerSort, Handler } from './handlers/exports'
 import { HandlerBase } from './handlers/handlerbase'
 import { IProvisioningConfig } from './provisioningconfig'
 import { ProvisioningContext } from './provisioningcontext'
 import { ProvisioningError } from './provisioningerror'
 import { Schema } from './schema'
+import { IWeb } from '@pnp/sp/presets/all'
+import '@pnp/sp/presets/all'
 
 /**
  * Root class of Provisioning
  */
 export class WebProvisioner {
-  public handlerMap: TypedHash<HandlerBase>
+  public handlerMap: Record<string, HandlerBase>
   private context: ProvisioningContext = new ProvisioningContext()
   private config: IProvisioningConfig
   /**
@@ -24,23 +23,17 @@ export class WebProvisioner {
    * @param handlerSort - A set of handlers we want to apply. The keys of the map need to match the property names in the template
    */
   constructor(
-    private web: Web,
+    private web: IWeb,
     public handlerSort: Record<Handler, number> = DefaultHandlerSort
-  ) {}
+  ) { }
 
   private async onSetup() {
-    if (this.config && this.config.spfxContext) {
-      sp.setup({
-        spfxContext: this.config.spfxContext,
-        ...(this.config.spConfiguration || {})
-      })
-    }
     if (this.config && this.config.logging) {
-      Logger.subscribe(new ConsoleListener())
+      Logger.subscribe(ConsoleListener())
       Logger.activeLogLevel = this.config.logging.activeLogLevel
     }
     this.handlerMap = DefaultHandlerMap(this.config)
-    this.context.web = await this.web.get()
+    this.context.web = await this.web()
   }
 
   /**

@@ -1,15 +1,11 @@
-import {
-  ClientSidePage,
-  ClientSidePageComponent,
-  ClientSideWebpart,
-  Web
-} from '@pnp/sp'
+import { ClientsideWebpart, CreateClientsidePage, IClientsidePageComponent, IWeb } from '@pnp/sp/presets/all'
 import { IProvisioningConfig } from '../provisioningconfig'
 import { ProvisioningContext } from '../provisioningcontext'
-import { IClientSidePage } from '../schema'
 import { replaceUrlTokens } from '../util'
 import { TokenHelper } from '../util/tokenhelper'
 import { HandlerBase } from './handlerbase'
+import { IClientSideControl, IClientSidePage } from '../schema'
+import '@pnp/sp/presets/all'
 
 /**
  * Describes the Composed Look Object Handler
@@ -32,18 +28,18 @@ export class ClientSidePages extends HandlerBase {
    * @param context - Provisioning context
    */
   public async ProvisionObjects(
-    web: Web,
+    web: IWeb,
     clientSidePages: IClientSidePage[],
     context?: ProvisioningContext
   ): Promise<void> {
     this.tokenHelper = new TokenHelper(context, this.config)
     super.scope_started()
     try {
-      const partDefinitions = await web.getClientSideWebParts()
+      const partDefinitions = await web.getClientsideWebParts()
       await clientSidePages.reduce(
         (chain: Promise<any>, clientSidePage) =>
           chain.then(() =>
-            this.processClientSidePage(web, clientSidePage, partDefinitions)
+            this._processClientSidePage(web, clientSidePage, partDefinitions)
           ),
         Promise.resolve()
       )
@@ -53,6 +49,38 @@ export class ClientSidePages extends HandlerBase {
     }
   }
 
+  private _getClientSideWebPart(partDefinitions: IClientsidePageComponent[], control: IClientSideControl) {
+    const partDef = partDefinitions.find((c) =>
+      c.Id.toLowerCase().includes(control.Id.toLowerCase())
+    )
+    if (!partDef) {
+      super.log_warn(
+        'getClientSideWebPart',
+        `Client side web part with definition id ${control.Id} not found.`
+      )
+      return {
+        part: null,
+        partDef: null,
+      }
+    }
+    let properties = this.tokenHelper.replaceTokens(
+      JSON.stringify(control.Properties)
+    )
+    properties = replaceUrlTokens(properties, this.config)
+    const part = ClientsideWebpart.fromComponentDef(
+      partDef
+    ).setProperties<any>(JSON.parse(properties))
+    if (control.ServerProcessedContent) {
+      const serverProcessedContent = this.tokenHelper.replaceTokens(
+        JSON.stringify(control.ServerProcessedContent)
+      )
+      part.data.webPartData.serverProcessedContent = JSON.parse(
+        serverProcessedContent
+      )
+    }
+    return { part, partDef } as const
+  }
+
   /**
    * Provision a client side page
    *
@@ -60,61 +88,45 @@ export class ClientSidePages extends HandlerBase {
    * @param clientSidePage - Cient side page
    * @param partDefinitions - Cient side web parts
    */
-  private async processClientSidePage(
-    web: Web,
+  private async _processClientSidePage(
+    web: IWeb,
     clientSidePage: IClientSidePage,
-    partDefinitions: ClientSidePageComponent[]
+    partDefinitions: IClientsidePageComponent[]
   ) {
     super.log_info(
       'processClientSidePage',
       `Processing client side page ${clientSidePage.Name}`
     )
-    const page = await ClientSidePage.create(
+    const page = await CreateClientsidePage(
       web,
       clientSidePage.Name,
       clientSidePage.Title,
       clientSidePage.PageLayoutType
     )
+    if (clientSidePage.VerticalSection) {
+      const verticalSection = page.addVerticalSection()
+      for (const control of clientSidePage.VerticalSection) {
+        const { part, partDef } = this._getClientSideWebPart(partDefinitions, control)
+        if (!part) continue
+        try {
+          verticalSection.addControl(part)
+        } catch {
+          super.log_info(
+            'processClientSidePage',
+            `Failed adding part ${partDef.Name} to client side page ${clientSidePage.Name}`
+          )
+        }
+      }
+    }
     const sections = clientSidePage.Sections || []
     for (const s of sections) {
       const section = page.addSection()
       for (const col of s.Columns) {
         const column = section.addColumn(col.Factor)
         for (const control of col.Controls) {
-          const partDef = partDefinitions.find((c) =>
-            c.Id.toLowerCase().includes(control.Id.toLowerCase())
-          )
-          if (!partDef) {
-            super.log_warn(
-              'processClientSidePage',
-              `Client side web part with definition id ${control.Id} not found.`
-            )
-            continue
-          }
+          const { part, partDef } = this._getClientSideWebPart(partDefinitions, control)
+          if (!part) continue
           try {
-            let properties = this.tokenHelper.replaceTokens(
-              JSON.stringify(control.Properties)
-            )
-            properties = replaceUrlTokens(properties, this.config)
-            const part = ClientSideWebpart.fromComponentDef(
-              partDef
-            ).setProperties<any>(JSON.parse(properties))
-            if (control.ServerProcessedContent) {
-              const serverProcessedContent = this.tokenHelper.replaceTokens(
-                JSON.stringify(control.ServerProcessedContent)
-              )
-              super.log_info(
-                'processClientSidePage',
-                `Adding serverProcessedContent ${serverProcessedContent} to client side page ${clientSidePage.Name}`
-              )
-              part.data.webPartData.serverProcessedContent = JSON.parse(
-                serverProcessedContent
-              )
-            }
-            super.log_info(
-              'processClientSidePage',
-              `Adding ${partDef.Name} to client side page ${clientSidePage.Name}`
-            )
             column.addControl(part)
           } catch {
             super.log_info(
@@ -129,13 +141,7 @@ export class ClientSidePages extends HandlerBase {
       'processClientSidePage',
       `Saving client side page ${clientSidePage.Name}`
     )
+    page.commentsDisabled = clientSidePage.CommentsDisabled
     await page.save()
-    if (clientSidePage.CommentsDisabled) {
-      super.log_info(
-        'processClientSidePage',
-        `Disabling comments for client side page ${clientSidePage.Name}`
-      )
-      await page.disableComments()
-    }
   }
 }

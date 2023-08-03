@@ -1,4 +1,4 @@
-import { ContentTypeAddResult, Web } from '@pnp/sp'
+import { IContentTypeAddResult, IWeb } from '@pnp/sp/presets/all'
 import initSpfxJsom, { ExecuteJsomQuery, JsomContext } from 'spfx-jsom'
 import { IProvisioningConfig } from '../provisioningconfig'
 import { ProvisioningContext } from '../provisioningcontext'
@@ -27,7 +27,7 @@ export class ContentTypes extends HandlerBase {
    * @param context - Provisioning context
    */
   public async ProvisionObjects(
-    web: Web,
+    web: IWeb,
     contentTypes: IContentType[],
     context: ProvisioningContext
   ): Promise<void> {
@@ -40,13 +40,12 @@ export class ContentTypes extends HandlerBase {
       this.context.contentTypes = (
         await web.contentTypes
           .select('Id', 'Name', 'FieldLinks')
-          .expand('FieldLinks')
-          .get<any[]>()
+          .expand('FieldLinks')()
       ).reduce((object, contentType) => {
         object[contentType.Name] = {
           ID: contentType.Id.StringValue,
           Name: contentType.Name,
-          FieldRefs: contentType.FieldLinks.map((fieldLink: any) => ({
+          FieldRefs: contentType['FieldLinks'].map((fieldLink: any) => ({
             ID: fieldLink.Id,
             Name: fieldLink.Name,
             Required: fieldLink.Required,
@@ -83,7 +82,7 @@ export class ContentTypes extends HandlerBase {
    * @param contentType - Content type
    */
   private async processContentType(
-    web: Web,
+    web: IWeb,
     contentType: IContentType
   ): Promise<void> {
     try {
@@ -122,9 +121,9 @@ export class ContentTypes extends HandlerBase {
    * @param contentType - Content type
    */
   private async addContentType(
-    web: Web,
+    web: IWeb,
     contentType: IContentType
-  ): Promise<ContentTypeAddResult> {
+  ): Promise<IContentTypeAddResult> {
     try {
       super.log_info(
         'addContentType',

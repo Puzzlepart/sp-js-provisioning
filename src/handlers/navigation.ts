@@ -1,5 +1,5 @@
-import { isArray } from '@pnp/common'
-import { NavigationNodes, Web } from '@pnp/sp'
+import { isArray } from '@pnp/core'
+import { INavigationNodes, IWeb } from '@pnp/sp/presets/all'
 import { IProvisioningConfig } from '../provisioningconfig'
 import { INavigation, INavigationNode } from '../schema'
 import { replaceUrlTokens } from '../util'
@@ -24,7 +24,7 @@ export class Navigation extends HandlerBase {
    * @param navigation - The navigation to provision
    */
   public async ProvisionObjects(
-    web: Web,
+    web: IWeb,
     navigation: INavigation
   ): Promise<void> {
     super.scope_started()
@@ -52,11 +52,11 @@ export class Navigation extends HandlerBase {
   }
 
   private async processNavTree(
-    target: NavigationNodes,
+    target: INavigationNodes,
     nodes: INavigationNode[]
   ): Promise<void> {
     try {
-      const existingNodes = await target.get()
+      const existingNodes = await target()
       await this.deleteExistingNodes(target)
       await nodes.reduce(
         (chain: any, node) =>
@@ -69,7 +69,7 @@ export class Navigation extends HandlerBase {
   }
 
   private async processNode(
-    target: NavigationNodes,
+    target: INavigationNodes,
     node: INavigationNode,
     existingNodes: any[]
   ): Promise<void> {
@@ -90,9 +90,9 @@ export class Navigation extends HandlerBase {
     }
   }
 
-  private async deleteExistingNodes(target: NavigationNodes) {
+  private async deleteExistingNodes(target: INavigationNodes) {
     try {
-      const existingNodes = await target.get()
+      const existingNodes = await target()
       await existingNodes.reduce(
         (chain: Promise<void>, n: any) =>
           chain.then(() => this.deleteNode(target, n.Id)),
@@ -103,7 +103,7 @@ export class Navigation extends HandlerBase {
     }
   }
 
-  private async deleteNode(target: NavigationNodes, id: number): Promise<void> {
+  private async deleteNode(target: INavigationNodes, id: number): Promise<void> {
     try {
       await target.getById(id).delete()
     } catch (error) {

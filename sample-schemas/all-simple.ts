@@ -74,7 +74,7 @@ const template: Schema = {
       Description: 'This is the description',
       Template: 101,
       AdditionalSettings: {
-        Description: "I've updated the description",
+        Description: 'I\'ve updated the description',
         EnableFolderCreation: true,
         ForceCheckout: true
       }

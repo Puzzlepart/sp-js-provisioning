@@ -1,4 +1,4 @@
-import { Web } from '@pnp/sp'
+import { IWeb } from '@pnp/sp/presets/all'
 import { IProvisioningConfig } from '../provisioningconfig'
 import { IFeature } from '../schema'
 import { HandlerBase } from './handlerbase'
@@ -22,7 +22,7 @@ export class Features extends HandlerBase {
    * @param web - The web
    * @param features - The features to provision
    */
-  public async ProvisionObjects(web: Web, features: IFeature[]): Promise<void> {
+  public async ProvisionObjects(web: IWeb, features: IFeature[]): Promise<void> {
     super.scope_started()
     try {
       await features.reduce((chain, feature) => {

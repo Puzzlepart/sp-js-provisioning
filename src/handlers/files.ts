@@ -1,14 +1,14 @@
 /* eslint-disable unicorn/prevent-abbreviations */
+import { combine, isArray } from '@pnp/core'
+import { LogLevel, Logger } from '@pnp/logging'
+import { IFile, IFileAddResult, IWeb } from '@pnp/sp/presets/all'
 import * as xmljs from 'xml-js'
-import { HandlerBase } from './handlerbase'
-import { IFile, IWebPart } from '../schema'
-import { Web, File, FileAddResult } from '@pnp/sp'
-import { combine, isArray } from '@pnp/common'
-import { Logger, LogLevel } from '@pnp/logging'
-import { replaceUrlTokens } from '../util'
-import { ProvisioningContext } from '../provisioningcontext'
 import { IProvisioningConfig } from '../provisioningconfig'
+import { ProvisioningContext } from '../provisioningcontext'
+import { IFileObject, IWebPart } from '../schema'
+import { replaceUrlTokens } from '../util'
 import { TokenHelper } from '../util/tokenhelper'
+import { HandlerBase } from './handlerbase'
 
 /**
  * Describes the Features Object Handler
@@ -33,8 +33,8 @@ export class Files extends HandlerBase {
    * @param context - Provisioning context
    */
   public async ProvisionObjects(
-    web: Web,
-    files: IFile[],
+    web: IWeb,
+    files: IFileObject[],
     context?: ProvisioningContext
   ): Promise<void> {
     this.tokenHelper = new TokenHelper(context, this.config)
@@ -42,7 +42,7 @@ export class Files extends HandlerBase {
     if (this.config.spfxContext) {
       throw 'Files Handler not supported in SPFx.'
     }
-    const { ServerRelativeUrl } = await web.get()
+    const { ServerRelativeUrl } = await web.select('ServerRelativeUrl')()
     try {
       await files.reduce(
         (chain: any, file) =>
@@ -60,7 +60,7 @@ export class Files extends HandlerBase {
    *
    * @param file - The file
    */
-  private async getFileBlob(file: IFile): Promise<Blob> {
+  private async getFileBlob(file: IFileObject): Promise<Blob> {
     const fileSourceWithoutTokens = replaceUrlTokens(
       this.tokenHelper.replaceTokens(file.Src),
       this.config
@@ -82,8 +82,8 @@ export class Files extends HandlerBase {
    * @param webServerRelativeUrl - ServerRelativeUrl for the web
    */
   private async processFile(
-    web: Web,
-    file: IFile,
+    web: IWeb,
+    file: IFileObject,
     webServerRelativeUrl: string
   ): Promise<void> {
     Logger.log({
@@ -97,7 +97,7 @@ export class Files extends HandlerBase {
         webServerRelativeUrl,
         file.Folder
       )
-      const pnpFolder = web.getFolderByServerRelativeUrl(
+      const pnpFolder = web.getFolderByServerRelativePath(
         folderServerRelativeUrl
       )
       let fileServerRelativeUrl = combine(
@@ -105,13 +105,13 @@ export class Files extends HandlerBase {
         folderServerRelativeUrl,
         file.Url
       )
-      let fileAddResult: FileAddResult
-      let pnpFile: File
+      let fileAddResult: IFileAddResult
+      let pnpFile: IFile
       try {
-        fileAddResult = await pnpFolder.files.add(
+        fileAddResult = await pnpFolder.files.addUsingPath(
           file.Url,
           blob,
-          file.Overwrite
+          { Overwrite: file.Overwrite }
         )
         pnpFile = fileAddResult.file
         fileServerRelativeUrl = fileAddResult.data.ServerRelativeUrl
@@ -179,7 +179,7 @@ export class Files extends HandlerBase {
    * @param fileServerRelativeUrl - ServerRelativeUrl for the file
    */
   private processWebParts(
-    file: IFile,
+    file: IFileObject,
     webServerRelativeUrl: string,
     fileServerRelativeUrl: string
   ) {
@@ -315,7 +315,7 @@ export class Files extends HandlerBase {
    * @param fileServerRelativeUrl - ServerRelativeUrl for the file
    */
   private processPageListViews(
-    web: Web,
+    web: IWeb,
     webParts: Array<IWebPart>,
     fileServerRelativeUrl: string
   ): Promise<void> {
@@ -373,63 +373,61 @@ export class Files extends HandlerBase {
    * @param fileServerRelativeUrl - ServerRelativeUrl for the file
    */
   private processPageListView(
-    web: Web,
+    web: IWeb,
     listView,
     fileServerRelativeUrl: string
   ) {
     return new Promise<void>((resolve, reject) => {
       const views = web.lists.getByTitle(listView.List).views
-      views
-        .get()
-        .then((listViews) => {
-          const wpView = listViews.filter(
-            (v) => v.ServerRelativeUrl === fileServerRelativeUrl
-          )
-          if (wpView.length === 1) {
-            const view = views.getById(wpView[0].Id)
-            const settings = listView.View.AdditionalSettings || {}
-            view
-              .update(settings)
-              .then(() => {
-                view.fields
-                  .removeAll()
-                  .then(() => {
-                    listView.View.ViewFields.reduce(
-                      (chain, viewField) =>
-                        chain.then(() => view.fields.add(viewField)),
-                      Promise.resolve()
-                    )
-                      .then(resolve)
-                      .catch((error) => {
-                        Logger.log({
-                          data: { fileServerRelativeUrl, listView, err: error },
-                          level: LogLevel.Error,
-                          message: `Failed to process page list view for file ${fileServerRelativeUrl}`
-                        })
-                        reject(error)
+      views().then((listViews) => {
+        const wpView = listViews.filter(
+          (v) => v.ServerRelativeUrl === fileServerRelativeUrl
+        )
+        if (wpView.length === 1) {
+          const view = views.getById(wpView[0].Id)
+          const settings = listView.View.AdditionalSettings || {}
+          view
+            .update(settings)
+            .then(() => {
+              view.fields
+                .removeAll()
+                .then(() => {
+                  listView.View.ViewFields.reduce(
+                    (chain, viewField) =>
+                      chain.then(() => view.fields.add(viewField)),
+                    Promise.resolve()
+                  )
+                    .then(resolve)
+                    .catch((error) => {
+                      Logger.log({
+                        data: { fileServerRelativeUrl, listView, err: error },
+                        level: LogLevel.Error,
+                        message: `Failed to process page list view for file ${fileServerRelativeUrl}`
                       })
-                  })
-                  .catch((error) => {
-                    Logger.log({
-                      data: { fileServerRelativeUrl, listView, err: error },
-                      level: LogLevel.Error,
-                      message: `Failed to process page list view for file ${fileServerRelativeUrl}`
+                      reject(error)
                     })
-                    reject(error)
-                  })
-              })
-              .catch((error) => {
-                Logger.log({
-                  data: { fileServerRelativeUrl, listView, err: error },
-                  level: LogLevel.Error,
-                  message: `Failed to process page list view for file ${fileServerRelativeUrl}`
                 })
-                reject(error)
+                .catch((error) => {
+                  Logger.log({
+                    data: { fileServerRelativeUrl, listView, err: error },
+                    level: LogLevel.Error,
+                    message: `Failed to process page list view for file ${fileServerRelativeUrl}`
+                  })
+                  reject(error)
+                })
+            })
+            .catch((error) => {
+              Logger.log({
+                data: { fileServerRelativeUrl, listView, err: error },
+                level: LogLevel.Error,
+                message: `Failed to process page list view for file ${fileServerRelativeUrl}`
               })
-          } else {
-            resolve()
-          }
-        })
+              reject(error)
+            })
+        } else {
+          resolve()
+        }
+      })
         .catch((error) => {
           Logger.log({
             data: { fileServerRelativeUrl, listView, err: error },
@@ -448,7 +446,7 @@ export class Files extends HandlerBase {
    * @param pnpFile - The PnP file
    * @param properties - The properties to set
    */
-  private async processProperties(web: Web, pnpFile: File, file: IFile) {
+  private async processProperties(web: IWeb, pnpFile: IFile, file: IFileObject) {
     const hasProperties =
       file.Properties && Object.keys(file.Properties).length > 0
     if (hasProperties) {
@@ -458,8 +456,7 @@ export class Files extends HandlerBase {
       })
       const listItemAllFields = await pnpFile.listItemAllFields
         .select('ID', 'ParentList/ID', 'ParentList/Title')
-        .expand('ParentList')
-        .get()
+        .expand('ParentList')()
       await web.lists
         .getById(listItemAllFields.ParentList.Id)
         .items.getById(listItemAllFields.ID)

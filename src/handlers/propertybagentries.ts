@@ -1,5 +1,5 @@
 import { Logger, LogLevel } from '@pnp/logging'
-import { Web } from '@pnp/sp'
+import { IWeb } from '@pnp/sp/presets/all'
 import { IProvisioningConfig } from '../provisioningconfig'
 import { IPropertyBagEntry } from '../schema'
 import * as Util from '../util'
@@ -25,7 +25,7 @@ export class PropertyBagEntries extends HandlerBase {
    * @param entries - The property bag entries to provision
    */
   public ProvisionObjects(
-    web: Web,
+    web: IWeb,
     entries: IPropertyBagEntry[]
   ): Promise<void> {
     super.scope_started()
@@ -43,7 +43,7 @@ export class PropertyBagEntries extends HandlerBase {
         )
         reject()
       } else {
-        web.get().then(({ ServerRelativeUrl }) => {
+        web.select('ServerRelativeUrl')().then(({ ServerRelativeUrl }) => {
           const context = new SP.ClientContext(ServerRelativeUrl),
             spWeb = context.get_web(),
             propertyBag = spWeb.get_allProperties(),

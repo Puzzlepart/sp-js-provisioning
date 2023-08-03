@@ -1,7 +1,7 @@
-import { HandlerBase } from './handlerbase'
-import { IHooks } from '../schema'
-import { Web } from '@pnp/sp'
+import { IWeb } from '@pnp/sp/presets/all'
 import { IProvisioningConfig } from '../provisioningconfig'
+import { IHooks } from '../schema'
+import { HandlerBase } from './handlerbase'
 
 /**
  * Describes the Hooks Object Handler
@@ -21,7 +21,7 @@ export class Hooks extends HandlerBase {
    *
    * @param hooks - The hook(s) to apply
    */
-  public async ProvisionObjects(web: Web, hooks: IHooks[]): Promise<void> {
+  public async ProvisionObjects(web: IWeb, hooks: IHooks[]): Promise<void> {
     super.scope_started()
     const promises = []
 

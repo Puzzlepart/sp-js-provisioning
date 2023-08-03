@@ -1,4 +1,4 @@
-import { FieldAddResult, Web } from '@pnp/sp'
+import { IFieldAddResult, IWeb } from '@pnp/sp/presets/all'
 import * as xmljs from 'xml-js'
 import { IProvisioningConfig } from '../provisioningconfig'
 import { ProvisioningContext } from '../provisioningcontext'
@@ -27,7 +27,7 @@ export class SiteFields extends HandlerBase {
    * @param context - Provisioning context
    */
   public async ProvisionObjects(
-    web: Web,
+    web: IWeb,
     siteFields: string[],
     context?: ProvisioningContext
   ): Promise<void> {
@@ -38,7 +38,7 @@ export class SiteFields extends HandlerBase {
       this.context.siteFields = (
         await web.fields
           .select('Id', 'InternalName')
-          .get<Array<{ Id: string; InternalName: string }>>()
+          <Array<{ Id: string; InternalName: string }>>()
       ).reduce((object, l) => {
         object[l.InternalName] = l.Id
         return object
@@ -61,9 +61,9 @@ export class SiteFields extends HandlerBase {
    * @param clientSidePage - Cient side page
    */
   private async processSiteField(
-    web: Web,
+    web: IWeb,
     schemaXml: string
-  ): Promise<FieldAddResult> {
+  ): Promise<IFieldAddResult> {
     try {
       schemaXml = this.tokenHelper.replaceTokens(schemaXml)
       const schemaXmlJson = JSON.parse(xmljs.xml2json(schemaXml))

@@ -1,6 +1,6 @@
 import { IComposedLook } from '../schema'
 import { HandlerBase } from './handlerbase'
-import { Web } from '@pnp/sp'
+import { IWeb } from '@pnp/sp/presets/all'
 import { replaceUrlTokens, makeUrlRelative } from '../util'
 import { IProvisioningConfig } from '../provisioningconfig'
 
@@ -22,7 +22,7 @@ export class ComposedLook extends HandlerBase {
    * @param object - The Composed look to provision
    */
   public async ProvisionObjects(
-    web: Web,
+    web: IWeb,
     composedLook: IComposedLook
   ): Promise<void> {
     super.scope_started()

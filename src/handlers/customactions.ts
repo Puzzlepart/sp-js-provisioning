@@ -1,7 +1,8 @@
-import { Web } from '@pnp/sp'
+import { IWeb } from '@pnp/sp/presets/all'
 import { IProvisioningConfig } from '../provisioningconfig'
 import { ICustomAction } from '../schema'
 import { HandlerBase } from './handlerbase'
+import { createBatch } from '@pnp/sp/batching'
 
 /**
  * Describes the Custom Actions Object Handler
@@ -23,16 +24,15 @@ export class CustomActions extends HandlerBase {
    * @param customactions - The Custom Actions to provision
    */
   public async ProvisionObjects(
-    web: Web,
+    web: IWeb,
     customActions: ICustomAction[]
   ): Promise<void> {
     super.scope_started()
     try {
       const existingActions = await web.userCustomActions
-        .select('Title')
-        .get<{ Title: string }[]>()
+        .select('Title')<{ Title: string }[]>()
 
-      const batch = web.createBatch()
+      const [batch, execute] = createBatch(web)
 
       customActions
         .filter((action) => {
@@ -41,10 +41,10 @@ export class CustomActions extends HandlerBase {
           )
         })
         .map((action) => {
-          web.userCustomActions.inBatch(batch).add(action)
+          web.userCustomActions.using(batch).add(action)
         })
 
-      await batch.execute()
+      await execute()
       super.scope_ended()
     } catch (error) {
       super.scope_ended(error)

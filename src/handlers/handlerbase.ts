@@ -1,5 +1,5 @@
 import { Logger, LogLevel } from '@pnp/logging'
-import { Web } from '@pnp/sp'
+import { IWeb } from '@pnp/sp/presets/all'
 import { IProvisioningConfig } from '../provisioningconfig'
 import { ProvisioningContext } from '../provisioningcontext'
 import { Handler } from './exports'
@@ -26,7 +26,7 @@ export class HandlerBase {
    * Provisioning objects
    */
   public ProvisionObjects(
-    web: Web,
+    web: IWeb,
     templatePart: any,
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     _context?: ProvisioningContext
