@@ -6,6 +6,7 @@ import { TokenHelper } from '../util/tokenhelper'
 import { HandlerBase } from './handlerbase'
 import { IClientSideControl, IClientSidePage } from '../schema'
 import '@pnp/sp/presets/all'
+import '@pnp/sp/comments/clientside-page'
 
 /**
  * Describes the Composed Look Object Handler
@@ -143,5 +144,6 @@ export class ClientSidePages extends HandlerBase {
     )
     page.commentsDisabled = clientSidePage.CommentsDisabled
     await page.save()
+    await (clientSidePage.CommentsDisabled ? page.disableComments() : page.enableComments())
   }
 }
