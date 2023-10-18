@@ -650,6 +650,7 @@
             "items": {
                 "$ref": "#/definitions/IClientSidePage"
             },
+            "title": "Client Side Pages",
             "type": "array"
         },
         "ComposedLook": {
