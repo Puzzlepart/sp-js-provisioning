@@ -26,7 +26,7 @@ export class Hooks extends HandlerBase {
     const promises = []
 
     // eslint-disable-next-line unicorn/no-array-for-each
-    hooks.forEach((hook, index) => {
+    hooks.forEach(async (hook, index) => {
       if (hook.Method === 'GET') {
         super.log_info('processHooks', `Starting GET request: '${hook.Title}'.`)
 
@@ -54,7 +54,7 @@ export class Hooks extends HandlerBase {
           `Starting POST request: '${hook.Title}'.`
         )
 
-        hook.Body['pp_webUrl'] = web['_parentUrl']
+        hook.Body = await web.allProperties()
 
         const postRequest = {
           method: 'POST',
