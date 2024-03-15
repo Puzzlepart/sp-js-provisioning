@@ -22,6 +22,46 @@ Add the npm packages to your project
 npm install sp-js-provisioning --save
 ```
 
+Here is an example of how you might define navigation in a provisioning template, first in XML and then in JSON (used by sp-js-provisioning).
+
+**XML:**
+
+```xml
+<pnp:Navigation>
+  <pnp:CurrentNavigation NavigationType="Structural">
+    <pnp:StructuralNavigation RemoveExistingNodes="true">
+      <pnp:NavigationNode Title="Home" Url="{site}" />
+      <pnp:NavigationNode Title="About" Url="{site}/about" />
+    </pnp:StructuralNavigation>
+  </pnp:CurrentNavigation>
+</pnp:Navigation>
+```
+
+**JSON:**
+  
+```json
+{
+  "Navigation": {
+    "CurrentNavigation": {
+      "NavigationType": "Structural",
+      "StructuralNavigation": {
+        "RemoveExistingNodes": true,
+        "NavigationNode": [
+          {
+            "Title": "Home",
+            "Url": "{site}"
+          },
+          {
+            "Title": "About",
+            "Url": "{site}/about"
+          }
+        ]
+      }
+    }
+  }
+}
+```
+
 ## Contributing
 
 Contributions are welcome. Please open an issue or submit a pull request on the [GitHub repository](https://github.com/Puzzlepart/pnp-js-provisioning).
