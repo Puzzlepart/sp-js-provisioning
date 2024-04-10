@@ -1,4 +1,4 @@
-# sp-js-provisioning [![version](https://img.shields.io/badge/version-1.2.2-green.svg)](https://semver.org)
+# sp-js-provisioning [![version](https://img.shields.io/badge/version-1.2.3-green.svg)](https://semver.org)
 
 ## Description
 

@@ -111,7 +111,7 @@ export class Files extends HandlerBase {
         fileAddResult = await pnpFolder.files.addUsingPath(
           file.Url,
           blob,
-          { Overwrite: file.Overwrite }
+          { Overwrite: file.Overwrite ?? true }
         )
         pnpFile = fileAddResult.file
         fileServerRelativeUrl = fileAddResult.data.ServerRelativeUrl
