@@ -1,6 +1,6 @@
 {
   "name": "sp-js-provisioning",
-  "version": "1.2.3",
+  "version": "1.2.4",
   "description": "SharePoint provisioning with pure JavaScript",
   "main": "./lib/index.js",
   "typings": "./lib/index.d.ts",
