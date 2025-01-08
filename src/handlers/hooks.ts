@@ -24,7 +24,7 @@ export class Hooks extends HandlerBase {
   public async ProvisionObjects(web: IWeb, hooks: IHooks[]): Promise<void> {
     super.scope_started()
     const promises = []
-    const hookBody = await web.allProperties()
+    const properties = await web.allProperties()
 
     // eslint-disable-next-line unicorn/no-array-for-each
     hooks.forEach((hook, index) => {
@@ -54,6 +54,8 @@ export class Hooks extends HandlerBase {
           'processHooks',
           `Starting POST request: '${hook.Title}'.`
         )
+
+        const hookBody = { ...hook.Body, ...properties }
 
         const postRequest = {
           method: 'POST',
