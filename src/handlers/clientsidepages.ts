@@ -98,7 +98,25 @@ export class ClientSidePages extends HandlerBase {
       'processClientSidePage',
       `Processing client side page ${clientSidePage.Name}`
     )
-    const page = await CreateClientsidePage(
+    const { ServerRelativeUrl } = await web.select('ServerRelativeUrl')()
+    let page = await web.loadClientsidePage(`${ServerRelativeUrl}/SitePages/${clientSidePage.Name}`)
+
+    if (clientSidePage.Overwrite && page) {
+      super.log_info(
+        'processClientSidePage',
+        `Overwrite option is enabled. Deleting client side page ${clientSidePage.Name}`
+      )
+      await page.delete()
+    }
+    else if (!clientSidePage.Overwrite && page) {
+      super.log_info(
+        'processClientSidePage',
+        `Client side page ${clientSidePage.Name} already exists and overwrite option is disabled. Skipping`
+      )
+      return
+    }
+
+    page = await CreateClientsidePage(
       web,
       clientSidePage.Name,
       clientSidePage.Title,
