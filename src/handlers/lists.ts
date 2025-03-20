@@ -388,6 +388,9 @@ export class Lists extends HandlerBase {
    */
   private async processListViews(web: IWeb, lc: IListInstance): Promise<any> {
     if (lc.Views) {
+      if (lc.RemoveExistingViews) {
+        await this.removeExistingViews(web, lc)
+      }
       await lc.Views.reduce(
         (chain: any, view) => chain.then(() => this.processView(web, lc, view)),
         Promise.resolve()
@@ -402,6 +405,32 @@ export class Lists extends HandlerBase {
       object[`${lc.Title}|${view.Title}`] = view.Id
       return object
     }, this.context.listViews)
+  }
+
+  /**
+  * Removes existing views for a list
+  *
+  * @param web - The web
+  * @param lc - The list configuration
+  */
+  private async removeExistingViews(
+    web: IWeb,
+    lc: IListInstance
+  ): Promise<void> {
+    const views = await web.lists
+      .getByTitle(lc.Title)
+      .views.select('Id', 'Title')<Array<{ Id: string; Title: string }>>()
+    super.log_info(
+      '_removeExistingViews',
+      `Removing existing views for list ${lc.Title}.`,
+      views.map((view) => view.Title)
+    )
+    const promises = views.map((view) => web.lists.getByTitle(lc.Title).views.getById(view.Id).delete())
+    await Promise.all(promises)
+    super.log_info(
+      '_removeExistingViews',
+      `Existing views removed for list ${lc.Title}.`
+    )
   }
 
   /**

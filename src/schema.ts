@@ -174,6 +174,7 @@ export interface IListInstance {
   Fields?: string[]
   FieldRefs?: IListInstanceFieldReference[]
   Views?: IListView[]
+  RemoveExistingViews?: boolean
   Security?: IListSecurity
 
   AdditionalSettings?: {
