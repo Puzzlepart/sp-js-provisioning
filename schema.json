@@ -68,6 +68,9 @@
                         "$ref": "#/definitions/IClientSideControl"
                     },
                     "type": "array"
+                },
+                "Overwrite": {
+                    "type": "boolean"
                 }
             },
             "type": "object"
@@ -364,6 +367,9 @@
                     "type": "array"
                 },
                 "RemoveExistingContentTypes": {
+                    "type": "boolean"
+                },
+                "RemoveExistingViews": {
                     "type": "boolean"
                 },
                 "Security": {
