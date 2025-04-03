@@ -353,7 +353,7 @@ export class Lists extends HandlerBase {
         Hidden: fieldReference.Hidden,
         Required: fieldReference.Required,
         Title: fieldReference.DisplayName,
-        ...(fieldReference.AdditonalProperties ?? {})
+        ...(fieldReference.AdditionalProperties ?? {})
       })
       super.log_info(
         'processFieldRef',
@@ -373,7 +373,7 @@ export class Lists extends HandlerBase {
         Title: fieldReference.DisplayName,
         Required: fieldReference.Required,
         Hidden: fieldReference.Hidden,
-        ...(fieldReference.AdditonalProperties ?? {})
+        ...(fieldReference.AdditionalProperties ?? {})
       })
       super.log_info(
         'processFieldRef',
