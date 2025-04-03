@@ -352,9 +352,22 @@ export class Lists extends HandlerBase {
       await list.fields.getById(fieldReference.ID).update({
         Hidden: fieldReference.Hidden,
         Required: fieldReference.Required,
-        Title: fieldReference.DisplayName,
-        ...(fieldReference.AdditionalProperties ?? {})
+        Title: fieldReference.DisplayName
       })
+      if (fieldReference.AdditionalProperties) {
+        const schemaXml = addFieldAttributes(listFld.SchemaXml, {
+          Hidden: fieldReference.Hidden,
+          Required: fieldReference.Required,
+          DisplayName: fieldReference.Name,
+          ...(fieldReference.AdditionalProperties ?? {})
+        })
+        super.log_info(
+          'processFieldRef',
+          `Additional properties set for field ref '${fieldReference.ID}' for list ${lc.Title}. Attempting to generate schema XML.`,
+          { schemaXml }
+        )
+        await list.fields.getById(fieldReference.ID).update({ SchemaXml: schemaXml })
+      }
       super.log_info(
         'processFieldRef',
         `Field '${fieldReference.ID}' updated for list ${lc.Title}.`
@@ -366,14 +379,14 @@ export class Lists extends HandlerBase {
       )
       const schemaXml = addFieldAttributes(webFld.SchemaXml, {
         DisplayName: fieldReference.Name,
-        SourceID: `{${this.context.lists[lc.Title]}}`
+        SourceID: `{${this.context.lists[lc.Title]}}`,
+        ...(fieldReference.AdditionalProperties ?? {})
       })
       const fieldAddResult = await list.fields.createFieldAsXml(schemaXml)
       fieldAddResult.field.update({
         Title: fieldReference.DisplayName,
         Required: fieldReference.Required,
-        Hidden: fieldReference.Hidden,
-        ...(fieldReference.AdditionalProperties ?? {})
+        Hidden: fieldReference.Hidden
       })
       super.log_info(
         'processFieldRef',
