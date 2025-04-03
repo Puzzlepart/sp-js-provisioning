@@ -348,17 +348,18 @@ export class Lists extends HandlerBase {
       'processFieldRef',
       `Processing field ref '${fieldReference.ID}' for list ${lc.Title}.`
     )
-    if (listFld) {
+    if (Boolean(listFld)) {
       await list.fields.getById(fieldReference.ID).update({
         Hidden: fieldReference.Hidden,
         Required: fieldReference.Required,
-        Title: fieldReference.DisplayName
+        Title: fieldReference.DisplayName,
+        ...(fieldReference.AdditonalProperties ?? {})
       })
       super.log_info(
         'processFieldRef',
         `Field '${fieldReference.ID}' updated for list ${lc.Title}.`
       )
-    } else if (webFld) {
+    } else if (Boolean(webFld)) {
       super.log_info(
         'processFieldRef',
         `Adding field '${fieldReference.ID}' to list ${lc.Title}.`
@@ -371,7 +372,8 @@ export class Lists extends HandlerBase {
       fieldAddResult.field.update({
         Title: fieldReference.DisplayName,
         Required: fieldReference.Required,
-        Hidden: fieldReference.Hidden
+        Hidden: fieldReference.Hidden,
+        ...(fieldReference.AdditonalProperties ?? {})
       })
       super.log_info(
         'processFieldRef',

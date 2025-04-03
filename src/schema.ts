@@ -212,6 +212,7 @@ export interface IListInstance {
 
 export interface IListInstanceFieldReference extends IFieldReference {
   DisplayName?: string
+  AdditonalProperties?: Record<string, string>
 }
 
 export interface IContentTypeBinding {
