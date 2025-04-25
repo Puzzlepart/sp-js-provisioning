@@ -1,8 +1,9 @@
+/* eslint-disable unicorn/prevent-abbreviations */
 import { IContentTypeAddResult, IWeb } from '@pnp/sp/presets/all'
 import initSpfxJsom, { ExecuteJsomQuery, JsomContext } from 'spfx-jsom'
 import { IProvisioningConfig } from '../provisioningconfig'
 import { ProvisioningContext } from '../provisioningcontext'
-import { IContentType } from '../schema'
+import { IContentType, IFieldReference } from '../schema'
 import { HandlerBase } from './handlerbase'
 
 /**
@@ -37,23 +38,7 @@ export class ContentTypes extends HandlerBase {
     this.context = context
     super.scope_started()
     try {
-      this.context.contentTypes = (
-        await web.contentTypes
-          .select('Id', 'Name', 'FieldLinks')
-          .expand('FieldLinks')()
-      ).reduce((object, contentType) => {
-        object[contentType.Name] = {
-          ID: contentType.Id.StringValue,
-          Name: contentType.Name,
-          FieldRefs: contentType['FieldLinks'].map((fieldLink: any) => ({
-            ID: fieldLink.Id,
-            Name: fieldLink.Name,
-            Required: fieldLink.Required,
-            Hidden: fieldLink.Hidden
-          }))
-        }
-        return object
-      }, {})
+      this._initContext(web)
       await contentTypes
         .sort((a, b) => {
           if (a.ID < b.ID) {
@@ -66,7 +51,7 @@ export class ContentTypes extends HandlerBase {
         })
         .reduce(
           (chain: any, contentType) =>
-            chain.then(() => this.processContentType(web, contentType)),
+            chain.then(() => this.processContentType(contentType)),
           Promise.resolve()
         )
     } catch (error) {
@@ -78,15 +63,13 @@ export class ContentTypes extends HandlerBase {
   /**
    * Provision a content type
    *
-   * @param web - The web
    * @param contentType - Content type
    */
   private async processContentType(
-    web: IWeb,
     contentType: IContentType
   ): Promise<void> {
     try {
-      const contentTypeId = this.context.contentTypes[contentType.Name]?.ID
+      const contentTypeId = contentType.ID ?? this.context.contentTypes[contentType.Name]?.ID
       if (!contentTypeId)
         throw new Error(
           `Content type with name '${contentType.Name}' does not exist in the web.`
@@ -98,6 +81,7 @@ export class ContentTypes extends HandlerBase {
       const spContentType = this.jsomContext.web
         .get_contentTypes()
         .getById(contentTypeId)
+      spContentType.set_name(contentType.Name)
       if (contentType.Description) {
         spContentType.set_description(contentType.Description)
       }
@@ -140,6 +124,15 @@ export class ContentTypes extends HandlerBase {
     }
   }
 
+  private getExistingFieldLink(
+    contentType: IContentType,
+    fieldName: string
+  ): IFieldReference {
+    const ct = this.context.contentTypes[contentType.Name] ?? this.context.contentTypes[contentType.ID]
+    const existingFieldLink = ct?.FieldRefs?.find((fr) => fr.Name === fieldName)
+    return existingFieldLink
+  }
+
   /**
    * Adding content type field refs
    *
@@ -151,11 +144,12 @@ export class ContentTypes extends HandlerBase {
     spContentType: SP.ContentType
   ): Promise<void> {
     try {
-      for (let index = 0; index < contentType.FieldRefs.length; index++) {
-        const fieldReference = contentType.FieldRefs[index]
-        const existingFieldLink = this.context.contentTypes[
-          contentType.Name
-        ].FieldRefs.find((fr) => fr.Name === fieldReference.Name)
+      const fieldRefs = contentType.FieldRefs
+      for (const [index, fieldReference] of fieldRefs.entries()) {
+        const existingFieldLink = this.getExistingFieldLink(
+          contentType,
+          fieldReference.Name
+        )
         let fieldLink: SP.FieldLink
         if (existingFieldLink) {
           fieldLink = spContentType
@@ -189,11 +183,35 @@ export class ContentTypes extends HandlerBase {
         `Successfully processed field refs for content type [${contentType.Name}] (${contentType.ID})`
       )
     } catch (error) {
+      // eslint-disable-next-line no-console
+      console.log(error)
       super.log_info(
         'processContentTypeFieldRefs',
         `Failed to process field refs for content type [${contentType.Name}] (${contentType.ID})`,
         { error: error.args && error.args.get_message() }
       )
     }
+  }
+
+  private async _initContext(web: IWeb): Promise<void> {
+    this.context.contentTypes = (
+      await web.contentTypes
+        .select('Id', 'Name', 'FieldLinks')
+        .expand('FieldLinks')()
+    ).reduce((object, contentType) => {
+      const ct = {
+        ID: contentType.Id.StringValue,
+        Name: contentType.Name,
+        FieldRefs: contentType['FieldLinks'].map((fieldLink: any) => ({
+          ID: fieldLink.Id,
+          Name: fieldLink.Name,
+          Required: fieldLink.Required,
+          Hidden: fieldLink.Hidden
+        }))
+      }
+      object[ct.Name] = ct
+      object[ct.ID] = ct
+      return object
+    }, {})
   }
 }

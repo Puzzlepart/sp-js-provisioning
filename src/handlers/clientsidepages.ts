@@ -1,4 +1,4 @@
-import { ClientsideWebpart, CreateClientsidePage, IClientsidePageComponent, IWeb } from '@pnp/sp/presets/all'
+import { ClientsideText, ClientsideWebpart, CreateClientsidePage, IClientsidePage, IClientsidePageComponent, IWeb } from '@pnp/sp/presets/all'
 import { IProvisioningConfig } from '../provisioningconfig'
 import { ProvisioningContext } from '../provisioningcontext'
 import { replaceUrlTokens } from '../util'
@@ -51,6 +51,19 @@ export class ClientSidePages extends HandlerBase {
   }
 
   private _getClientSideWebPart(partDefinitions: IClientsidePageComponent[], control: IClientSideControl) {
+    if (control.Id === 'Text' || control.Id === 'PageText') {
+      super.log_info(
+        'getClientSideWebPart',
+        `Control ID is ${control.Id}. Creating a ClientsideText part with text ${control.Text}`
+      )
+      const textPart = new ClientsideText(control.Text)
+      return {
+        part: textPart,
+        partDef: {
+          Name: 'PageText'
+        }
+      }
+    }
     const partDef = partDefinitions.find((c) =>
       c.Id.toLowerCase().includes(control.Id.toLowerCase())
     )
@@ -75,8 +88,8 @@ export class ClientSidePages extends HandlerBase {
       const serverProcessedContent = this.tokenHelper.replaceTokens(
         JSON.stringify(control.ServerProcessedContent)
       )
-      part.data.webPartData.serverProcessedContent = JSON.parse(
-        serverProcessedContent
+      part.setServerProcessedContent(
+        JSON.parse(serverProcessedContent)
       )
     }
     return { part, partDef } as const
@@ -99,7 +112,7 @@ export class ClientSidePages extends HandlerBase {
       `Processing client side page ${clientSidePage.Name}`
     )
     const { ServerRelativeUrl } = await web.select('ServerRelativeUrl')()
-    let page = null
+    let page: IClientsidePage = null
     try {
       page = await web.loadClientsidePage(`${ServerRelativeUrl}/SitePages/${clientSidePage.Name}`)
 

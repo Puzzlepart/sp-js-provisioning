@@ -42,6 +42,7 @@ export interface IClientSideControl {
     imageSources: Record<string, string>
     links: Record<string, string>
   }
+  Text?: string
 }
 
 export interface IClientSidePageColumn {

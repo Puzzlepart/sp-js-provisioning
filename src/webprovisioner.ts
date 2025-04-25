@@ -28,7 +28,7 @@ export class WebProvisioner {
   ) { }
 
   private async onSetup() {
-    if (this.config && this.config.logging) {
+    if (this.config?.logging) {
       Logger.subscribe(ConsoleListener())
       Logger.activeLogLevel = this.config.logging.activeLogLevel
     }

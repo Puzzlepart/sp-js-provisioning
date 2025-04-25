@@ -19,10 +19,11 @@
         "IClientSideControl": {
             "properties": {
                 "Id": {
-                    "type": "string"
+                    "type": "string",
+                    "description": "The ID of the control. Use Text or PageText for text controls."
                 },
                 "Properties": {
-                    "additionalProperties": {},
+                    "additionalProperties": true,
                     "type": "object"
                 },
                 "ServerProcessedContent": {
@@ -41,6 +42,9 @@
                         }
                     },
                     "type": "object"
+                },
+                "Text": {
+                    "type": "string"
                 }
             },
             "type": "object"
@@ -664,7 +668,8 @@
             "type": "array"
         },
         "ComposedLook": {
-            "$ref": "#/definitions/IComposedLook"
+            "$ref": "#/definitions/IComposedLook",
+            "title": "Composed Look"
         },
         "ContentTypes": {
             "items": {
