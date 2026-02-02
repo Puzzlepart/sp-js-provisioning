@@ -1,5 +1,6 @@
 import { Logger, LogLevel } from '@pnp/logging'
 import { IWeb } from '@pnp/sp/presets/all'
+import { spPost } from '@pnp/sp/operations'
 import { IProvisioningConfig } from '../provisioningconfig'
 import { IPropertyBagEntry } from '../schema'
 import * as Util from '../util'
@@ -24,68 +25,55 @@ export class PropertyBagEntries extends HandlerBase {
    * @param web - The web
    * @param entries - The property bag entries to provision
    */
-  public ProvisionObjects(
+  public async ProvisionObjects(
     web: IWeb,
     entries: IPropertyBagEntry[]
   ): Promise<void> {
     super.scope_started()
-    return new Promise<any>((resolve, reject) => {
-      if (Util.isNode()) {
-        Logger.write(
-          'PropertyBagEntries Handler not supported in Node.',
-          LogLevel.Error
-        )
-        reject()
-      } else if (this.config.spfxContext) {
-        Logger.write(
-          'PropertyBagEntries Handler not supported in SPFx.',
-          LogLevel.Error
-        )
-        reject()
-      } else {
-        web.select('ServerRelativeUrl')().then(({ ServerRelativeUrl }) => {
-          const context = new SP.ClientContext(ServerRelativeUrl),
-            spWeb = context.get_web(),
-            propertyBag = spWeb.get_allProperties(),
-            indexProps = []
-          for (const entry of entries.filter((entry) => entry.Overwrite)) {
-            propertyBag.set_item(entry.Key, entry.Value)
-            if (entry.Indexed) {
-              indexProps.push(Util.base64EncodeString(entry.Key))
-            }
-          }
-          spWeb.update()
-          context.load(propertyBag)
-          context.executeQueryAsync(
-            () => {
-              if (indexProps.length > 0) {
-                propertyBag.set_item(
-                  'vti_indexedpropertykeys',
-                  indexProps.join('|')
-                )
-                spWeb.update()
-                context.executeQueryAsync(
-                  () => {
-                    super.scope_ended()
-                    resolve(true)
-                  },
-                  () => {
-                    super.scope_ended()
-                    reject()
-                  }
-                )
-              } else {
-                super.scope_ended()
-                resolve(true)
-              }
-            },
-            () => {
-              super.scope_ended()
-              reject()
-            }
-          )
-        })
+    
+    if (Util.isNode()) {
+      Logger.write(
+        'PropertyBagEntries Handler not supported in Node.',
+        LogLevel.Error
+      )
+      super.scope_ended()
+      throw new Error('PropertyBagEntries Handler not supported in Node.')
+    }
+
+    try {
+      const currentProps = await web.allProperties()
+      const indexProps: string[] = []
+      
+      if (currentProps.vti_indexedpropertykeys) {
+        indexProps.push(...currentProps.vti_indexedpropertykeys.split('|'))
       }
-    })
+
+      const propertiesToUpdate: any = {}
+      
+      for (const entry of entries.filter((entry) => entry.Overwrite)) {
+        propertiesToUpdate[entry.Key] = entry.Value
+        if (entry.Indexed) {
+          const encodedKey = Util.base64EncodeString(entry.Key)
+          if (!indexProps.includes(encodedKey)) {
+            indexProps.push(encodedKey)
+          }
+        }
+      }
+
+      if (indexProps.length > 0) {
+        propertiesToUpdate.vti_indexedpropertykeys = indexProps.join('|')
+      }
+
+      await spPost(web.allProperties, { body: JSON.stringify(propertiesToUpdate) })
+      
+      super.scope_ended()
+    } catch (error) {
+      super.scope_ended()
+      Logger.write(
+        `Error setting property bag entries: ${error}`,
+        LogLevel.Error
+      )
+      throw error
+    }
   }
 }
