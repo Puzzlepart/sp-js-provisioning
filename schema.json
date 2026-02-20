@@ -442,6 +442,12 @@
             "properties": {
                 "AdditionalSettings": {
                     "properties": {
+                        "CustomFormatter": {
+                            "type": [
+                                "string",
+                                "object"
+                            ]
+                        },
                         "DefaultView": {
                             "type": "boolean"
                         },
@@ -734,4 +740,3 @@
     },
     "type": "object"
 }
-

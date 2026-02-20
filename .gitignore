@@ -40,3 +40,4 @@ bower_components
 # with updates to dist will be disallowed
 dist/
 lib/
+temp/

@@ -77,7 +77,30 @@ const template: Schema = {
         Description: 'I\'ve updated the description',
         EnableFolderCreation: true,
         ForceCheckout: true
-      }
+      },
+      Views: [
+        {
+          Title: 'All Documents',
+          ViewFields: ['DocIcon', 'LinkFilename', 'Modified', 'Editor'],
+          AdditionalSettings: {
+            RowLimit: 30,
+            Paged: true,
+            ViewQuery: '',
+            CustomFormatter: {
+              $schema:
+                'https://developer.microsoft.com/json-schemas/sp/v2/row-formatting.schema.json',
+              commandBarProps: {
+                commands: [
+                  {
+                    key: 'new',
+                    hide: true
+                  }
+                ]
+              }
+            }
+          }
+        }
+      ]
     }
   ]
 }
