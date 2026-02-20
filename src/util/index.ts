@@ -57,3 +57,22 @@ export function addFieldAttributes(
   schemaXml = xmljs.json2xml(fieldXmlJson)
   return schemaXml
 }
+
+export function normalizeViewAdditionalSettings(
+  settings: Record<string, any> = {}
+): Record<string, any> {
+  if (!settings || typeof settings !== 'object') {
+    return settings
+  }
+
+  const normalizedSettings = { ...settings }
+  if (
+    normalizedSettings.CustomFormatter &&
+    typeof normalizedSettings.CustomFormatter === 'object'
+  ) {
+    normalizedSettings.CustomFormatter = JSON.stringify(
+      normalizedSettings.CustomFormatter
+    )
+  }
+  return normalizedSettings
+}

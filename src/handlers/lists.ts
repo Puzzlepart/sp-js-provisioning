@@ -10,7 +10,7 @@ import {
   IListInstanceFieldReference,
   IListView
 } from '../schema'
-import { addFieldAttributes } from '../util'
+import { addFieldAttributes, normalizeViewAdditionalSettings } from '../util'
 import { TokenHelper } from '../util/tokenhelper'
 import { HandlerBase } from './handlerbase'
 
@@ -478,7 +478,9 @@ export class Lists extends HandlerBase {
           'processView',
           `View ${lvc.Title} for list ${lc.Title} already exists, updating.`
         )
-        await existingView.update(lvc.AdditionalSettings)
+        await existingView.update(
+          normalizeViewAdditionalSettings(lvc.AdditionalSettings)
+        )
         super.log_info(
           'processView',
           `View ${lvc.Title} successfully updated for list ${lc.Title}.`
@@ -491,7 +493,11 @@ export class Lists extends HandlerBase {
         )
         const result = await web.lists
           .getByTitle(lc.Title)
-          .views.add(lvc.Title, lvc.PersonalView, lvc.AdditionalSettings)
+          .views.add(
+            lvc.Title,
+            lvc.PersonalView,
+            normalizeViewAdditionalSettings(lvc.AdditionalSettings)
+          )
         super.log_info(
           'processView',
           `View ${lvc.Title} added successfully to list ${lc.Title}.`

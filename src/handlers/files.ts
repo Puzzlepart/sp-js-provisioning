@@ -6,7 +6,7 @@ import * as xmljs from 'xml-js'
 import { IProvisioningConfig } from '../provisioningconfig'
 import { ProvisioningContext } from '../provisioningcontext'
 import { IFileObject, IWebPart } from '../schema'
-import { replaceUrlTokens } from '../util'
+import { normalizeViewAdditionalSettings, replaceUrlTokens } from '../util'
 import { TokenHelper } from '../util/tokenhelper'
 import { HandlerBase } from './handlerbase'
 
@@ -385,7 +385,9 @@ export class Files extends HandlerBase {
         )
         if (wpView.length === 1) {
           const view = views.getById(wpView[0].Id)
-          const settings = listView.View.AdditionalSettings || {}
+          const settings = normalizeViewAdditionalSettings(
+            listView.View.AdditionalSettings || {}
+          )
           view
             .update(settings)
             .then(() => {
