@@ -178,6 +178,21 @@ export class ContentTypes extends HandlerBase {
       }
       spContentType.update(true)
       await ExecuteJsomQuery(this.jsomContext)
+
+      // Reorder field links to match the order specified in the schema
+      const fieldRefNames = fieldRefs
+        .map((fr) => fr.Name)
+        .filter(Boolean) as string[]
+      if (fieldRefNames.length > 1) {
+        super.log_info(
+          'processContentTypeFieldRefs',
+          `Reordering field refs for content type [${contentType.Name}] (${contentType.ID})`
+        )
+        spContentType.get_fieldLinks().reorder(fieldRefNames)
+        spContentType.update(true)
+        await ExecuteJsomQuery(this.jsomContext)
+      }
+
       super.log_info(
         'processContentTypeFieldRefs',
         `Successfully processed field refs for content type [${contentType.Name}] (${contentType.ID})`
