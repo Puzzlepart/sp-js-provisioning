@@ -383,7 +383,7 @@ export class Lists extends HandlerBase {
         ...(fieldReference.AdditionalProperties ?? {})
       })
       const fieldAddResult = await list.fields.createFieldAsXml(schemaXml)
-      fieldAddResult.field.update({
+      await fieldAddResult.field.update({
         Title: fieldReference.DisplayName,
         Required: fieldReference.Required,
         Hidden: fieldReference.Hidden
