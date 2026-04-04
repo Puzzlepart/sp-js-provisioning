@@ -233,6 +233,7 @@ export interface IListView {
     Scope?: 0 | 1
     DefaultView?: boolean
     JSLink?: string
+    CustomFormatter?: string | Record<string, any>
   }
 }
 
