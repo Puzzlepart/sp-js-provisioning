@@ -109,26 +109,6 @@ export class ContentTypes extends HandlerBase {
     }
   }
 
-  /**
-   * Add a content type
-   *
-   * @param web - The web
-   * @param contentType - Content type
-   */
-  private getParentContentTypeId(contentTypeId: string): string {
-    const id = contentTypeId.toUpperCase()
-    const guidSuffixMatch = id.match(/00[0-9A-F]{32}$/)
-    if (guidSuffixMatch) {
-      return id.slice(0, -34)
-    }
-
-    if (id.length > 4) {
-      return id.slice(0, -2)
-    }
-
-    return '0x01'
-  }
-
   private async createContentType(
     contentType: IContentType,
     contentTypeId: string
@@ -147,12 +127,10 @@ export class ContentTypes extends HandlerBase {
     if (contentType.Group) {
       ctInfo.set_group(contentType.Group)
     }
-
-    const parentContentTypeId = this.getParentContentTypeId(contentTypeId)
-    const parentContentType = this.jsomContext.web
-      .get_contentTypes()
-      .getById(parentContentTypeId)
-    ctInfo.set_parentContentType(parentContentType)
+    // NB: do NOT call ctInfo.set_parentContentType() when ctInfo.set_id() is
+    // used — SharePoint rejects the combination with
+    //   "parameters.Id, parameters.ParentContentType cannot be used together".
+    // The parent is inferred from the explicit ID's structure.
 
     const spContentType = this.jsomContext.web.get_contentTypes().add(ctInfo)
     await ExecuteJsomQuery(this.jsomContext)
