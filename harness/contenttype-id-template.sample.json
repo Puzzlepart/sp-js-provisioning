@@ -1,0 +1,17 @@
+{
+  "siteUrl": "https://<tenant>.sharepoint.com/sites/<fresh-site>",
+  "contentTypes": [
+    {
+      "Name": "Project Proposal",
+      "ID": "0x0100AAE66CFF1A3F488D843FF7CF96E41DD901",
+      "Group": "Custom Content Types",
+      "Description": "Provisioned deterministically with explicit ID"
+    },
+    {
+      "Name": "Project Proposal Variant",
+      "ID": "0x0100AAE66CFF1A3F488D843FF7CF96E41DD90101",
+      "Group": "Custom Content Types",
+      "Description": "Child CT to test ID lineage"
+    }
+  ]
+}

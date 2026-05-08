@@ -1,5 +1,5 @@
 /* eslint-disable unicorn/prevent-abbreviations */
-import { IContentTypeAddResult, IWeb } from '@pnp/sp/presets/all'
+import { IWeb } from '@pnp/sp/presets/all'
 import initSpfxJsom, { ExecuteJsomQuery, JsomContext } from 'spfx-jsom'
 import { IProvisioningConfig } from '../provisioningconfig'
 import { ProvisioningContext } from '../provisioningcontext'
@@ -74,13 +74,17 @@ export class ContentTypes extends HandlerBase {
         throw new Error(
           `Content type with name '${contentType.Name}' does not exist in the web.`
         )
+
+      const existingContentType = this.context.contentTypes[contentTypeId]
+      const spContentType = existingContentType
+        ? this.jsomContext.web.get_contentTypes().getById(contentTypeId)
+        : await this.createContentType(contentType, contentTypeId)
+
       super.log_info(
         'processContentType',
         `Processing content type [${contentType.Name}] (${contentTypeId})`
       )
-      const spContentType = this.jsomContext.web
-        .get_contentTypes()
-        .getById(contentTypeId)
+
       spContentType.set_name(contentType.Name)
       if (contentType.Description) {
         spContentType.set_description(contentType.Description)
@@ -93,6 +97,13 @@ export class ContentTypes extends HandlerBase {
       if (contentType.FieldRefs) {
         await this.processContentTypeFieldRefs(contentType, spContentType)
       }
+
+      this.context.contentTypes[contentTypeId] = {
+        ID: contentTypeId,
+        Name: contentType.Name,
+        FieldRefs: contentType.FieldRefs ?? []
+      }
+      this.context.contentTypes[contentType.Name] = this.context.contentTypes[contentTypeId]
     } catch (error) {
       throw error
     }
@@ -104,24 +115,48 @@ export class ContentTypes extends HandlerBase {
    * @param web - The web
    * @param contentType - Content type
    */
-  private async addContentType(
-    web: IWeb,
-    contentType: IContentType
-  ): Promise<IContentTypeAddResult> {
-    try {
-      super.log_info(
-        'addContentType',
-        `Adding content type [${contentType.Name}] (${contentType.ID})`
-      )
-      return await web.contentTypes.add(
-        contentType.ID,
-        contentType.Name,
-        contentType.Description,
-        contentType.Group
-      )
-    } catch (error) {
-      throw error
+  private getParentContentTypeId(contentTypeId: string): string {
+    const id = contentTypeId.toUpperCase()
+    const guidSuffixMatch = id.match(/00[0-9A-F]{32}$/)
+    if (guidSuffixMatch) {
+      return id.slice(0, -34)
     }
+
+    if (id.length > 4) {
+      return id.slice(0, -2)
+    }
+
+    return '0x01'
+  }
+
+  private async createContentType(
+    contentType: IContentType,
+    contentTypeId: string
+  ): Promise<SP.ContentType> {
+    super.log_info(
+      'createContentType',
+      `Creating content type [${contentType.Name}] (${contentTypeId})`
+    )
+
+    const ctInfo = new SP.ContentTypeCreationInformation()
+    ctInfo.set_name(contentType.Name)
+    ctInfo.set_id(contentTypeId)
+    if (contentType.Description) {
+      ctInfo.set_description(contentType.Description)
+    }
+    if (contentType.Group) {
+      ctInfo.set_group(contentType.Group)
+    }
+
+    const parentContentTypeId = this.getParentContentTypeId(contentTypeId)
+    const parentContentType = this.jsomContext.web
+      .get_contentTypes()
+      .getById(parentContentTypeId)
+    ctInfo.set_parentContentType(parentContentType)
+
+    const spContentType = this.jsomContext.web.get_contentTypes().add(ctInfo)
+    await ExecuteJsomQuery(this.jsomContext)
+    return spContentType
   }
 
   private getExistingFieldLink(
