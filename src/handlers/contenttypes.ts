@@ -1,10 +1,15 @@
 /* eslint-disable unicorn/prevent-abbreviations */
-import { IContentTypeAddResult, IWeb } from '@pnp/sp/presets/all'
+import { IWeb } from '@pnp/sp/presets/all'
 import initSpfxJsom, { ExecuteJsomQuery, JsomContext } from 'spfx-jsom'
 import { IProvisioningConfig } from '../provisioningconfig'
 import { ProvisioningContext } from '../provisioningcontext'
 import { IContentType, IFieldReference } from '../schema'
 import { HandlerBase } from './handlerbase'
+
+interface ContentTypeCreationInformationWithId
+  extends SP.ContentTypeCreationInformation {
+  set_id(value: string): void
+}
 
 /**
  * Describes the Content Types Object Handler
@@ -38,7 +43,7 @@ export class ContentTypes extends HandlerBase {
     this.context = context
     super.scope_started()
     try {
-      this._initContext(web)
+      await this._initContext(web)
       await contentTypes
         .sort((a, b) => {
           if (a.ID < b.ID) {
@@ -69,18 +74,23 @@ export class ContentTypes extends HandlerBase {
     contentType: IContentType
   ): Promise<void> {
     try {
-      const contentTypeId = contentType.ID ?? this.context.contentTypes[contentType.Name]?.ID
+      const contentTypeId =
+        contentType.ID ?? this.context.contentTypes[contentType.Name]?.ID
       if (!contentTypeId)
         throw new Error(
           `Content type with name '${contentType.Name}' does not exist in the web.`
         )
+
+      const existingContentType = this.context.contentTypes[contentTypeId]
+      const spContentType = existingContentType
+        ? this.jsomContext.web.get_contentTypes().getById(contentTypeId)
+        : await this.createContentType(contentType, contentTypeId)
+
       super.log_info(
         'processContentType',
         `Processing content type [${contentType.Name}] (${contentTypeId})`
       )
-      const spContentType = this.jsomContext.web
-        .get_contentTypes()
-        .getById(contentTypeId)
+
       spContentType.set_name(contentType.Name)
       if (contentType.Description) {
         spContentType.set_description(contentType.Description)
@@ -93,42 +103,58 @@ export class ContentTypes extends HandlerBase {
       if (contentType.FieldRefs) {
         await this.processContentTypeFieldRefs(contentType, spContentType)
       }
+
+      this.context.contentTypes[contentTypeId] = {
+        ID: contentTypeId,
+        Name: contentType.Name,
+        Description:
+          contentType.Description ?? existingContentType?.Description ?? '',
+        Group: contentType.Group ?? existingContentType?.Group ?? '',
+        FieldRefs: contentType.FieldRefs ?? []
+      }
+      this.context.contentTypes[contentType.Name] =
+        this.context.contentTypes[contentTypeId]
     } catch (error) {
       throw error
     }
   }
 
-  /**
-   * Add a content type
-   *
-   * @param web - The web
-   * @param contentType - Content type
-   */
-  private async addContentType(
-    web: IWeb,
-    contentType: IContentType
-  ): Promise<IContentTypeAddResult> {
-    try {
-      super.log_info(
-        'addContentType',
-        `Adding content type [${contentType.Name}] (${contentType.ID})`
-      )
-      return await web.contentTypes.add(
-        contentType.ID,
-        contentType.Name,
-        contentType.Description,
-        contentType.Group
-      )
-    } catch (error) {
-      throw error
+  private async createContentType(
+    contentType: IContentType,
+    contentTypeId: string
+  ): Promise<SP.ContentType> {
+    super.log_info(
+      'createContentType',
+      `Creating content type [${contentType.Name}] (${contentTypeId})`
+    )
+
+    const ctInfo = new SP.ContentTypeCreationInformation()
+    ctInfo.set_name(contentType.Name)
+    const ctInfoWithId = ctInfo as ContentTypeCreationInformationWithId
+    ctInfoWithId.set_id(contentTypeId)
+    if (contentType.Description) {
+      ctInfo.set_description(contentType.Description)
     }
+    if (contentType.Group) {
+      ctInfo.set_group(contentType.Group)
+    }
+    // NB: do NOT call ctInfo.set_parentContentType() when ctInfo.set_id() is
+    // used — SharePoint rejects the combination with
+    //   "parameters.Id, parameters.ParentContentType cannot be used together".
+    // The parent is inferred from the explicit ID's structure.
+
+    const spContentType = this.jsomContext.web.get_contentTypes().add(ctInfo)
+    await ExecuteJsomQuery(this.jsomContext)
+    return spContentType
   }
 
   private getExistingFieldLink(
     contentType: IContentType,
     fieldName: string
   ): IFieldReference {
-    const ct = this.context.contentTypes[contentType.Name] ?? this.context.contentTypes[contentType.ID]
+    const ct =
+      this.context.contentTypes[contentType.Name] ??
+      this.context.contentTypes[contentType.ID]
     const existingFieldLink = ct?.FieldRefs?.find((fr) => fr.Name === fieldName)
     return existingFieldLink
   }
@@ -211,12 +237,14 @@ export class ContentTypes extends HandlerBase {
   private async _initContext(web: IWeb): Promise<void> {
     this.context.contentTypes = (
       await web.contentTypes
-        .select('Id', 'Name', 'FieldLinks')
+        .select('Id', 'Name', 'Description', 'Group', 'FieldLinks')
         .expand('FieldLinks')()
     ).reduce((object, contentType) => {
       const ct = {
         ID: contentType.Id.StringValue,
         Name: contentType.Name,
+        Description: contentType.Description ?? '',
+        Group: contentType.Group ?? '',
         FieldRefs: contentType['FieldLinks'].map((fieldLink: any) => ({
           ID: fieldLink.Id,
           Name: fieldLink.Name,
