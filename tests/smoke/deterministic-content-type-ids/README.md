@@ -31,9 +31,9 @@ verifies that existing content types are updated instead of recreated.
 ## Expected Result
 
 - Site content type `SPJS Smoke Document` exists with ID
-  `0x0101008F279D4FF9A5427D8FA8FE8A5F8BD9E`.
+  `0x0101008F279D4FF9A5427D8FA8FE8A5F8BD9E0`.
 - Site content type `SPJS Smoke Child Document` exists with ID
-  `0x0101008F279D4FF9A5427D8FA8FE8A5F8BD9E00BDA84E8A7A5F41EFB78D473EC5AF1B86`.
+  `0x0101008F279D4FF9A5427D8FA8FE8A5F8BD9E000BDA84E8A7A5F41EFB78D473EC5AF1B86`.
 - List `SPJS Smoke Documents` exists and has content type management enabled.
 - The list content type IDs for both smoke content types start with the
   configured site content type IDs, proving SharePoint created inherited list

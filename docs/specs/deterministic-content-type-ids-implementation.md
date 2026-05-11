@@ -1,6 +1,6 @@
 # Implementation Plan: Deterministic Content Type IDs
 
-Status: Implemented
+Status: Verified
 
 Related:
 
@@ -82,8 +82,19 @@ The implementation should keep the behavior easy to audit:
 
 - [x] Build passes.
 - [x] Whitespace diff check passes.
-- [ ] Fresh-site smoke test passes.
-- [ ] Existing-site smoke test passes.
+- [x] Fresh-site smoke test passes.
+- [x] Existing-site smoke test passes.
 - [x] Public-safe smoke fixture is added without hardcoded environment values.
 - [x] PR body verification section is updated.
 - [x] Unrelated `package-lock.json` change is resolved or explicitly excluded.
+
+## Verification Result
+
+Verified on 2026-05-11 using Chrome remote debugging against a caller-provided
+SharePoint test site.
+
+- First run created the smoke site content types with deterministic IDs.
+- First run attached both smoke content types to the smoke document library.
+- Both list content type IDs inherited from the configured site content type IDs.
+- Second run updated the existing site content types without duplicate creation.
+- Second run found the existing list content type bindings intact.

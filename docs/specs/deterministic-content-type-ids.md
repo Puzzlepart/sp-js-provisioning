@@ -1,6 +1,6 @@
 # Spec: Deterministic Content Type ID Provisioning
 
-Status: Implemented
+Status: Verified
 
 Owner: okms
 
@@ -89,6 +89,14 @@ When a provisioning template references an existing content type by `Name` and o
 - Public-safe smoke fixture: `tests/smoke/deterministic-content-type-ids/`
 - Fresh SharePoint site smoke test with configured content types using explicit IDs.
 - Existing SharePoint site smoke test with a provisioning template that contains explicit-ID content types.
+
+## Verification Result
+
+Verified on 2026-05-11 using Chrome remote debugging against a caller-provided
+SharePoint test site. The first smoke run created the deterministic content
+types and attached inherited list content types. The second smoke run updated
+the existing content types and reused the existing list bindings without
+duplicate creation errors.
 
 ## Resolved Questions
 

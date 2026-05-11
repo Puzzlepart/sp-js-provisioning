@@ -5,7 +5,7 @@
   ],
   "ContentTypes": [
     {
-      "ID": "0x0101008F279D4FF9A5427D8FA8FE8A5F8BD9E",
+      "ID": "0x0101008F279D4FF9A5427D8FA8FE8A5F8BD9E0",
       "Name": "SPJS Smoke Document",
       "Description": "Smoke test document content type with a deterministic ID.",
       "Group": "SPJS Provisioning Smoke",
@@ -19,7 +19,7 @@
       ]
     },
     {
-      "ID": "0x0101008F279D4FF9A5427D8FA8FE8A5F8BD9E00BDA84E8A7A5F41EFB78D473EC5AF1B86",
+      "ID": "0x0101008F279D4FF9A5427D8FA8FE8A5F8BD9E000BDA84E8A7A5F41EFB78D473EC5AF1B86",
       "Name": "SPJS Smoke Child Document",
       "Description": "Smoke test child document content type with a deterministic ID.",
       "Group": "SPJS Provisioning Smoke",
@@ -48,11 +48,11 @@
       "RemoveExistingContentTypes": false,
       "ContentTypeBindings": [
         {
-          "ContentTypeID": "0x0101008F279D4FF9A5427D8FA8FE8A5F8BD9E",
+          "ContentTypeID": "0x0101008F279D4FF9A5427D8FA8FE8A5F8BD9E0",
           "Name": "SPJS Smoke Document"
         },
         {
-          "ContentTypeID": "0x0101008F279D4FF9A5427D8FA8FE8A5F8BD9E00BDA84E8A7A5F41EFB78D473EC5AF1B86",
+          "ContentTypeID": "0x0101008F279D4FF9A5427D8FA8FE8A5F8BD9E000BDA84E8A7A5F41EFB78D473EC5AF1B86",
           "Name": "SPJS Smoke Child Document"
         }
       ]
