@@ -1,0 +1,61 @@
+{
+  "SiteFields": [
+    "<Field ID=\"{D0574E37-5E54-4C42-94B0-29D730235C08}\" Name=\"SPJSSmokeText\" StaticName=\"SPJSSmokeText\" DisplayName=\"SPJS Smoke Text\" Type=\"Text\" Group=\"SPJS Provisioning Smoke\" />",
+    "<Field ID=\"{5B7F3560-4D27-4798-A441-A5CE42A16803}\" Name=\"SPJSSmokeNumber\" StaticName=\"SPJSSmokeNumber\" DisplayName=\"SPJS Smoke Number\" Type=\"Number\" Group=\"SPJS Provisioning Smoke\" />"
+  ],
+  "ContentTypes": [
+    {
+      "ID": "0x0101008F279D4FF9A5427D8FA8FE8A5F8BD9E",
+      "Name": "SPJS Smoke Document",
+      "Description": "Smoke test document content type with a deterministic ID.",
+      "Group": "SPJS Provisioning Smoke",
+      "FieldRefs": [
+        {
+          "ID": "D0574E37-5E54-4C42-94B0-29D730235C08",
+          "Name": "SPJSSmokeText",
+          "Required": false,
+          "Hidden": false
+        }
+      ]
+    },
+    {
+      "ID": "0x0101008F279D4FF9A5427D8FA8FE8A5F8BD9E00BDA84E8A7A5F41EFB78D473EC5AF1B86",
+      "Name": "SPJS Smoke Child Document",
+      "Description": "Smoke test child document content type with a deterministic ID.",
+      "Group": "SPJS Provisioning Smoke",
+      "FieldRefs": [
+        {
+          "ID": "D0574E37-5E54-4C42-94B0-29D730235C08",
+          "Name": "SPJSSmokeText",
+          "Required": false,
+          "Hidden": false
+        },
+        {
+          "ID": "5B7F3560-4D27-4798-A441-A5CE42A16803",
+          "Name": "SPJSSmokeNumber",
+          "Required": false,
+          "Hidden": false
+        }
+      ]
+    }
+  ],
+  "Lists": [
+    {
+      "Title": "SPJS Smoke Documents",
+      "Description": "Document library used by deterministic content type ID smoke tests.",
+      "Template": 101,
+      "ContentTypesEnabled": true,
+      "RemoveExistingContentTypes": false,
+      "ContentTypeBindings": [
+        {
+          "ContentTypeID": "0x0101008F279D4FF9A5427D8FA8FE8A5F8BD9E",
+          "Name": "SPJS Smoke Document"
+        },
+        {
+          "ContentTypeID": "0x0101008F279D4FF9A5427D8FA8FE8A5F8BD9E00BDA84E8A7A5F41EFB78D473EC5AF1B86",
+          "Name": "SPJS Smoke Child Document"
+        }
+      ]
+    }
+  ]
+}

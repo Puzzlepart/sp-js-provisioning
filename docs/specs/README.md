@@ -13,4 +13,3 @@ Recommended lifecycle:
 5. `Superseded` - replaced by a newer spec.
 
 Start from `../templates/spec.md`.
-

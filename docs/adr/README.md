@@ -11,4 +11,3 @@ Use an ADR when a change introduces or changes:
 - a deliberate workaround for platform or typing limitations
 
 Start from `../templates/adr.md`.
-

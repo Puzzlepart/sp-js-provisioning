@@ -1,6 +1,6 @@
 # Implementation Plan: Deterministic Content Type IDs
 
-Status: Draft
+Status: Implemented
 
 Related:
 
@@ -60,6 +60,7 @@ Preferred initial approach: local cast, because it keeps the fix scoped to the p
 - Existing site with the same template re-run.
 - Existing site template that references content types by name without explicit IDs, if the project supports that path.
 - List binding verification for content types attached to document libraries or lists.
+- Public-safe smoke fixture: `tests/smoke/deterministic-content-type-ids/`.
 
 ### 6. Update PR Metadata
 
@@ -79,9 +80,10 @@ The implementation should keep the behavior easy to audit:
 
 ## Done Checklist
 
-- [ ] Build passes.
-- [ ] Whitespace diff check passes.
+- [x] Build passes.
+- [x] Whitespace diff check passes.
 - [ ] Fresh-site smoke test passes.
 - [ ] Existing-site smoke test passes.
-- [ ] PR body verification section is updated.
-- [ ] Unrelated `package-lock.json` change is resolved or explicitly excluded.
+- [x] Public-safe smoke fixture is added without hardcoded environment values.
+- [x] PR body verification section is updated.
+- [x] Unrelated `package-lock.json` change is resolved or explicitly excluded.

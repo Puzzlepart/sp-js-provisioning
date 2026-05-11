@@ -41,4 +41,3 @@ Describe the intended implementation at a level that can be reviewed before code
 ## Rollout Notes
 
 Document compatibility, migration, deployment, or follow-up concerns.
-

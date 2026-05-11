@@ -19,4 +19,3 @@ What becomes easier, harder, or riskier because of this decision?
 ## Alternatives Considered
 
 - <alternative and why it was not chosen>
-

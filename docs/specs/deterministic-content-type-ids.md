@@ -1,6 +1,6 @@
 # Spec: Deterministic Content Type ID Provisioning
 
-Status: Draft
+Status: Implemented
 
 Owner: okms
 
@@ -86,12 +86,13 @@ When a provisioning template references an existing content type by `Name` and o
 
 - `npm run build`
 - `git diff --check origin/main...HEAD`
+- Public-safe smoke fixture: `tests/smoke/deterministic-content-type-ids/`
 - Fresh SharePoint site smoke test with configured content types using explicit IDs.
 - Existing SharePoint site smoke test with a provisioning template that contains explicit-ID content types.
 
-## Open Questions
+## Resolved Questions
 
-- Should the `set_id(...)` type gap be handled with a local cast, module augmentation, or an update to SharePoint typings?
+- The `set_id(...)` type gap is handled with a local cast scoped to the content type creation path.
 
 ## Rollout Notes
 
