@@ -6,6 +6,11 @@ import { ProvisioningContext } from '../provisioningcontext'
 import { IContentType, IFieldReference } from '../schema'
 import { HandlerBase } from './handlerbase'
 
+interface ContentTypeCreationInformationWithId
+  extends SP.ContentTypeCreationInformation {
+  set_id(value: string): void
+}
+
 /**
  * Describes the Content Types Object Handler
  */
@@ -38,7 +43,7 @@ export class ContentTypes extends HandlerBase {
     this.context = context
     super.scope_started()
     try {
-      this._initContext(web)
+      await this._initContext(web)
       await contentTypes
         .sort((a, b) => {
           if (a.ID < b.ID) {
@@ -69,7 +74,8 @@ export class ContentTypes extends HandlerBase {
     contentType: IContentType
   ): Promise<void> {
     try {
-      const contentTypeId = contentType.ID ?? this.context.contentTypes[contentType.Name]?.ID
+      const contentTypeId =
+        contentType.ID ?? this.context.contentTypes[contentType.Name]?.ID
       if (!contentTypeId)
         throw new Error(
           `Content type with name '${contentType.Name}' does not exist in the web.`
@@ -101,9 +107,13 @@ export class ContentTypes extends HandlerBase {
       this.context.contentTypes[contentTypeId] = {
         ID: contentTypeId,
         Name: contentType.Name,
+        Description:
+          contentType.Description ?? existingContentType?.Description ?? '',
+        Group: contentType.Group ?? existingContentType?.Group ?? '',
         FieldRefs: contentType.FieldRefs ?? []
       }
-      this.context.contentTypes[contentType.Name] = this.context.contentTypes[contentTypeId]
+      this.context.contentTypes[contentType.Name] =
+        this.context.contentTypes[contentTypeId]
     } catch (error) {
       throw error
     }
@@ -120,7 +130,8 @@ export class ContentTypes extends HandlerBase {
 
     const ctInfo = new SP.ContentTypeCreationInformation()
     ctInfo.set_name(contentType.Name)
-    ctInfo.set_id(contentTypeId)
+    const ctInfoWithId = ctInfo as ContentTypeCreationInformationWithId
+    ctInfoWithId.set_id(contentTypeId)
     if (contentType.Description) {
       ctInfo.set_description(contentType.Description)
     }
@@ -141,7 +152,9 @@ export class ContentTypes extends HandlerBase {
     contentType: IContentType,
     fieldName: string
   ): IFieldReference {
-    const ct = this.context.contentTypes[contentType.Name] ?? this.context.contentTypes[contentType.ID]
+    const ct =
+      this.context.contentTypes[contentType.Name] ??
+      this.context.contentTypes[contentType.ID]
     const existingFieldLink = ct?.FieldRefs?.find((fr) => fr.Name === fieldName)
     return existingFieldLink
   }
@@ -224,12 +237,14 @@ export class ContentTypes extends HandlerBase {
   private async _initContext(web: IWeb): Promise<void> {
     this.context.contentTypes = (
       await web.contentTypes
-        .select('Id', 'Name', 'FieldLinks')
+        .select('Id', 'Name', 'Description', 'Group', 'FieldLinks')
         .expand('FieldLinks')()
     ).reduce((object, contentType) => {
       const ct = {
         ID: contentType.Id.StringValue,
         Name: contentType.Name,
+        Description: contentType.Description ?? '',
+        Group: contentType.Group ?? '',
         FieldRefs: contentType['FieldLinks'].map((fieldLink: any) => ({
           ID: fieldLink.Id,
           Name: fieldLink.Name,
