@@ -11,6 +11,13 @@ interface ContentTypeCreationInformationWithId
   set_id(value: string): void
 }
 
+interface CurrentFieldLink {
+  ID: string
+  Name: string
+  Required: boolean
+  Hidden: boolean
+}
+
 /**
  * Describes the Content Types Object Handler
  */
@@ -149,14 +156,40 @@ export class ContentTypes extends HandlerBase {
   }
 
   private getExistingFieldLink(
-    contentType: IContentType,
-    fieldName: string
-  ): IFieldReference {
-    const ct =
-      this.context.contentTypes[contentType.Name] ??
-      this.context.contentTypes[contentType.ID]
-    const existingFieldLink = ct?.FieldRefs?.find((fr) => fr.Name === fieldName)
-    return existingFieldLink
+    currentFieldLinks: CurrentFieldLink[],
+    fieldReference: IFieldReference
+  ): CurrentFieldLink {
+    const fieldReferenceId = this.normalizeGuid(fieldReference.ID)
+    return currentFieldLinks.find((fieldLink) => {
+      return (
+        fieldLink.Name === fieldReference.Name ||
+        this.normalizeGuid(fieldLink.ID) === fieldReferenceId
+      )
+    })
+  }
+
+  private normalizeGuid(guid: string): string {
+    return (guid ?? '').replace(/[{}]/g, '').toLowerCase()
+  }
+
+  private async getCurrentFieldLinks(
+    spContentType: SP.ContentType
+  ): Promise<CurrentFieldLink[]> {
+    const fieldLinks = spContentType.get_fieldLinks()
+    await ExecuteJsomQuery(this.jsomContext, [{ clientObject: fieldLinks }])
+
+    const currentFieldLinks: CurrentFieldLink[] = []
+    const enumerator = fieldLinks.getEnumerator()
+    while (enumerator.moveNext()) {
+      const fieldLink = enumerator.get_current()
+      currentFieldLinks.push({
+        ID: fieldLink.get_id().toString(),
+        Name: fieldLink.get_name(),
+        Required: fieldLink.get_required(),
+        Hidden: fieldLink.get_hidden()
+      })
+    }
+    return currentFieldLinks
   }
 
   /**
@@ -169,69 +202,60 @@ export class ContentTypes extends HandlerBase {
     contentType: IContentType,
     spContentType: SP.ContentType
   ): Promise<void> {
-    try {
-      const fieldRefs = contentType.FieldRefs
-      for (const [index, fieldReference] of fieldRefs.entries()) {
-        const existingFieldLink = this.getExistingFieldLink(
-          contentType,
-          fieldReference.Name
-        )
-        let fieldLink: SP.FieldLink
-        if (existingFieldLink) {
-          fieldLink = spContentType
-            .get_fieldLinks()
-            .getById(new SP.Guid(existingFieldLink.ID))
-        } else {
-          super.log_info(
-            'processContentTypeFieldRefs',
-            `Adding field ref ${fieldReference.Name} to content type [${contentType.Name}] (${contentType.ID})`
-          )
-          const siteField = this.jsomContext.web
-            .get_fields()
-            .getByInternalNameOrTitle(fieldReference.Name)
-          const fieldLinkCreationInformation = new SP.FieldLinkCreationInformation()
-          fieldLinkCreationInformation.set_field(siteField)
-          fieldLink = spContentType
-            .get_fieldLinks()
-            .add(fieldLinkCreationInformation)
-        }
-        if (contentType.FieldRefs[index].hasOwnProperty('Required')) {
-          fieldLink.set_required(contentType.FieldRefs[index].Required)
-        }
-        if (contentType.FieldRefs[index].hasOwnProperty('Hidden')) {
-          fieldLink.set_hidden(contentType.FieldRefs[index].Hidden)
-        }
-      }
-      spContentType.update(true)
-      await ExecuteJsomQuery(this.jsomContext)
-
-      // Reorder field links to match the order specified in the schema
-      const fieldRefNames = fieldRefs
-        .map((fr) => fr.Name)
-        .filter(Boolean) as string[]
-      if (fieldRefNames.length > 1) {
+    const fieldRefs = contentType.FieldRefs
+    const currentFieldLinks = await this.getCurrentFieldLinks(spContentType)
+    for (const [index, fieldReference] of fieldRefs.entries()) {
+      const existingFieldLink = this.getExistingFieldLink(
+        currentFieldLinks,
+        fieldReference
+      )
+      let fieldLink: SP.FieldLink
+      if (existingFieldLink) {
+        fieldLink = spContentType
+          .get_fieldLinks()
+          .getById(new SP.Guid(existingFieldLink.ID))
+      } else {
         super.log_info(
           'processContentTypeFieldRefs',
-          `Reordering field refs for content type [${contentType.Name}] (${contentType.ID})`
+          `Adding field ref ${fieldReference.Name} to content type [${contentType.Name}] (${contentType.ID})`
         )
-        spContentType.get_fieldLinks().reorder(fieldRefNames)
-        spContentType.update(true)
-        await ExecuteJsomQuery(this.jsomContext)
+        const siteField = this.jsomContext.web
+          .get_fields()
+          .getByInternalNameOrTitle(fieldReference.Name)
+        const fieldLinkCreationInformation = new SP.FieldLinkCreationInformation()
+        fieldLinkCreationInformation.set_field(siteField)
+        fieldLink = spContentType
+          .get_fieldLinks()
+          .add(fieldLinkCreationInformation)
       }
-
-      super.log_info(
-        'processContentTypeFieldRefs',
-        `Successfully processed field refs for content type [${contentType.Name}] (${contentType.ID})`
-      )
-    } catch (error) {
-      // eslint-disable-next-line no-console
-      console.log(error)
-      super.log_info(
-        'processContentTypeFieldRefs',
-        `Failed to process field refs for content type [${contentType.Name}] (${contentType.ID})`,
-        { error: error.args && error.args.get_message() }
-      )
+      if (contentType.FieldRefs[index].hasOwnProperty('Required')) {
+        fieldLink.set_required(contentType.FieldRefs[index].Required)
+      }
+      if (contentType.FieldRefs[index].hasOwnProperty('Hidden')) {
+        fieldLink.set_hidden(contentType.FieldRefs[index].Hidden)
+      }
     }
+    spContentType.update(true)
+    await ExecuteJsomQuery(this.jsomContext)
+
+    // Reorder field links to match the order specified in the schema
+    const fieldRefNames = fieldRefs
+      .map((fr) => fr.Name)
+      .filter(Boolean) as string[]
+    if (fieldRefNames.length > 1) {
+      super.log_info(
+        'processContentTypeFieldRefs',
+        `Reordering field refs for content type [${contentType.Name}] (${contentType.ID})`
+      )
+      spContentType.get_fieldLinks().reorder(fieldRefNames)
+      spContentType.update(true)
+      await ExecuteJsomQuery(this.jsomContext)
+    }
+
+    super.log_info(
+      'processContentTypeFieldRefs',
+      `Successfully processed field refs for content type [${contentType.Name}] (${contentType.ID})`
+    )
   }
 
   private async _initContext(web: IWeb): Promise<void> {
