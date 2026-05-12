@@ -6,11 +6,12 @@ This project is a SharePoint provisioning tool that uses the SharePoint Framewor
 
 ## Installation
 
-To install the project, you need to have Node.js and npm installed on your machine. After that, you can clone the repository and install the dependencies:
+To install the project, use the Node.js version pinned in `.nvmrc` and then install the dependencies. This repository also enables legacy peer dependency resolution in `.npmrc` because the current dependency graph predates stricter npm peer resolution.
 
 ```sh
 git clone git://github.com/Puzzlepart/pnp-js-provisioning
 cd pnp-js-provisioning
+nvm use
 npm install
 ```
 
