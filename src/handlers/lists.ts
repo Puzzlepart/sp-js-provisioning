@@ -492,6 +492,10 @@ export class Lists extends HandlerBase {
         const result = await web.lists
           .getByTitle(lc.Title)
           .views.add(lvc.Title, lvc.PersonalView, lvc.AdditionalSettings)
+        // SP REST's view-create endpoint silently ignores properties such as
+        // CustomFormatter, ViewType2 and Scope. Re-apply AdditionalSettings
+        // via update so newly created views match updated views.
+        await result.view.update(lvc.AdditionalSettings)
         super.log_info(
           'processView',
           `View ${lvc.Title} added successfully to list ${lc.Title}.`
