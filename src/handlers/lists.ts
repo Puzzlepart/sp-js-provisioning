@@ -489,23 +489,36 @@ export class Lists extends HandlerBase {
           'processView',
           `View ${lvc.Title} for list ${lc.Title} doesn't exists, creating.`
         )
-        const result = await web.lists
+        await web.lists
           .getByTitle(lc.Title)
           .views.add(lvc.Title, lvc.PersonalView, lvc.AdditionalSettings)
         // SP REST's view-create endpoint silently ignores properties such as
         // CustomFormatter, ViewType2 and Scope. Re-apply AdditionalSettings
-        // via update so newly created views match updated views.
-        await result.view.update(lvc.AdditionalSettings)
+        // via update so newly created views match updated views. Re-resolve
+        // the view by title rather than reusing the IViewAddResult, since the
+        // returned reference is bound to the parent views collection and the
+        // update can silently no-op on some PnPjs/SharePoint combinations.
+        const newView = web.lists
+          .getByTitle(lc.Title)
+          .views.getByTitle(lvc.Title)
+        try {
+          await newView.update(lvc.AdditionalSettings)
+        } catch (err) {
+          super.log_warn(
+            'processView',
+            `Failed to re-apply AdditionalSettings on newly created view ${lvc.Title}: ${err}`
+          )
+        }
         super.log_info(
           'processView',
           `View ${lvc.Title} added successfully to list ${lc.Title}.`
         )
-        await this.processViewFields(result.view, lvc)
+        await this.processViewFields(newView, lvc)
       }
-    } catch {
-      super.log_info(
-        'processViewFields',
-        `Failed to process view for view ${lvc.Title}.`
+    } catch (err) {
+      super.log_error(
+        'processView',
+        `Failed to process view ${lvc.Title}: ${err}`
       )
     }
   }
