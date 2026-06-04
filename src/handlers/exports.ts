@@ -11,6 +11,7 @@ import { Lists } from './lists'
 import { Navigation } from './navigation'
 import { PropertyBagEntries } from './propertybagentries'
 import { SiteFields } from './sitefields'
+import { Taxonomy } from './taxonomy'
 import { WebSettings } from './websettings'
 
 export type Handler =
@@ -25,6 +26,7 @@ export type Handler =
   | 'PropertyBagEntries'
   | 'WebSettings'
   | 'SiteFields'
+  | 'Taxonomy'
   | 'Hooks'
 
 export const DefaultHandlerMap = (
@@ -41,10 +43,12 @@ export const DefaultHandlerMap = (
   PropertyBagEntries: new PropertyBagEntries(config),
   WebSettings: new WebSettings(config),
   SiteFields: new SiteFields(config),
+  Taxonomy: new Taxonomy(config),
   Hooks: new Hooks(config)
 })
 
 export const DefaultHandlerSort: Record<Handler, number> = {
+  Taxonomy: -1,
   ClientSidePages: 7,
   ComposedLook: 6,
   ContentTypes: 1,

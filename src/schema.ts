@@ -13,10 +13,36 @@ export interface Schema {
   ClientSidePages?: IClientSidePage[]
   SiteFields?: string[]
   ContentTypes?: IContentType[]
+  Taxonomy?: ITaxonomy
   [key: string]: any
 }
 
 export default Schema
+
+export interface ITermGroup {
+  Id: string
+  Name: string
+}
+
+export interface ITerm {
+  Id: string
+  Name: string
+  SortOrder?: number
+  CustomProperties?: Record<string, string>
+}
+
+export interface ITermSet {
+  Id: string
+  Name: string
+  Description?: string
+  IsOpenForTermCreation?: boolean
+  Terms?: ITerm[]
+}
+
+export interface ITaxonomy {
+  TermGroup: ITermGroup
+  TermSets: ITermSet[]
+}
 
 export interface IFieldReference {
   ID: string
