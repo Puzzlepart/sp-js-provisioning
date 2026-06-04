@@ -77,9 +77,7 @@ export class ContentTypes extends HandlerBase {
    *
    * @param contentType - Content type
    */
-  private async processContentType(
-    contentType: IContentType
-  ): Promise<void> {
+  private async processContentType(contentType: IContentType): Promise<void> {
     try {
       const contentTypeId =
         contentType.ID ?? this.context.contentTypes[contentType.Name]?.ID
@@ -119,8 +117,9 @@ export class ContentTypes extends HandlerBase {
         Group: contentType.Group ?? existingContentType?.Group ?? '',
         FieldRefs: contentType.FieldRefs ?? []
       }
-      this.context.contentTypes[contentType.Name] =
-        this.context.contentTypes[contentTypeId]
+      this.context.contentTypes[contentType.Name] = this.context.contentTypes[
+        contentTypeId
+      ]
     } catch (error) {
       throw error
     }

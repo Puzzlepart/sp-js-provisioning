@@ -108,11 +108,9 @@ export class Files extends HandlerBase {
       let fileAddResult: IFileAddResult
       let pnpFile: IFile
       try {
-        fileAddResult = await pnpFolder.files.addUsingPath(
-          file.Url,
-          blob,
-          { Overwrite: file.Overwrite ?? true }
-        )
+        fileAddResult = await pnpFolder.files.addUsingPath(file.Url, blob, {
+          Overwrite: file.Overwrite ?? true
+        })
         pnpFile = fileAddResult.file
         fileServerRelativeUrl = fileAddResult.data.ServerRelativeUrl
       } catch {
@@ -379,55 +377,56 @@ export class Files extends HandlerBase {
   ) {
     return new Promise<void>((resolve, reject) => {
       const views = web.lists.getByTitle(listView.List).views
-      views().then((listViews) => {
-        const wpView = listViews.filter(
-          (v) => v.ServerRelativeUrl === fileServerRelativeUrl
-        )
-        if (wpView.length === 1) {
-          const view = views.getById(wpView[0].Id)
-          const settings = listView.View.AdditionalSettings || {}
-          view
-            .update(settings)
-            .then(() => {
-              view.fields
-                .removeAll()
-                .then(() => {
-                  listView.View.ViewFields.reduce(
-                    (chain, viewField) =>
-                      chain.then(() => view.fields.add(viewField)),
-                    Promise.resolve()
-                  )
-                    .then(resolve)
-                    .catch((error) => {
-                      Logger.log({
-                        data: { fileServerRelativeUrl, listView, err: error },
-                        level: LogLevel.Error,
-                        message: `Failed to process page list view for file ${fileServerRelativeUrl}`
+      views()
+        .then((listViews) => {
+          const wpView = listViews.filter(
+            (v) => v.ServerRelativeUrl === fileServerRelativeUrl
+          )
+          if (wpView.length === 1) {
+            const view = views.getById(wpView[0].Id)
+            const settings = listView.View.AdditionalSettings || {}
+            view
+              .update(settings)
+              .then(() => {
+                view.fields
+                  .removeAll()
+                  .then(() => {
+                    listView.View.ViewFields.reduce(
+                      (chain, viewField) =>
+                        chain.then(() => view.fields.add(viewField)),
+                      Promise.resolve()
+                    )
+                      .then(resolve)
+                      .catch((error) => {
+                        Logger.log({
+                          data: { fileServerRelativeUrl, listView, err: error },
+                          level: LogLevel.Error,
+                          message: `Failed to process page list view for file ${fileServerRelativeUrl}`
+                        })
+                        reject(error)
                       })
-                      reject(error)
-                    })
-                })
-                .catch((error) => {
-                  Logger.log({
-                    data: { fileServerRelativeUrl, listView, err: error },
-                    level: LogLevel.Error,
-                    message: `Failed to process page list view for file ${fileServerRelativeUrl}`
                   })
-                  reject(error)
-                })
-            })
-            .catch((error) => {
-              Logger.log({
-                data: { fileServerRelativeUrl, listView, err: error },
-                level: LogLevel.Error,
-                message: `Failed to process page list view for file ${fileServerRelativeUrl}`
+                  .catch((error) => {
+                    Logger.log({
+                      data: { fileServerRelativeUrl, listView, err: error },
+                      level: LogLevel.Error,
+                      message: `Failed to process page list view for file ${fileServerRelativeUrl}`
+                    })
+                    reject(error)
+                  })
               })
-              reject(error)
-            })
-        } else {
-          resolve()
-        }
-      })
+              .catch((error) => {
+                Logger.log({
+                  data: { fileServerRelativeUrl, listView, err: error },
+                  level: LogLevel.Error,
+                  message: `Failed to process page list view for file ${fileServerRelativeUrl}`
+                })
+                reject(error)
+              })
+          } else {
+            resolve()
+          }
+        })
         .catch((error) => {
           Logger.log({
             data: { fileServerRelativeUrl, listView, err: error },
@@ -446,7 +445,11 @@ export class Files extends HandlerBase {
    * @param pnpFile - The PnP file
    * @param properties - The properties to set
    */
-  private async processProperties(web: IWeb, pnpFile: IFile, file: IFileObject) {
+  private async processProperties(
+    web: IWeb,
+    pnpFile: IFile,
+    file: IFileObject
+  ) {
     const hasProperties =
       file.Properties && Object.keys(file.Properties).length > 0
     if (hasProperties) {

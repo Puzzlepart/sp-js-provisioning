@@ -1,4 +1,11 @@
-import { ClientsideText, ClientsideWebpart, CreateClientsidePage, IClientsidePage, IClientsidePageComponent, IWeb } from '@pnp/sp/presets/all'
+import {
+  ClientsideText,
+  ClientsideWebpart,
+  CreateClientsidePage,
+  IClientsidePage,
+  IClientsidePageComponent,
+  IWeb
+} from '@pnp/sp/presets/all'
 import { IProvisioningConfig } from '../provisioningconfig'
 import { ProvisioningContext } from '../provisioningcontext'
 import { replaceUrlTokens } from '../util'
@@ -50,7 +57,10 @@ export class ClientSidePages extends HandlerBase {
     }
   }
 
-  private _getClientSideWebPart(partDefinitions: IClientsidePageComponent[], control: IClientSideControl) {
+  private _getClientSideWebPart(
+    partDefinitions: IClientsidePageComponent[],
+    control: IClientSideControl
+  ) {
     if (control.Id === 'Text' || control.Id === 'PageText') {
       super.log_info(
         'getClientSideWebPart',
@@ -74,23 +84,21 @@ export class ClientSidePages extends HandlerBase {
       )
       return {
         part: null,
-        partDef: null,
+        partDef: null
       }
     }
     let properties = this.tokenHelper.replaceTokens(
       JSON.stringify(control.Properties)
     )
     properties = replaceUrlTokens(properties, this.config)
-    const part = ClientsideWebpart.fromComponentDef(
-      partDef
-    ).setProperties<any>(JSON.parse(properties))
+    const part = ClientsideWebpart.fromComponentDef(partDef).setProperties<any>(
+      JSON.parse(properties)
+    )
     if (control.ServerProcessedContent) {
       const serverProcessedContent = this.tokenHelper.replaceTokens(
         JSON.stringify(control.ServerProcessedContent)
       )
-      part.setServerProcessedContent(
-        JSON.parse(serverProcessedContent)
-      )
+      part.setServerProcessedContent(JSON.parse(serverProcessedContent))
     }
     return { part, partDef } as const
   }
@@ -114,7 +122,9 @@ export class ClientSidePages extends HandlerBase {
     const { ServerRelativeUrl } = await web.select('ServerRelativeUrl')()
     let page: IClientsidePage = null
     try {
-      page = await web.loadClientsidePage(`${ServerRelativeUrl}/SitePages/${clientSidePage.Name}`)
+      page = await web.loadClientsidePage(
+        `${ServerRelativeUrl}/SitePages/${clientSidePage.Name}`
+      )
 
       if (clientSidePage.Overwrite && page) {
         super.log_info(
@@ -142,7 +152,10 @@ export class ClientSidePages extends HandlerBase {
     if (clientSidePage.VerticalSection) {
       const verticalSection = page.addVerticalSection()
       for (const control of clientSidePage.VerticalSection) {
-        const { part, partDef } = this._getClientSideWebPart(partDefinitions, control)
+        const { part, partDef } = this._getClientSideWebPart(
+          partDefinitions,
+          control
+        )
         if (!part) continue
         try {
           verticalSection.addControl(part)
@@ -160,7 +173,10 @@ export class ClientSidePages extends HandlerBase {
       for (const col of s.Columns) {
         const column = section.addColumn(col.Factor)
         for (const control of col.Controls) {
-          const { part, partDef } = this._getClientSideWebPart(partDefinitions, control)
+          const { part, partDef } = this._getClientSideWebPart(
+            partDefinitions,
+            control
+          )
           if (!part) continue
           try {
             column.addControl(part)
@@ -179,6 +195,8 @@ export class ClientSidePages extends HandlerBase {
     )
     page.commentsDisabled = clientSidePage.CommentsDisabled
     await page.save()
-    await (clientSidePage.CommentsDisabled ? page.disableComments() : page.enableComments())
+    await (clientSidePage.CommentsDisabled
+      ? page.disableComments()
+      : page.enableComments())
   }
 }

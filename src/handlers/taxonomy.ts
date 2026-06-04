@@ -75,7 +75,10 @@ export class Taxonomy extends HandlerBase {
     const groupId = new SP.Guid(groupDef.Id)
     const existing = this.termStore.getGroup(groupId)
     if (await this.exists(existing)) {
-      super.log_info('ensureGroup', `Term group ${groupDef.Name} already exists`)
+      super.log_info(
+        'ensureGroup',
+        `Term group ${groupDef.Name} already exists`
+      )
       return existing
     }
     super.log_info('ensureGroup', `Creating term group ${groupDef.Name}`)

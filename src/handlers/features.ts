@@ -22,7 +22,10 @@ export class Features extends HandlerBase {
    * @param web - The web
    * @param features - The features to provision
    */
-  public async ProvisionObjects(web: IWeb, features: IFeature[]): Promise<void> {
+  public async ProvisionObjects(
+    web: IWeb,
+    features: IFeature[]
+  ): Promise<void> {
     super.scope_started()
     try {
       await features.reduce((chain, feature) => {

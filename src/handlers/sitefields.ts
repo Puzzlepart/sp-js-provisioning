@@ -36,9 +36,9 @@ export class SiteFields extends HandlerBase {
     super.scope_started()
     try {
       this.context.siteFields = (
-        await web.fields
-          .select('Id', 'InternalName')
-          <Array<{ Id: string; InternalName: string }>>()
+        await web.fields.select('Id', 'InternalName')<
+          Array<{ Id: string; InternalName: string }>
+        >()
       ).reduce((object, l) => {
         object[l.InternalName] = l.Id
         return object

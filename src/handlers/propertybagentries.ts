@@ -43,48 +43,50 @@ export class PropertyBagEntries extends HandlerBase {
         )
         reject()
       } else {
-        web.select('ServerRelativeUrl')().then(({ ServerRelativeUrl }) => {
-          const context = new SP.ClientContext(ServerRelativeUrl),
-            spWeb = context.get_web(),
-            propertyBag = spWeb.get_allProperties(),
-            indexProps = []
-          for (const entry of entries.filter((entry) => entry.Overwrite)) {
-            propertyBag.set_item(entry.Key, entry.Value)
-            if (entry.Indexed) {
-              indexProps.push(Util.base64EncodeString(entry.Key))
-            }
-          }
-          spWeb.update()
-          context.load(propertyBag)
-          context.executeQueryAsync(
-            () => {
-              if (indexProps.length > 0) {
-                propertyBag.set_item(
-                  'vti_indexedpropertykeys',
-                  indexProps.join('|')
-                )
-                spWeb.update()
-                context.executeQueryAsync(
-                  () => {
-                    super.scope_ended()
-                    resolve(true)
-                  },
-                  () => {
-                    super.scope_ended()
-                    reject()
-                  }
-                )
-              } else {
-                super.scope_ended()
-                resolve(true)
+        web
+          .select('ServerRelativeUrl')()
+          .then(({ ServerRelativeUrl }) => {
+            const context = new SP.ClientContext(ServerRelativeUrl),
+              spWeb = context.get_web(),
+              propertyBag = spWeb.get_allProperties(),
+              indexProps = []
+            for (const entry of entries.filter((entry) => entry.Overwrite)) {
+              propertyBag.set_item(entry.Key, entry.Value)
+              if (entry.Indexed) {
+                indexProps.push(Util.base64EncodeString(entry.Key))
               }
-            },
-            () => {
-              super.scope_ended()
-              reject()
             }
-          )
-        })
+            spWeb.update()
+            context.load(propertyBag)
+            context.executeQueryAsync(
+              () => {
+                if (indexProps.length > 0) {
+                  propertyBag.set_item(
+                    'vti_indexedpropertykeys',
+                    indexProps.join('|')
+                  )
+                  spWeb.update()
+                  context.executeQueryAsync(
+                    () => {
+                      super.scope_ended()
+                      resolve(true)
+                    },
+                    () => {
+                      super.scope_ended()
+                      reject()
+                    }
+                  )
+                } else {
+                  super.scope_ended()
+                  resolve(true)
+                }
+              },
+              () => {
+                super.scope_ended()
+                reject()
+              }
+            )
+          })
       }
     })
   }

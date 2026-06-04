@@ -103,7 +103,10 @@ export class Navigation extends HandlerBase {
     }
   }
 
-  private async deleteNode(target: INavigationNodes, id: number): Promise<void> {
+  private async deleteNode(
+    target: INavigationNodes,
+    id: number
+  ): Promise<void> {
     try {
       await target.getById(id).delete()
     } catch (error) {

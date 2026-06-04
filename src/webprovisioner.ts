@@ -1,6 +1,10 @@
 /* eslint-disable unicorn/empty-brace-spaces */
 import { ConsoleListener, Logger, LogLevel } from '@pnp/logging'
-import { DefaultHandlerMap, DefaultHandlerSort, Handler } from './handlers/exports'
+import {
+  DefaultHandlerMap,
+  DefaultHandlerSort,
+  Handler
+} from './handlers/exports'
 import { HandlerBase } from './handlers/handlerbase'
 import { IProvisioningConfig } from './provisioningconfig'
 import { ProvisioningContext } from './provisioningcontext'
@@ -25,7 +29,7 @@ export class WebProvisioner {
   constructor(
     private web: IWeb,
     public handlerSort: Record<Handler, number> = DefaultHandlerSort
-  ) { }
+  ) {}
 
   private async onSetup() {
     if (this.config?.logging) {

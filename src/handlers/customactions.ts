@@ -29,8 +29,9 @@ export class CustomActions extends HandlerBase {
   ): Promise<void> {
     super.scope_started()
     try {
-      const existingActions = await web.userCustomActions
-        .select('Title')<{ Title: string }[]>()
+      const existingActions = await web.userCustomActions.select('Title')<
+        { Title: string }[]
+      >()
 
       const [batch, execute] = createBatch(web)
 

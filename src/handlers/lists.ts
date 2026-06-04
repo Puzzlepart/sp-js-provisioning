@@ -56,9 +56,9 @@ export class Lists extends HandlerBase {
     super.scope_started()
     try {
       this.context.lists = (
-        await web.lists
-          .select('Id', 'Title')
-          <Array<{ Id: string; Title: string }>>()
+        await web.lists.select('Id', 'Title')<
+          Array<{ Id: string; Title: string }>
+        >()
       ).reduce((object, l) => {
         object[l.Title] = l.Id
         return object
@@ -83,9 +83,9 @@ export class Lists extends HandlerBase {
         Promise.resolve()
       )
       this.context.lists = (
-        await web.lists
-          .select('Id', 'Title')
-          <Array<{ Id: string; Title: string }>>()
+        await web.lists.select('Id', 'Title')<
+          Array<{ Id: string; Title: string }>
+        >()
       ).reduce((object, l) => {
         object[l.Title] = l.Id
         return object
@@ -230,7 +230,10 @@ export class Lists extends HandlerBase {
    * @param web - The web
    * @param list - The pnp list
    */
-  private async processListFields(web: IWeb, list: IListInstance): Promise<any> {
+  private async processListFields(
+    web: IWeb,
+    list: IListInstance
+  ): Promise<any> {
     if (list.Fields) {
       await list.Fields.reduce(
         (chain, field) => chain.then(() => this.processField(web, list, field)),
@@ -302,7 +305,10 @@ export class Lists extends HandlerBase {
    * @param web - The web
    * @param lc - The list configuration
    */
-  private async processListFieldRefs(web: IWeb, lc: IListInstance): Promise<any> {
+  private async processListFieldRefs(
+    web: IWeb,
+    lc: IListInstance
+  ): Promise<any> {
     if (lc.FieldRefs) {
       super.log_info(
         'processListFieldRefs',
@@ -366,7 +372,9 @@ export class Lists extends HandlerBase {
           `Additional properties set for field ref '${fieldReference.ID}' for list ${lc.Title}. Attempting to generate schema XML.`,
           { schemaXml }
         )
-        await list.fields.getById(fieldReference.ID).update({ SchemaXml: schemaXml })
+        await list.fields
+          .getById(fieldReference.ID)
+          .update({ SchemaXml: schemaXml })
       }
       super.log_info(
         'processFieldRef',
@@ -412,10 +420,9 @@ export class Lists extends HandlerBase {
       )
     }
     this.context.listViews = (
-      await web.lists
-        .getByTitle(lc.Title)
-        .views.select('Id', 'Title')
-        <Array<{ Id: string; Title: string }>>()
+      await web.lists.getByTitle(lc.Title).views.select('Id', 'Title')<
+        Array<{ Id: string; Title: string }>
+      >()
     ).reduce((object, view) => {
       object[`${lc.Title}|${view.Title}`] = view.Id
       return object
@@ -423,11 +430,11 @@ export class Lists extends HandlerBase {
   }
 
   /**
-  * Removes existing views for a list
-  *
-  * @param web - The web
-  * @param lc - The list configuration
-  */
+   * Removes existing views for a list
+   *
+   * @param web - The web
+   * @param lc - The list configuration
+   */
   private async removeExistingViews(
     web: IWeb,
     lc: IListInstance
@@ -440,7 +447,9 @@ export class Lists extends HandlerBase {
       `Removing existing views for list ${lc.Title}.`,
       views.map((view) => view.Title)
     )
-    const promises = views.map((view) => web.lists.getByTitle(lc.Title).views.getById(view.Id).delete())
+    const promises = views.map((view) =>
+      web.lists.getByTitle(lc.Title).views.getById(view.Id).delete()
+    )
     await Promise.all(promises)
     super.log_info(
       '_removeExistingViews',
@@ -503,10 +512,10 @@ export class Lists extends HandlerBase {
           .views.getByTitle(lvc.Title)
         try {
           await newView.update(lvc.AdditionalSettings)
-        } catch (err) {
+        } catch (error) {
           super.log_warn(
             'processView',
-            `Failed to re-apply AdditionalSettings on newly created view ${lvc.Title}: ${err}`
+            `Failed to re-apply AdditionalSettings on newly created view ${lvc.Title}: ${error}`
           )
         }
         super.log_info(
@@ -515,10 +524,10 @@ export class Lists extends HandlerBase {
         )
         await this.processViewFields(newView, lvc)
       }
-    } catch (err) {
+    } catch (error) {
       super.log_error(
         'processView',
-        `Failed to process view ${lvc.Title}: ${err}`
+        `Failed to process view ${lvc.Title}: ${error}`
       )
     }
   }
