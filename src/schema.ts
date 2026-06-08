@@ -203,6 +203,7 @@ export interface IListInstance {
   Views?: IListView[]
   RemoveExistingViews?: boolean
   DataRows?: IDataRows
+  Folders?: IFolder[]
   Security?: IListSecurity
 
   AdditionalSettings?: {
@@ -267,6 +268,22 @@ export interface IDataRows {
  */
 export interface IDataRow {
   [fieldInternalName: string]: any
+}
+
+/**
+ * A folder to provision inside a list / document library. Provisioned after
+ * fields, content types and views exist. Creation is idempotent: an existing
+ * folder with the same name is left in place and recursion continues into its
+ * children, so re-running the template is safe.
+ */
+export interface IFolder {
+  /**
+   * Leaf name of the folder (not a path). May contain spaces and Norwegian
+   * characters (å, æ, ø) — written as-is; PnPjs handles URL encoding.
+   */
+  Name: string
+  /** Optional nested subfolders, created beneath this folder. */
+  Folders?: IFolder[]
 }
 
 export interface IListInstanceFieldReference extends IFieldReference {

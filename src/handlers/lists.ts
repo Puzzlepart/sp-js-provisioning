@@ -7,6 +7,7 @@ import { ProvisioningContext } from '../provisioningcontext'
 import {
   IContentTypeBinding,
   IDataRow,
+  IFolder as IFolderConfig,
   IListInstance,
   IListInstanceFieldReference,
   IListView
@@ -81,6 +82,11 @@ export class Lists extends HandlerBase {
       await lists.reduce(
         (chain: any, list) =>
           chain.then(() => this.processListViews(web, list)),
+        Promise.resolve()
+      )
+      await lists.reduce(
+        (chain: any, list) =>
+          chain.then(() => this.processListFolders(web, list)),
         Promise.resolve()
       )
       await lists.reduce(
@@ -568,6 +574,97 @@ export class Lists extends HandlerBase {
   }
 
   /**
+   * Provisions a folder hierarchy inside a list / document library. Runs after
+   * the list, its fields and views exist. Creation is idempotent: an existing
+   * folder is left in place and recursion continues into its children, so
+   * re-running the template is safe. A folder that fails to create is logged
+   * and skipped (along with its subtree) rather than aborting the whole list.
+   *
+   * @param web - The web
+   * @param lc - The list configuration
+   */
+  private async processListFolders(
+    web: IWeb,
+    lc: IListInstance
+  ): Promise<void> {
+    const folders = lc.Folders
+    if (!folders || folders.length === 0) return
+    super.log_info(
+      'processListFolders',
+      `Provisioning ${folders.length} top-level folder(s) for list ${lc.Title}.`
+    )
+    const list = web.lists.getByTitle(lc.Title)
+    let rootServerRelativeUrl: string
+    try {
+      const rootInfo = await list.rootFolder.select('ServerRelativeUrl')()
+      rootServerRelativeUrl = rootInfo.ServerRelativeUrl
+    } catch (error) {
+      super.log_info(
+        'processListFolders',
+        `Could not resolve root folder for list ${lc.Title}: ${
+          (error && error.message) || error
+        }`
+      )
+      return
+    }
+    await this._processFolderLevel(
+      list.rootFolder,
+      rootServerRelativeUrl,
+      folders,
+      lc.Title
+    )
+  }
+
+  /**
+   * Creates each folder in `folders` beneath `parentFolder` (idempotent) then
+   * recurses into its children. `parentServerRelativeUrl` is used only for
+   * logging the full path.
+   *
+   * @param parentFolder - The PnP parent folder
+   * @param parentServerRelativeUrl - Server-relative URL of the parent folder
+   * @param folders - Folder configs to create at this level
+   * @param listTitle - The list title (for logging)
+   */
+  private async _processFolderLevel(
+    parentFolder: any,
+    parentServerRelativeUrl: string,
+    folders: IFolderConfig[],
+    listTitle: string
+  ): Promise<void> {
+    for (const folder of folders) {
+      const name = folder.Name
+      if (!name) continue
+      const childServerRelativeUrl = `${parentServerRelativeUrl}/${name}`
+      try {
+        // addSubFolderUsingPath is idempotent on SharePoint Online: it returns
+        // the existing folder if one with the same leaf name already exists,
+        // and otherwise creates it. The returned IFolder is the handle we
+        // recurse into for nested children.
+        const childFolder = await parentFolder.addSubFolderUsingPath(name)
+        super.log_info(
+          'processListFolders',
+          `Ensured folder '${childServerRelativeUrl}' in list ${listTitle}.`
+        )
+        if (folder.Folders && folder.Folders.length > 0) {
+          await this._processFolderLevel(
+            childFolder,
+            childServerRelativeUrl,
+            folder.Folders,
+            listTitle
+          )
+        }
+      } catch (error) {
+        super.log_info(
+          'processListFolders',
+          `Failed to provision folder '${childServerRelativeUrl}' in list ${listTitle}: ${
+            (error && error.message) || error
+          }`
+        )
+      }
+    }
+  }
+
+  /**
    * Provisions seed data rows for a list. Runs last (after fields, content
    * types and views exist). Upserts by KeyColumn so re-running is idempotent,
    * and resolves Lookup/User/Taxonomy values. A failing row is logged and
@@ -576,7 +673,10 @@ export class Lists extends HandlerBase {
    * @param web - The web
    * @param lc - The list configuration
    */
-  private async processListDataRows(web: IWeb, lc: IListInstance): Promise<void> {
+  private async processListDataRows(
+    web: IWeb,
+    lc: IListInstance
+  ): Promise<void> {
     const dataRows = lc.DataRows
     if (!dataRows || !dataRows.Rows || dataRows.Rows.length === 0) return
     const { KeyColumn, UpdateBehavior = 'Overwrite', Rows } = dataRows
@@ -594,7 +694,9 @@ export class Lists extends HandlerBase {
       'TextField'
     )<any[]>()
     const byName = new Map<string, any>(fields.map((f) => [f.InternalName, f]))
-    const byId = new Map<string, any>(fields.map((f) => [Lists._normGuid(f.Id), f]))
+    const byId = new Map<string, any>(
+      fields.map((f) => [Lists._normGuid(f.Id), f])
+    )
 
     for (const [index, row] of Rows.entries()) {
       try {
@@ -653,7 +755,9 @@ export class Lists extends HandlerBase {
           break
         case 'LookupMulti':
           values[`${fieldName}Id`] = await Promise.all(
-            Lists._toArray(raw).map((value) => this._resolveLookupId(web, def, value))
+            Lists._toArray(raw).map((value) =>
+              this._resolveLookupId(web, def, value)
+            )
           )
           break
         case 'User':
@@ -678,7 +782,8 @@ export class Lists extends HandlerBase {
           values[fieldName] = Lists._toArray(raw)
           break
         case 'Boolean':
-          values[fieldName] = raw === true || raw === 'true' || raw === 1 || raw === '1'
+          values[fieldName] =
+            raw === true || raw === 'true' || raw === 1 || raw === '1'
           break
         case 'DateTime':
           values[fieldName] = raw instanceof Date ? raw.toISOString() : raw
@@ -695,9 +800,14 @@ export class Lists extends HandlerBase {
    * directly; a string (or `{ lookupValue }`) is looked up in the target list by
    * its show field.
    */
-  private async _resolveLookupId(web: IWeb, def: any, raw: any): Promise<number> {
+  private async _resolveLookupId(
+    web: IWeb,
+    def: any,
+    raw: any
+  ): Promise<number> {
     if (typeof raw === 'number') return raw
-    if (raw && typeof raw === 'object' && raw.lookupId !== undefined) return raw.lookupId
+    if (raw && typeof raw === 'object' && raw.lookupId !== undefined)
+      return raw.lookupId
     const value = typeof raw === 'string' ? raw : raw && raw.lookupValue
     if (value === undefined || value === null || !def || !def.LookupList) return
     const listId = Lists._normGuid(def.LookupList)
@@ -716,7 +826,8 @@ export class Lists extends HandlerBase {
    */
   private async _resolveUserId(web: IWeb, raw: any): Promise<number> {
     if (typeof raw === 'number') return raw
-    const login = typeof raw === 'string' ? raw : raw && (raw.login || raw.email)
+    const login =
+      typeof raw === 'string' ? raw : raw && (raw.login || raw.email)
     if (!login) return
     const result = await web.ensureUser(login)
     return result && result.data ? result.data.Id : undefined
@@ -748,7 +859,7 @@ export class Lists extends HandlerBase {
   }
 
   private static _escapeOData(value: string): string {
-    return value.replace(/'/g, '\'\'')
+    return value.replace(/'/g, "''")
   }
 
   private static _toArray<T>(value: T | T[]): T[] {
