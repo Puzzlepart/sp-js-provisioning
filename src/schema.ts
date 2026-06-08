@@ -202,6 +202,7 @@ export interface IListInstance {
   FieldRefs?: IListInstanceFieldReference[]
   Views?: IListView[]
   RemoveExistingViews?: boolean
+  DataRows?: IDataRows
   Security?: IListSecurity
 
   AdditionalSettings?: {
@@ -235,6 +236,37 @@ export interface IListInstance {
 
     [key: string]: string | boolean | number
   }
+}
+
+/**
+ * Seed data for a list (provisioned after fields/content types/views exist).
+ *
+ * Rows are upserted: when {@link KeyColumn} is set, an existing item whose
+ * KeyColumn matches is updated (or skipped, per {@link UpdateBehavior}) instead
+ * of creating a duplicate — so re-running the template is idempotent. Without a
+ * KeyColumn every row is added.
+ */
+export interface IDataRows {
+  /** Field internal name used to match existing rows for idempotent upsert. */
+  KeyColumn?: string
+  /** When a row matches {@link KeyColumn}: `Overwrite` (default) or `Skip`. */
+  UpdateBehavior?: 'Overwrite' | 'Skip'
+  Rows: IDataRow[]
+}
+
+/**
+ * One row: a map of field **internal name** → value. Value shapes by field type:
+ * - Text / Note / Number / Currency / Choice / Boolean / DateTime: the raw value.
+ * - MultiChoice: `string[]`.
+ * - URL: a string, or `{ Url, Description? }`.
+ * - Lookup / LookupMulti: an item id (number), `{ lookupId }`, or `{ lookupValue }`
+ *   (resolved against the target list's show field). Multi accepts an array.
+ * - User / UserMulti: a login/email string, `{ login }`, or a user id. Multi accepts an array.
+ * - Taxonomy (`TaxonomyFieldType` / `…Multi`): `{ termId, label }` (label required to
+ *   write the hidden note field). Multi accepts an array of `{ termId, label }`.
+ */
+export interface IDataRow {
+  [fieldInternalName: string]: any
 }
 
 export interface IListInstanceFieldReference extends IFieldReference {

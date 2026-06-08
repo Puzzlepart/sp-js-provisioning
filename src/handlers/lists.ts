@@ -6,6 +6,7 @@ import { IProvisioningConfig } from '../provisioningconfig'
 import { ProvisioningContext } from '../provisioningcontext'
 import {
   IContentTypeBinding,
+  IDataRow,
   IListInstance,
   IListInstanceFieldReference,
   IListView
@@ -80,6 +81,11 @@ export class Lists extends HandlerBase {
       await lists.reduce(
         (chain: any, list) =>
           chain.then(() => this.processListViews(web, list)),
+        Promise.resolve()
+      )
+      await lists.reduce(
+        (chain: any, list) =>
+          chain.then(() => this.processListDataRows(web, list)),
         Promise.resolve()
       )
       this.context.lists = (
@@ -559,5 +565,193 @@ export class Lists extends HandlerBase {
         `Failed to process view fields for view ${lvc.Title}.`
       )
     }
+  }
+
+  /**
+   * Provisions seed data rows for a list. Runs last (after fields, content
+   * types and views exist). Upserts by KeyColumn so re-running is idempotent,
+   * and resolves Lookup/User/Taxonomy values. A failing row is logged and
+   * skipped rather than aborting the whole list.
+   *
+   * @param web - The web
+   * @param lc - The list configuration
+   */
+  private async processListDataRows(web: IWeb, lc: IListInstance): Promise<void> {
+    const dataRows = lc.DataRows
+    if (!dataRows || !dataRows.Rows || dataRows.Rows.length === 0) return
+    const { KeyColumn, UpdateBehavior = 'Overwrite', Rows } = dataRows
+    super.log_info(
+      'processListDataRows',
+      `Provisioning ${Rows.length} data row(s) for list ${lc.Title}.`
+    )
+    const list = web.lists.getByTitle(lc.Title)
+    const fields = await list.fields.select(
+      'Id',
+      'InternalName',
+      'TypeAsString',
+      'LookupList',
+      'LookupField',
+      'TextField'
+    )<any[]>()
+    const byName = new Map<string, any>(fields.map((f) => [f.InternalName, f]))
+    const byId = new Map<string, any>(fields.map((f) => [Lists._normGuid(f.Id), f]))
+
+    for (const [index, row] of Rows.entries()) {
+      try {
+        const values = await this._buildItemValues(web, byName, byId, row)
+        let existingId: number
+        const keyValue = KeyColumn ? row[KeyColumn] : undefined
+        if (KeyColumn && keyValue !== undefined && keyValue !== null) {
+          const matches = await list.items
+            .filter(`${KeyColumn} eq '${Lists._escapeOData(String(keyValue))}'`)
+            .select('Id')
+            .top(1)<Array<{ Id: number }>>()
+          existingId = matches[0] ? matches[0].Id : undefined
+        }
+        if (existingId !== undefined) {
+          if (UpdateBehavior === 'Skip') {
+            super.log_info(
+              'processListDataRows',
+              `Row ${index} already exists (${KeyColumn}=${keyValue}) — skipped.`
+            )
+            continue
+          }
+          await list.items.getById(existingId).update(values)
+        } else {
+          await list.items.add(values)
+        }
+      } catch (error) {
+        super.log_info(
+          'processListDataRows',
+          `Failed to provision row ${index} in list ${lc.Title}: ${
+            (error && error.message) || error
+          }`
+        )
+      }
+    }
+  }
+
+  /**
+   * Builds the REST item payload from a data row, mapping each field by type
+   * (Lookup/User → `<Field>Id`, Taxonomy → the hidden note field, URL, etc.).
+   */
+  private async _buildItemValues(
+    web: IWeb,
+    byName: Map<string, any>,
+    byId: Map<string, any>,
+    row: IDataRow
+  ): Promise<Record<string, any>> {
+    const values: Record<string, any> = {}
+    for (const fieldName of Object.keys(row)) {
+      const raw = row[fieldName]
+      if (raw === null || raw === undefined) continue
+      const def = byName.get(fieldName)
+      const type: string = (def && def.TypeAsString) || 'Text'
+      switch (type) {
+        case 'Lookup':
+          values[`${fieldName}Id`] = await this._resolveLookupId(web, def, raw)
+          break
+        case 'LookupMulti':
+          values[`${fieldName}Id`] = await Promise.all(
+            Lists._toArray(raw).map((value) => this._resolveLookupId(web, def, value))
+          )
+          break
+        case 'User':
+          values[`${fieldName}Id`] = await this._resolveUserId(web, raw)
+          break
+        case 'UserMulti':
+          values[`${fieldName}Id`] = await Promise.all(
+            Lists._toArray(raw).map((value) => this._resolveUserId(web, value))
+          )
+          break
+        case 'TaxonomyFieldType':
+        case 'TaxonomyFieldTypeMulti':
+          this._applyTaxonomy(values, byId, def, Lists._toArray(raw))
+          break
+        case 'URL':
+          values[fieldName] =
+            typeof raw === 'string'
+              ? { Url: raw }
+              : { Url: raw.Url, Description: raw.Description || raw.Url }
+          break
+        case 'MultiChoice':
+          values[fieldName] = Lists._toArray(raw)
+          break
+        case 'Boolean':
+          values[fieldName] = raw === true || raw === 'true' || raw === 1 || raw === '1'
+          break
+        case 'DateTime':
+          values[fieldName] = raw instanceof Date ? raw.toISOString() : raw
+          break
+        default:
+          values[fieldName] = raw
+      }
+    }
+    return values
+  }
+
+  /**
+   * Resolves a lookup value to an item id: a number (or `{ lookupId }`) is used
+   * directly; a string (or `{ lookupValue }`) is looked up in the target list by
+   * its show field.
+   */
+  private async _resolveLookupId(web: IWeb, def: any, raw: any): Promise<number> {
+    if (typeof raw === 'number') return raw
+    if (raw && typeof raw === 'object' && raw.lookupId !== undefined) return raw.lookupId
+    const value = typeof raw === 'string' ? raw : raw && raw.lookupValue
+    if (value === undefined || value === null || !def || !def.LookupList) return
+    const listId = Lists._normGuid(def.LookupList)
+    const showField = def.LookupField || 'Title'
+    const items = await web.lists
+      .getById(listId)
+      .items.filter(`${showField} eq '${Lists._escapeOData(String(value))}'`)
+      .select('Id')
+      .top(1)<Array<{ Id: number }>>()
+    return items[0] ? items[0].Id : undefined
+  }
+
+  /**
+   * Resolves a user value (login/email string, `{ login }`/`{ email }`, or a
+   * numeric id) to a user id via `ensureUser`.
+   */
+  private async _resolveUserId(web: IWeb, raw: any): Promise<number> {
+    if (typeof raw === 'number') return raw
+    const login = typeof raw === 'string' ? raw : raw && (raw.login || raw.email)
+    if (!login) return
+    const result = await web.ensureUser(login)
+    return result && result.data ? result.data.Id : undefined
+  }
+
+  /**
+   * Writes taxonomy value(s) by setting the field's hidden note field to the
+   * `-1;#Label|TermGuid` form (joined with `;#` for multi-value fields). Terms
+   * without a label are skipped (the label is required to write the note field).
+   */
+  private _applyTaxonomy(
+    values: Record<string, any>,
+    byId: Map<string, any>,
+    def: any,
+    terms: any[]
+  ): void {
+    if (!def || !def.TextField) return
+    const noteField = byId.get(Lists._normGuid(def.TextField))
+    if (!noteField) return
+    const parts = terms
+      .filter((term) => term && term.termId && term.label)
+      .map((term) => `-1;#${term.label}|${Lists._normGuid(term.termId)}`)
+    if (parts.length === 0) return
+    values[noteField.InternalName] = parts.join(';#')
+  }
+
+  private static _normGuid(value?: string): string {
+    return (value || '').replace(/[{}]/g, '').toLowerCase()
+  }
+
+  private static _escapeOData(value: string): string {
+    return value.replace(/'/g, '\'\'')
+  }
+
+  private static _toArray<T>(value: T | T[]): T[] {
+    return Array.isArray(value) ? value : [value]
   }
 }
