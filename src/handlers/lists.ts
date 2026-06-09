@@ -194,7 +194,22 @@ export class Lists extends HandlerBase {
             'processContentTypeBindings',
             `Removing content type ${ContentTypeId} from list ${lc.Title}`
           )
-          promises.push(list.contentTypes.getById(ContentTypeId).delete())
+          // A content type that is still in use by existing items can't be
+          // removed (SharePoint returns 500 "content type still in use"). Don't
+          // let that abort the whole provisioning — log it and carry on.
+          promises.push(
+            list.contentTypes
+              .getById(ContentTypeId)
+              .delete()
+              .catch((error) =>
+                super.log_info(
+                  'processContentTypeBindings',
+                  `Failed to remove content type ${ContentTypeId} from list ${
+                    lc.Title
+                  } (likely still in use): ${(error && error.message) || error}`
+                )
+              )
+          )
         } else {
           super.log_info(
             'processContentTypeBindings',

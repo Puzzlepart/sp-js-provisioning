@@ -137,20 +137,31 @@ export class Taxonomy extends HandlerBase {
     lcid: number
   ): Promise<void> {
     const terms = termSetDef.Terms ?? []
-    let created = false
+    let pendingCommit = false
     for (const termDef of terms) {
       const termId = new SP.Guid(termDef.Id)
       const existing = this.termStore.getTerm(termId)
       if (await this.exists(existing)) {
-        super.log_info('ensureTerms', `Term ${termDef.Name} already exists`)
+        if (
+          termSetDef.UpdateExistingTerms &&
+          (await this.addMissingCustomProperties(existing, termDef))
+        ) {
+          super.log_info(
+            'ensureTerms',
+            `Added missing custom properties on existing term ${termDef.Name}`
+          )
+          pendingCommit = true
+        } else {
+          super.log_info('ensureTerms', `Term ${termDef.Name} already exists`)
+        }
         continue
       }
       super.log_info('ensureTerms', `Creating term ${termDef.Name}`)
       const term = termSet.createTerm(termDef.Name, lcid, termId)
       this.applyCustomProperties(term, termDef)
-      created = true
+      pendingCommit = true
     }
-    if (created) {
+    if (pendingCommit) {
       this.termStore.commitAll()
       await ExecuteJsomQuery(this.jsomContext)
     }
@@ -168,6 +179,41 @@ export class Taxonomy extends HandlerBase {
     for (const key of Object.keys(termDef.CustomProperties)) {
       term.setCustomProperty(key, termDef.CustomProperties[key])
     }
+  }
+
+  /**
+   * Add custom properties that are **missing** on an existing term. Each
+   * property in {@link ITerm.CustomProperties} is applied only when the term
+   * does not already have that key; a property that exists with a different
+   * value is left untouched (existing values are never overwritten). Returns
+   * whether anything was added (so the caller knows to commit). The term's
+   * name/labels are left untouched.
+   *
+   * @param term - The existing term (loaded by {@link exists})
+   * @param termDef - Term definition from the template
+   */
+  private async addMissingCustomProperties(
+    term: SP.Taxonomy.Term,
+    termDef: ITerm
+  ): Promise<boolean> {
+    const desired = termDef.CustomProperties
+    if (!desired || Object.keys(desired).length === 0) return false
+    this.jsomContext.clientContext.load(term)
+    await ExecuteJsomQuery(this.jsomContext)
+    let current: Record<string, string> = {}
+    try {
+      current = term.get_customProperties() || {}
+    } catch {
+      current = {}
+    }
+    let added = false
+    for (const key of Object.keys(desired)) {
+      if (current[key] === undefined) {
+        term.setCustomProperty(key, desired[key])
+        added = true
+      }
+    }
+    return added
   }
 
   /**

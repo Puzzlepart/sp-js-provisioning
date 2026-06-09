@@ -37,6 +37,17 @@ export interface ITermSet {
   Description?: string
   IsOpenForTermCreation?: boolean
   Terms?: ITerm[]
+  /**
+   * When true, terms that already exist (matched by Id) get any **missing**
+   * entries from {@link ITerm.CustomProperties} added. A property that already
+   * exists on the term is left as-is even if its value differs from the
+   * template (existing values are never overwritten); the term's name/labels
+   * are also left untouched. Without this flag existing terms are not modified
+   * at all. Use it to backfill custom properties (e.g. PhaseSubText /
+   * PhaseDescription) onto a term set provisioned before those properties
+   * existed.
+   */
+  UpdateExistingTerms?: boolean
 }
 
 export interface ITaxonomy {
