@@ -646,20 +646,36 @@ export class Lists extends HandlerBase {
     folders: IFolderConfig[],
     listTitle: string
   ): Promise<void> {
+    // List the existing child folders once so creation is idempotent. Note
+    // `addSubFolderUsingPath` is NOT idempotent — it fails with a 500 ("a folder
+    // with that name already exists") when the folder is already there, e.g. when
+    // a package is re-imported. We therefore only create the ones that are missing.
+    let existingNames: string[] = []
+    try {
+      const existingFolders = await parentFolder.folders.select('Name')()
+      existingNames = (existingFolders || []).map((f: any) => `${f.Name}`.toLowerCase())
+    } catch {
+      // Best-effort — if listing fails, fall back to create-and-catch below.
+    }
     for (const folder of folders) {
       const name = folder.Name
       if (!name) continue
       const childServerRelativeUrl = `${parentServerRelativeUrl}/${name}`
       try {
-        // addSubFolderUsingPath is idempotent on SharePoint Online: it returns
-        // the existing folder if one with the same leaf name already exists,
-        // and otherwise creates it. The returned IFolder is the handle we
-        // recurse into for nested children.
-        const childFolder = await parentFolder.addSubFolderUsingPath(name)
-        super.log_info(
-          'processListFolders',
-          `Ensured folder '${childServerRelativeUrl}' in list ${listTitle}.`
-        )
+        let childFolder: any
+        if (existingNames.indexOf(`${name}`.toLowerCase()) !== -1) {
+          childFolder = parentFolder.folders.getByUrl(name)
+          super.log_info(
+            'processListFolders',
+            `Folder '${childServerRelativeUrl}' already exists in list ${listTitle} — skipping creation.`
+          )
+        } else {
+          childFolder = await parentFolder.addSubFolderUsingPath(name)
+          super.log_info(
+            'processListFolders',
+            `Created folder '${childServerRelativeUrl}' in list ${listTitle}.`
+          )
+        }
         if (folder.Folders && folder.Folders.length > 0) {
           await this._processFolderLevel(
             childFolder,
