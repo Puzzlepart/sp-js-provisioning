@@ -234,6 +234,21 @@ export class Lists extends HandlerBase {
     contentTypeID: string
   ): Promise<any> {
     try {
+      // addAvailableContentType is NOT idempotent — it returns a 500 when the
+      // content type is already bound to the list (e.g. on re-import). A list
+      // content type derived from a site content type has an id that starts with
+      // the site content type's id, so skip the add when one already matches.
+      const existing = await list.contentTypes()
+      const alreadyBound = (existing || []).some(
+        (ct: any) => `${ct && ct.Id && ct.Id.StringValue}`.indexOf(contentTypeID) === 0
+      )
+      if (alreadyBound) {
+        super.log_info(
+          'processContentTypeBinding',
+          `Content Type ${contentTypeID} already bound to list ${lc.Title} — skipping.`
+        )
+        return
+      }
       super.log_info(
         'processContentTypeBinding',
         `Adding content Type ${contentTypeID} to list ${lc.Title}.`
@@ -243,10 +258,12 @@ export class Lists extends HandlerBase {
         'processContentTypeBinding',
         `Content Type ${contentTypeID} added successfully to list ${lc.Title}.`
       )
-    } catch {
+    } catch (error) {
       super.log_info(
         'processContentTypeBinding',
-        `Failed to add Content Type ${contentTypeID} to list ${lc.Title}.`
+        `Failed to add Content Type ${contentTypeID} to list ${lc.Title}: ${
+          (error && error.message) || error
+        }`
       )
     }
   }
