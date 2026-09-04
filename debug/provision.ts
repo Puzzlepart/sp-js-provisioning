@@ -59,7 +59,12 @@ const HANDLERS = [
  * What DOES run server-side: SiteFields and Lists (incl. folders, views, rows and
  * content-type bindings) — they use `@pnp/sp` REST.
  */
-const NODE_UNSUPPORTED = ['Taxonomy', 'ContentTypes', 'Files', 'PropertyBagEntries']
+const NODE_UNSUPPORTED = [
+  'Taxonomy',
+  'ContentTypes',
+  'Files',
+  'PropertyBagEntries'
+]
 
 interface IArgs {
   site: string
@@ -162,7 +167,9 @@ function installBrowserShims(site: string): void {
     }
   }
   if (!g.document) {
-    g.document = { location: { protocol: url.protocol, hostname: url.hostname } }
+    g.document = {
+      location: { protocol: url.protocol, hostname: url.hostname }
+    }
   }
 }
 
@@ -250,7 +257,9 @@ function resolveTemplate(args: IArgs): { schema: any; label: string } {
     args.lang && manifest.provisioning?.localized?.[args.lang]?.hubTemplate
   const hubTemplate = localized || manifest.provisioning?.hubTemplate
   if (!hubTemplate) {
-    throw new Error(`manifest.provisioning.hubTemplate missing in ${manifestPath}`)
+    throw new Error(
+      `manifest.provisioning.hubTemplate missing in ${manifestPath}`
+    )
   }
   const templatePath = path.join(dir, hubTemplate)
   label = `${manifest.name ?? manifest.id} → ${hubTemplate}`
@@ -317,12 +326,16 @@ async function main(): Promise<void> {
 
   console.log(`\nSite:     ${args.site}`)
   console.log(`Package:  ${label}`)
-  console.log(`Mode:     ${args.mode}${args.skipTaxonomy ? ' (skip taxonomy)' : ''}`)
+  console.log(
+    `Mode:     ${args.mode}${args.skipTaxonomy ? ' (skip taxonomy)' : ''}`
+  )
   console.log(`Template handlers:\n${describe(schema)}`)
   console.log(`\nWill run: ${plan.run.join(', ') || '(none)'}`)
   if (plan.skipped.length) {
     console.log(
-      `Skipped:  ${plan.skipped.join(', ')} (browser/SPFx-only — pass --handlers to force)`
+      `Skipped:  ${plan.skipped.join(
+        ', '
+      )} (browser/SPFx-only — pass --handlers to force)`
     )
   }
   console.log('')

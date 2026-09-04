@@ -92,7 +92,9 @@ export class WebProvisioner {
    */
   private logWarning(message: string, data?: any): void {
     Logger.log({
-      message: `${this.config?.logging?.prefix ?? ''} (WebProvisioner): (loadContext): ${message}`,
+      message: `${
+        this.config?.logging?.prefix ?? ''
+      } (WebProvisioner): (loadContext): ${message}`,
       data,
       level: LogLevel.Warning
     })

@@ -251,7 +251,8 @@ export class Lists extends HandlerBase {
       // the site content type's id, so skip the add when one already matches.
       const existing = await list.contentTypes()
       const alreadyBound = (existing || []).some(
-        (ct: any) => `${ct && ct.Id && ct.Id.StringValue}`.indexOf(contentTypeID) === 0
+        (ct: any) =>
+          `${ct && ct.Id && ct.Id.StringValue}`.indexOf(contentTypeID) === 0
       )
       if (alreadyBound) {
         super.log_info(
@@ -681,7 +682,9 @@ export class Lists extends HandlerBase {
     let existingNames: string[] = []
     try {
       const existingFolders = await parentFolder.folders.select('Name')()
-      existingNames = (existingFolders || []).map((f: any) => `${f.Name}`.toLowerCase())
+      existingNames = (existingFolders || []).map((f: any) =>
+        `${f.Name}`.toLowerCase()
+      )
     } catch {
       // Best-effort — if listing fails, fall back to create-and-catch below.
     }
@@ -691,7 +694,7 @@ export class Lists extends HandlerBase {
       const childServerRelativeUrl = `${parentServerRelativeUrl}/${name}`
       try {
         let childFolder: any
-        if (existingNames.indexOf(`${name}`.toLowerCase()) !== -1) {
+        if (existingNames.includes(`${name}`.toLowerCase())) {
           childFolder = parentFolder.folders.getByUrl(name)
           super.log_info(
             'processListFolders',
@@ -889,7 +892,9 @@ export class Lists extends HandlerBase {
         )
         super.log_info(
           'processListSecurity',
-          `Role inheritance broken for list ${lc.Title} (copyRoleAssignments=${!!security.CopyRoleAssignments}, clearSubscopes=${!!security.ClearSubscopes}).`
+          `Role inheritance broken for list ${
+            lc.Title
+          } (copyRoleAssignments=${!!security.CopyRoleAssignments}, clearSubscopes=${!!security.ClearSubscopes}).`
         )
       }
       if (
@@ -959,9 +964,9 @@ export class Lists extends HandlerBase {
       return group.Id
     }
     try {
-      const group = await web.siteGroups
-        .getByName(value)
-        .select('Id')<{ Id: number }>()
+      const group = await web.siteGroups.getByName(value).select('Id')<{
+        Id: number
+      }>()
       return group.Id
     } catch (groupError) {
       super.log_info(

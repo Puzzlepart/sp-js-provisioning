@@ -73,9 +73,7 @@ export class TokenHelper {
       case 'siteid':
         return this.context.web && this.context.web.Id
       case 'sitecollectionid':
-        return (
-          this.context.siteId || (this.context.web && this.context.web.Id)
-        )
+        return this.context.siteId || (this.context.web && this.context.web.Id)
       case 'sitecollectiontermstoreid':
       case 'termstoreid':
         return this.context.termStoreId
