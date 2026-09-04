@@ -205,7 +205,7 @@ export interface IRoleAssignment {
    * `{associatedvisitorgroupid}`), a principal id, a site group name or a user
    * login name.
    */
-  Principal: string
+  Principal: string | number
   /**
    * Role definition name as it exists on the web (localized, e.g. `Full kontroll`
    * or `Lese`). The English well-known names (`Full Control`, `Design`, `Edit`,
@@ -232,8 +232,9 @@ export interface IListSecurity {
    */
   ClearSubscopes?: boolean
   /**
-   * Role assignments to add (existing assignments are kept unless inheritance
-   * is broken without `CopyRoleAssignments`).
+   * Role assignments to add. Requires `BreakRoleInheritance`, since SharePoint
+   * rejects role assignments on a list that still inherits permissions;
+   * inherited assignments are kept only with `CopyRoleAssignments`.
    */
   RoleAssignments?: IRoleAssignment[]
 }

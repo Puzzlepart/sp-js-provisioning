@@ -892,6 +892,15 @@ export class Lists extends HandlerBase {
           `Role inheritance broken for list ${lc.Title} (copyRoleAssignments=${!!security.CopyRoleAssignments}, clearSubscopes=${!!security.ClearSubscopes}).`
         )
       }
+      if (
+        !security.BreakRoleInheritance &&
+        (security.RoleAssignments || []).length > 0
+      ) {
+        super.log_warn(
+          'processListSecurity',
+          `List ${lc.Title} has role assignments but BreakRoleInheritance is not set. SharePoint rejects role assignments on a list that still inherits permissions.`
+        )
+      }
       for (const assignment of security.RoleAssignments || []) {
         try {
           const principalId = await this._resolvePrincipalId(
@@ -954,9 +963,23 @@ export class Lists extends HandlerBase {
         .getByName(value)
         .select('Id')<{ Id: number }>()
       return group.Id
-    } catch {
-      const user = await web.ensureUser(value)
-      return user.data.Id
+    } catch (groupError) {
+      super.log_info(
+        '_resolvePrincipalId',
+        `No site group named '${value}', resolving it as a user: ${
+          (groupError && groupError.message) || groupError
+        }`
+      )
+      try {
+        const user = await web.ensureUser(value)
+        return user.data.Id
+      } catch (userError) {
+        throw new Error(
+          `Could not resolve principal '${value}' as a site group (${
+            (groupError && groupError.message) || groupError
+          }) or as a user (${(userError && userError.message) || userError})`
+        )
+      }
     }
   }
 
@@ -987,7 +1010,9 @@ export class Lists extends HandlerBase {
 
   /**
    * Well-known English role definition names mapped to `RoleTypeKind`
-   * (Guest=1, Reader=2, Contributor=3, WebDesigner=4, Administrator=5, Editor=6).
+   * (Reader=2, Contributor=3, WebDesigner=4, Administrator=5, Editor=6). Other
+   * role definitions, including `View Only` and every localized name, must be
+   * named exactly as they exist on the web.
    */
   private static _wellKnownRoleTypes: { [name: string]: RoleTypeKind } = {
     'full control': 5,
@@ -995,8 +1020,7 @@ export class Lists extends HandlerBase {
     design: 4,
     edit: 6,
     contribute: 3,
-    read: 2,
-    'view only': 1
+    read: 2
   }
 
   /**

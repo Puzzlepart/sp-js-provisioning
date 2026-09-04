@@ -159,8 +159,8 @@ The IDs are loaded once in `WebProvisioner.onSetup` (`loadContext`); each lookup
 Important limitations:
 
 - The regex only matches lowercase token keys (`[a-z]+`); the value part may contain anything but braces. Unknown keys and JSON-like text such as `{"a":1}` or `{Title}` are left untouched.
-- It replaces matches only when a value exists.
-- Where tokens are applied: field XML (site and list fields), list `DataRows` string values (Text/Note/Choice/URL), file sources and client-side page properties. Not view queries or custom action properties.
+- It replaces a match only when the token resolves; an unresolved token is left in place. A resolved empty value does replace the token, so an empty `{parameter:Name}` yields an empty string.
+- Where tokens are applied: field XML (site and list fields), list `DataRows` values (every string value whose field type is not handled specially, plus `URL.Url`), file sources and web part XML, and client-side page properties and server-processed content. Not view queries and not custom action properties.
 
 ### URL Tokens
 
