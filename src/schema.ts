@@ -151,9 +151,14 @@ export interface ICustomAction {
   Description?: string
   Title: string
   Location: string
-  Url: string
+  Url?: string
+  ClientSideComponentId?: string
+  ClientSideComponentProperties?: string
+  RegistrationId?: string
+  RegistrationType?: number
+  Sequence?: number
 
-  [key: string]: string
+  [key: string]: any
 }
 
 export interface IWebSettings {
@@ -190,15 +195,46 @@ export interface INavigationNode {
   Children?: INavigationNode[]
 }
 
+/**
+ * A role assignment on a list.
+ */
 export interface IRoleAssignment {
+  /**
+   * The principal: a PnP-style token for one of the web's associated groups
+   * (`{associatedownergroupid}`, `{associatedmembergroupid}`,
+   * `{associatedvisitorgroupid}`), a principal id, a site group name or a user
+   * login name.
+   */
   Principal: string
+  /**
+   * Role definition name as it exists on the web (localized, e.g. `Full kontroll`
+   * or `Lese`). The English well-known names (`Full Control`, `Design`, `Edit`,
+   * `Contribute`, `Read`, `View Only`) are resolved by role type as a fallback.
+   */
   RoleDefinition: string
 }
 
+/**
+ * List security, applied after the list's data rows. Mirrors the PnP
+ * provisioning schema `Security` element.
+ */
 export interface IListSecurity {
+  /**
+   * Break role inheritance before adding role assignments.
+   */
   BreakRoleInheritance?: boolean
+  /**
+   * Copy the inherited role assignments when breaking inheritance.
+   */
   CopyRoleAssignments?: boolean
+  /**
+   * Clear unique permissions on child objects when breaking inheritance.
+   */
   ClearSubscopes?: boolean
+  /**
+   * Role assignments to add (existing assignments are kept unless inheritance
+   * is broken without `CopyRoleAssignments`).
+   */
   RoleAssignments?: IRoleAssignment[]
 }
 

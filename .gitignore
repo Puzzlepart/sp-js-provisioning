@@ -29,6 +29,14 @@ debugging
 debug/*
 !debug/debug.ts
 !debug/example.ts
+!debug/provision.ts
+!debug/provision.settings.example.ts
+!debug/README.md
+!debug/tsconfig.json
+!debug/stubs
+!debug/stubs/spfx-jsom.ts
+# local provisioning runner credentials — never commit
+debug/provision.settings.ts
 
 # project settings
 settings.js

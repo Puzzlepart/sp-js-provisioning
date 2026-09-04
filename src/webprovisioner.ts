@@ -10,7 +10,7 @@ import { IProvisioningConfig } from './provisioningconfig'
 import { ProvisioningContext } from './provisioningcontext'
 import { ProvisioningError } from './provisioningerror'
 import { Schema } from './schema'
-import { IWeb } from '@pnp/sp/presets/all'
+import { extractWebUrl, IWeb, Site, TermStore } from '@pnp/sp/presets/all'
 import '@pnp/sp/presets/all'
 
 /**
@@ -38,6 +38,64 @@ export class WebProvisioner {
     }
     this.handlerMap = DefaultHandlerMap(this.config)
     this.context.web = await this.web()
+    await this.loadContext()
+  }
+
+  /**
+   * Loads the context values that tokens depend on: the web URL, the site
+   * collection id (`{sitecollectionid}`), the default term store id
+   * (`{sitecollectiontermstoreid}`) and the existing lists (`{listid:...}`), so
+   * tokens resolve in handlers that run before `Lists` (e.g. `SiteFields`).
+   * Each lookup fails soft: a warning is logged and the token stays unresolved.
+   */
+  private async loadContext(): Promise<void> {
+    const webUrl = extractWebUrl(this.web.toUrl())
+    this.context.webUrl = webUrl
+    try {
+      const site = await Site([this.web, webUrl]).select('Id')<{ Id: string }>()
+      this.context.siteId = site.Id
+    } catch (error) {
+      this.logWarning(
+        'Failed to load the site collection id, {sitecollectionid} falls back to the web id',
+        error
+      )
+    }
+    try {
+      const termStore = await TermStore([this.web, webUrl]).select('id')<{
+        id: string
+      }>()
+      this.context.termStoreId = termStore.id
+    } catch (error) {
+      this.logWarning(
+        'Failed to load the default term store id, {sitecollectiontermstoreid} will not be resolved',
+        error
+      )
+    }
+    try {
+      const lists = await this.web.lists.select('Id', 'Title')<
+        Array<{ Id: string; Title: string }>
+      >()
+      this.context.lists = lists.reduce((object, l) => {
+        object[l.Title] = l.Id
+        return object
+      }, {} as { [key: string]: string })
+    } catch (error) {
+      this.logWarning('Failed to load lists for {listid:...} tokens', error)
+    }
+  }
+
+  /**
+   * Logs a warning through the pnp logger
+   *
+   * @param message - Message
+   * @param data - Data (e.g. the error)
+   */
+  private logWarning(message: string, data?: any): void {
+    Logger.log({
+      message: `${this.config?.logging?.prefix ?? ''} (WebProvisioner): (loadContext): ${message}`,
+      data,
+      level: LogLevel.Warning
+    })
   }
 
   /**

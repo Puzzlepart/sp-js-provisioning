@@ -151,10 +151,14 @@
             "type": "object"
         },
         "ICustomAction": {
-            "additionalProperties": {
-                "type": "string"
-            },
+            "additionalProperties": {},
             "properties": {
+                "ClientSideComponentId": {
+                    "type": "string"
+                },
+                "ClientSideComponentProperties": {
+                    "type": "string"
+                },
                 "Description": {
                     "type": "string"
                 },
@@ -164,6 +168,15 @@
                 "Name": {
                     "type": "string"
                 },
+                "RegistrationId": {
+                    "type": "string"
+                },
+                "RegistrationType": {
+                    "type": "number"
+                },
+                "Sequence": {
+                    "type": "number"
+                },
                 "Title": {
                     "type": "string"
                 },
@@ -171,6 +184,11 @@
                     "type": "string"
                 }
             },
+            "required": [
+                "Name",
+                "Title",
+                "Location"
+            ],
             "type": "object"
         },
         "IFeature": {

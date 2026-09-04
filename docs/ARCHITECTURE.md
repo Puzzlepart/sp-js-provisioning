@@ -127,7 +127,10 @@ Defined in `src/provisioningcontext.ts`.
 Shared mutable context passed to every handler:
 
 - `web` - loaded web metadata from `await this.web()`.
-- `lists: { [title: string]: string }` - list title to list ID.
+- `webUrl` - absolute URL of the web (derived from the pnp web instance).
+- `siteId` - site collection ID, backing the `{sitecollectionid}` token.
+- `termStoreId` - default site collection term store ID, backing the `{sitecollectiontermstoreid}` token.
+- `lists: { [title: string]: string }` - list title to list ID. Pre-populated in `WebProvisioner.onSetup` so `{listid:...}` resolves in handlers that run before `Lists`; the `Lists` handler reloads it.
 - `listViews: { [listAndView: string]: string }` - key format is `${listTitle}|${viewTitle}`.
 - `siteFields: { [internalName: string]: string }` - site field internal name to field ID.
 - `contentTypes: { [nameOrId: string]: IContentType }` - content type entries keyed by both name and ID.
@@ -142,20 +145,22 @@ Token replacement is split between two helpers.
 
 Defined in `src/util/tokenhelper.ts`.
 
-Supports context/config tokens with the pattern `{token:value}`:
+Supports context/config tokens with the patterns `{token}` and `{token:value}`:
 
 - `{listid:List Title}` -> `context.lists[List Title]`
 - `{listviewid:List Title|View Title}` -> `context.listViews[...]`
-- `{webid:...}` -> `context.web.Id`
-- `{siteid:...}` -> `context.web.Id`
-- `{sitecollectionid:...}` -> `context.web.Id`
+- `{webid}` / `{siteid}` -> `context.web.Id` (PnP semantics: `{siteid}` is the web ID)
+- `{sitecollectionid}` -> `context.siteId` (falls back to `context.web.Id`)
+- `{sitecollectiontermstoreid}` / `{termstoreid}` -> `context.termStoreId`
 - `{parameter:Name}` -> `config.parameters.Name`
+
+The IDs are loaded once in `WebProvisioner.onSetup` (`loadContext`); each lookup fails soft with a logged warning, leaving the token unresolved.
 
 Important limitations:
 
-- The regex only matches lowercase token keys and a limited value character set.
+- The regex only matches lowercase token keys (`[a-z]+`); the value part may contain anything but braces. Unknown keys and JSON-like text such as `{"a":1}` or `{Title}` are left untouched.
 - It replaces matches only when a value exists.
-- Site, web, and site collection IDs currently all resolve to `context.web.Id`.
+- Where tokens are applied: field XML (site and list fields), list `DataRows` string values (Text/Note/Choice/URL), file sources and client-side page properties. Not view queries or custom action properties.
 
 ### URL Tokens
 
@@ -248,6 +253,9 @@ Responsibilities:
 - Deletes and recreates list fields from field XML.
 - Adds or updates list field refs from web fields.
 - Adds, updates, removes, and reorders view fields.
+- Creates folder hierarchies (`Folders`).
+- Seeds items from `DataRows` (upsert by `KeyColumn`; string values get token replacement).
+- Applies list `Security` (break role inheritance, add role assignments).
 - Updates `context.listViews`.
 
 Processing phases inside `ProvisionObjects`:
@@ -257,7 +265,10 @@ Processing phases inside `ProvisionObjects`:
 3. Process list fields for all lists.
 4. Process list field refs for all lists.
 5. Process views for all lists.
-6. Reload list IDs into context.
+6. Process folders for all lists.
+7. Process data rows for all lists.
+8. Process security for all lists.
+9. Reload list IDs into context.
 
 Key contracts:
 
@@ -270,6 +281,7 @@ Key contracts:
 Important behavior:
 
 - `processField` deletes a list field by ID before recreating it. This is intentional for fields that cannot be updated cleanly, but it is destructive for list-local field state.
+- `Security` principals accept the PnP tokens `{associatedownergroupid}`, `{associatedmembergroupid}` and `{associatedvisitorgroupid}`, a principal ID, a site group name or a user login name; role definitions are resolved by localized name with a fallback to the well-known role type for the English names. Failures are logged per assignment and never abort the template.
 - Several list operations catch errors and log failures without throwing. Agents should inspect logs and behavior, not just promise success.
 
 ### `Files`
@@ -327,6 +339,9 @@ Key behavior:
 
 - Existing actions are detected by `Title`, not `Name`.
 - Existing actions are not updated.
+- The action object is passed through to `web.userCustomActions.add(...)` as-is, so SPFx extension actions are supported by setting `Location` (`ClientSideExtension.ApplicationCustomizer` or `ClientSideExtension.ListViewCommandSet.CommandBar`), `ClientSideComponentId` and `ClientSideComponentProperties` (JSON string). Command sets can be scoped with `RegistrationId`/`RegistrationType` (numeric REST enum, e.g. `1` = List). `Url` is only relevant for classic actions and is optional.
+- Actions are web-scoped (`web.userCustomActions`); site-collection-scoped actions are not supported.
+- No token replacement is applied to action properties.
 
 ### `Features`
 
@@ -544,7 +559,7 @@ When adding or modifying behavior:
 
 - Content type creation and update semantics are sensitive to SharePoint ID rules and JSOM/PnP differences.
 - Handler order is a contract. Changing sort values can break token resolution, content type bindings, or page/list references.
-- Token replacement is partial and regex-limited. Do not assume arbitrary token values are supported.
+- Token replacement is partial and regex-limited. Do not assume arbitrary token values are supported. Data row string values are now token-replaced, so a literal `{lowercasekey}` in seeded content is only safe if the key is unknown to `TokenHelper`.
 - List field deletion/recreation can lose list-specific state.
 - Some errors are swallowed after logging, especially inside list, file, and content type sub-operations.
 - Browser globals are used in utility and handler code, so Node compatibility is uneven.
