@@ -1,4 +1,4 @@
-import Schema from '../src/schema'
+import { Schema } from 'sp-js-provisioning'
 
 const template: Schema = {
   CustomActions: [
