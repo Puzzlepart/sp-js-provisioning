@@ -5,6 +5,51 @@ All notable changes to this package are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 For releases older than 1.3.6, see the git history.
 
+## [1.4.0] - 2026-09-21
+
+### Changed
+
+- Upgraded to PnPjs v4 (`@pnp/core`, `@pnp/logging`, `@pnp/queryable` and
+  `@pnp/sp` 4.21.0). The `IWeb` passed to `WebProvisioner` must now come from a PnPjs v4
+  `spfi(...)`; a v3 web is no longer accepted. Node 18.12 or newer is required.
+- `@pnp/nodejs` moved to `devDependencies`. It was only ever used by the local debug runner,
+  never by `src`, so consumers no longer pull `@azure/msal-node` and `@pnp/graph` into their
+  bundles. Install it yourself when provisioning from Node.
+- The default term store id behind `{sitecollectiontermstoreid}` is now read directly from
+  `_api/v2.1/termstore` (the endpoint PnPjs v3's `TermStore` used), because PnPjs v4 has no
+  `taxonomy` module. The resolved value is unchanged.
+- Result shapes follow PnPjs v4, which resolves with the endpoint payload rather than a
+  `{ data, <object> }` wrapper: `lists.add`, `fields.createFieldAsXml`, `navigation.add`,
+  `files.addUsingPath` and `web.ensureUser`. This is internal to the handlers — the public API
+  of `WebProvisioner` is unchanged.
+- Batched `CustomActions` requests are awaited together with the batch itself
+  (`Promise.all([execute(), ...requests])`), so a failing custom action is reported and no
+  request promise is left unobserved when the batch itself fails.
+- `@pnp/core`, `@pnp/logging`, `@pnp/queryable` and `@pnp/sp` are now
+  `peerDependencies` (`^4.21.0`) instead of hard dependencies. The published typings expose
+  `IWeb` in the `WebProvisioner` constructor, and PnPjs classes carry protected members, so two
+  physically distinct copies of `@pnp/sp` are not assignable to each other. npm 7+ installs the
+  peers automatically; with `legacy-peer-deps` or Yarn 1 install them explicitly.
+
+### Fixed
+
+- List fields are re-created against the right url again: the braced `ID` from the field schema
+  XML (`{guid}`) is normalised before it is handed to `fields.getById`, which brace-wraps the
+  value itself in v4. A braced id produced a double-braced url, so the delete/update fell
+  through to the handler's catch and the field kept its generated title.
+- The list lookups behind the `{listid:...}` tokens (`WebProvisioner` setup and the `Lists`
+  handler) ask for `.top(5000)`. Without an explicit page size SharePoint returns the first 100
+  lists only, and tokens for anything beyond that stayed unresolved.
+
+### Added
+
+- Unit tests (`npm test`) covering the PnPjs v4 result shapes, the term store url, the
+  `CustomActions` batch lifecycle and the list lookup paging, run with the built-in Node test
+  runner through `tsx` — no test framework added.
+- `npm run typecheck:tests` type-checks the test files together with `src`. The test
+  `tsconfig.json` previously inherited `include: ["src/**/*.ts"]`, so it never compiled a
+  single test and emitted into `lib/`.
+
 ## [1.3.15] - 2026-09-04
 
 ### Added
