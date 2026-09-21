@@ -78,12 +78,15 @@ export class Navigation extends HandlerBase {
       node.Url = existingNode[0].Url
     }
     try {
-      const result = await target.add(
+      const addedNode = await target.add(
         node.Title,
         replaceUrlTokens(node.Url, this.config)
       )
       if (isArray(node.Children)) {
-        await this.processNavTree(result.node.children, node.Children)
+        await this.processNavTree(
+          target.getById(addedNode.Id).children,
+          node.Children
+        )
       }
     } catch (error) {
       throw error

@@ -13,8 +13,16 @@ project setup.
 ## Installation
 
 ```shell
-npm install sp-js-provisioning --save
+npm install sp-js-provisioning @pnp/sp @pnp/core @pnp/logging @pnp/queryable --save
 ```
+
+[PnPjs](https://pnp.github.io/pnpjs/) v4 (`@pnp/sp` 4.x) is a **peer dependency**: the `IWeb`
+you pass to `WebProvisioner` must come from a v4 `spfi(...)`, and it has to come from *your*
+copy of `@pnp/sp`. PnPjs classes carry protected members, so two physically distinct copies of
+the package are not assignable to each other and the build would fail on the `WebProvisioner`
+constructor. Declaring the `@pnp/*` packages as peers lets the package manager enforce the
+single instance. npm 7+ installs them for you; with `legacy-peer-deps` or Yarn 1, install them
+explicitly as shown above.
 
 ## Quick start
 
@@ -58,8 +66,9 @@ await provisioner.applyTemplate(template, undefined, (handler) => {
 in a fixed order (see below). Pass an array of handler names as the second argument to run a
 subset, e.g. `['SiteFields', 'ContentTypes', 'Lists']`.
 
-Running from Node works with a PnPjs web set up via `@pnp/nodejs` — see
-[`debug/`](./debug) for a ready-made runner with MSAL certificate auth.
+Running from Node works with a PnPjs web set up via `@pnp/nodejs` (install it yourself — it is
+not a runtime dependency of this package) — see [`debug/`](./debug) for a ready-made runner with
+MSAL certificate auth.
 
 ## The template
 
@@ -161,6 +170,8 @@ cd sp-js-provisioning
 nvm use        # Node version from .nvmrc
 npm install    # .npmrc enables legacy peer dependency resolution
 npm run build  # tsc → lib/
+npm test       # node:test unit tests
+npm run typecheck:tests  # type-checks the tests together with src
 ```
 
 `npm run provision` runs a template against a real site from Node — see

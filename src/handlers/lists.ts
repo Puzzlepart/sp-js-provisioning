@@ -64,7 +64,7 @@ export class Lists extends HandlerBase {
     super.scope_started()
     try {
       this.context.lists = (
-        await web.lists.select('Id', 'Title')<
+        await web.lists.select('Id', 'Title').top(5000)<
           Array<{ Id: string; Title: string }>
         >()
       ).reduce((object, l) => {
@@ -106,7 +106,7 @@ export class Lists extends HandlerBase {
         Promise.resolve()
       )
       this.context.lists = (
-        await web.lists.select('Id', 'Title')<
+        await web.lists.select('Id', 'Title').top(5000)<
           Array<{ Id: string; Title: string }>
         >()
       ).reduce((object, l) => {
@@ -147,15 +147,15 @@ export class Lists extends HandlerBase {
         'processList',
         `List ${lc.Title} doesn't exist. Creating...`
       )
-      const listAdd = await web.lists.add(
+      const listInfo = await web.lists.add(
         lc.Title,
         lc.Description,
         lc.Template,
         lc.ContentTypesEnabled,
         lc.AdditionalSettings
       )
-      list = listAdd.list
-      this.context.lists[listAdd.data.Title] = listAdd.data.Id
+      list = web.lists.getById(listInfo.Id)
+      this.context.lists[listInfo.Title] = listInfo.Id
     }
     if (lc.ContentTypeBindings) {
       await this.processContentTypeBindings(
@@ -325,7 +325,9 @@ export class Lists extends HandlerBase {
 
     // Looks like e.g. lookup fields can't be updated, so we'll need to re-create the field
     try {
-      await list.fields.getById(fieldAttribute.ID).delete()
+      // The schema XML `ID` is braced (`{guid}`) while v4's `getById` builds
+      // the braces itself, so it has to be normalised before use.
+      await list.fields.getById(Lists._normGuid(fieldAttribute.ID)).delete()
       super.log_info(
         'processField',
         `Field ${fieldName} (${fieldDisplayName}) successfully deleted from list ${lc.Title}.`
@@ -339,10 +341,12 @@ export class Lists extends HandlerBase {
 
     // Looks like e.g. lookup fields can't be updated, so we'll need to re-create the field
     try {
-      const fieldAddResult = await list.fields.createFieldAsXml(
+      const addedField = await list.fields.createFieldAsXml(
         this.tokenHelper.replaceTokens(fieldXml)
       )
-      await fieldAddResult.field.update({ Title: fieldDisplayName })
+      await list.fields
+        .getById(addedField.Id ?? Lists._normGuid(fieldAttribute.ID))
+        .update({ Title: fieldDisplayName })
       super.log_info(
         'processField',
         `Field '${fieldDisplayName}' added successfully to list ${lc.Title}.`
@@ -446,12 +450,14 @@ export class Lists extends HandlerBase {
         SourceID: `{${this.context.lists[lc.Title]}}`,
         ...(fieldReference.AdditionalProperties ?? {})
       })
-      const fieldAddResult = await list.fields.createFieldAsXml(schemaXml)
-      await fieldAddResult.field.update({
-        Title: fieldReference.DisplayName,
-        Required: fieldReference.Required,
-        Hidden: fieldReference.Hidden
-      })
+      const addedField = await list.fields.createFieldAsXml(schemaXml)
+      await list.fields
+        .getById(addedField.Id ?? Lists._normGuid(fieldReference.ID))
+        .update({
+          Title: fieldReference.DisplayName,
+          Required: fieldReference.Required,
+          Hidden: fieldReference.Hidden
+        })
       super.log_info(
         'processFieldRef',
         `Field '${fieldReference.ID}' added from web.`
@@ -977,7 +983,7 @@ export class Lists extends HandlerBase {
       )
       try {
         const user = await web.ensureUser(value)
-        return user.data.Id
+        return user.Id
       } catch (userError) {
         throw new Error(
           `Could not resolve principal '${value}' as a site group (${
@@ -1062,8 +1068,8 @@ export class Lists extends HandlerBase {
     const login =
       typeof raw === 'string' ? raw : raw && (raw.login || raw.email)
     if (!login) return
-    const result = await web.ensureUser(login)
-    return result && result.data ? result.data.Id : undefined
+    const user = await web.ensureUser(login)
+    return user ? user.Id : undefined
   }
 
   /**

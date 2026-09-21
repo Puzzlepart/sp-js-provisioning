@@ -1,0 +1,22 @@
+{
+  "extends": "../tsconfig.json",
+  "compilerOptions": {
+    "baseUrl": "..",
+    "noEmit": true,
+    "paths": {
+      "spfx-jsom": [
+        "debug/stubs/spfx-jsom.ts"
+      ]
+    },
+    "types": [
+      "es6-promise",
+      "sharepoint",
+      "node"
+    ]
+  },
+  "include": [
+    "unit/**/*.ts",
+    "types/**/*.d.ts",
+    "../src/**/*.ts"
+  ]
+}

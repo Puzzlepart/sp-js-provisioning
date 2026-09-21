@@ -1,4 +1,4 @@
-import { IFieldAddResult, IWeb } from '@pnp/sp/presets/all'
+import { IFieldInfo, IWeb } from '@pnp/sp/presets/all'
 import * as xmljs from 'xml-js'
 import { IProvisioningConfig } from '../provisioningconfig'
 import { ProvisioningContext } from '../provisioningcontext'
@@ -63,7 +63,7 @@ export class SiteFields extends HandlerBase {
   private async processSiteField(
     web: IWeb,
     schemaXml: string
-  ): Promise<IFieldAddResult> {
+  ): Promise<Partial<IFieldInfo>> {
     try {
       schemaXml = this.tokenHelper.replaceTokens(schemaXml)
       const schemaXmlJson = JSON.parse(xmljs.xml2json(schemaXml))

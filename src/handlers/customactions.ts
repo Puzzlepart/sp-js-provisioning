@@ -18,6 +18,20 @@ export class CustomActions extends HandlerBase {
   }
 
   /**
+   * Creates the batch the custom actions are added through. Isolated in an
+   * overridable method so the batching seam can be replaced with a fake in
+   * tests - `createBatch` needs a real queryable and cannot be stubbed
+   * otherwise.
+   *
+   * @param web - The web to batch against
+   */
+  protected createBatch(
+    web: IWeb
+  ): [(instance: any) => any, () => Promise<void>] {
+    return createBatch(web) as [(instance: any) => any, () => Promise<void>]
+  }
+
+  /**
    * Provisioning Custom Actions
    *
    * @param web - The web
@@ -33,19 +47,25 @@ export class CustomActions extends HandlerBase {
         { Title: string }[]
       >()
 
-      const [batch, execute] = createBatch(web)
+      const [batch, execute] = this.createBatch(web)
 
-      customActions
+      // In PnPjs v4 `execute()` only resolves the batch itself - the promise of
+      // each batched request has to be awaited separately or a failing request
+      // rejects unobserved. Both are awaited in a single `Promise.all` so that
+      // a rejecting `execute()` does not leave the per-request promises
+      // unobserved.
+      const requests = customActions
         .filter((action) => {
           return !existingActions.some(
             (existingAction) => existingAction.Title === action.Title
           )
         })
-        .map((action) => {
-          web.userCustomActions.using(batch).add(action)
-        })
+        .map((action) => web.userCustomActions.using(batch).add(action))
 
-      await execute()
+      // Typed as unknown because `execute()` resolves void while the batched
+      // adds resolve with the created custom actions.
+      const pending: Promise<unknown>[] = [execute(), ...requests]
+      await Promise.all(pending)
       super.scope_ended()
     } catch (error) {
       super.scope_ended(error)

@@ -26,15 +26,21 @@ const throwingProxy: any = new Proxy(
   }
 )
 
-export class JsomContext {}
+/**
+ * Stand-in for the real `JsomContext`. The index signature keeps the handlers
+ * type-checking against this stub (the real context exposes `web`,
+ * `clientContext` and more, all of which resolve to the throwing proxy here).
+ */
+export class JsomContext {
+  [key: string]: any
+}
 
-export function ExecuteJsomQuery(): never {
+/** Throws - JSOM queries cannot be executed under Node. */
+export function ExecuteJsomQuery(...args: any[]): any {
   return jsomUnavailable()
 }
 
-const initSpfxJsom = async (
-  _webServerRelativeUrl?: string
-): Promise<{ jsomContext: any }> => {
+const initSpfxJsom = async (...args: any[]): Promise<any> => {
   return { jsomContext: { web: throwingProxy, clientContext: throwingProxy } }
 }
 

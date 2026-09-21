@@ -1,7 +1,7 @@
 /* eslint-disable unicorn/prevent-abbreviations */
 import { combine, isArray } from '@pnp/core'
 import { LogLevel, Logger } from '@pnp/logging'
-import { IFile, IFileAddResult, IWeb } from '@pnp/sp/presets/all'
+import { IFile, IWeb } from '@pnp/sp/presets/all'
 import * as xmljs from 'xml-js'
 import { IProvisioningConfig } from '../provisioningconfig'
 import { ProvisioningContext } from '../provisioningcontext'
@@ -105,17 +105,18 @@ export class Files extends HandlerBase {
         folderServerRelativeUrl,
         file.Url
       )
-      let fileAddResult: IFileAddResult
-      let pnpFile: IFile
       try {
-        fileAddResult = await pnpFolder.files.addUsingPath(file.Url, blob, {
+        const addedFile = await pnpFolder.files.addUsingPath(file.Url, blob, {
           Overwrite: file.Overwrite ?? true
         })
-        pnpFile = fileAddResult.file
-        fileServerRelativeUrl = fileAddResult.data.ServerRelativeUrl
+        fileServerRelativeUrl = addedFile.ServerRelativeUrl
       } catch {
-        pnpFile = web.getFileByServerRelativePath(fileServerRelativeUrl)
+        // The file already exists and could not be overwritten - fall back to
+        // the url we computed from the folder and the file name.
       }
+      const pnpFile: IFile = web.getFileByServerRelativePath(
+        fileServerRelativeUrl
+      )
       await this.processProperties(web, pnpFile, file)
       await this.processWebParts(
         file,

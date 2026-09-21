@@ -10,7 +10,7 @@ import { IProvisioningConfig } from './provisioningconfig'
 import { ProvisioningContext } from './provisioningcontext'
 import { ProvisioningError } from './provisioningerror'
 import { Schema } from './schema'
-import { extractWebUrl, IWeb, Site, TermStore } from '@pnp/sp/presets/all'
+import { extractWebUrl, IWeb, Site, SPInstance } from '@pnp/sp/presets/all'
 import '@pnp/sp/presets/all'
 
 /**
@@ -61,9 +61,12 @@ export class WebProvisioner {
       )
     }
     try {
-      const termStore = await TermStore([this.web, webUrl]).select('id')<{
-        id: string
-      }>()
+      // PnPjs v4 dropped the `taxonomy` module, so the default term store is
+      // read straight from the same endpoint v3's `TermStore` factory used.
+      const termStore = await SPInstance(
+        [this.web, webUrl],
+        '_api/v2.1/termstore'
+      ).select('id')<{ id: string }>()
       this.context.termStoreId = termStore.id
     } catch (error) {
       this.logWarning(
@@ -72,7 +75,9 @@ export class WebProvisioner {
       )
     }
     try {
-      const lists = await this.web.lists.select('Id', 'Title')<
+      // An explicit page size - without `.top()` SharePoint caps the
+      // collection at 100 items and `{listid:...}` tokens silently miss lists.
+      const lists = await this.web.lists.select('Id', 'Title').top(5000)<
         Array<{ Id: string; Title: string }>
       >()
       this.context.lists = lists.reduce((object, l) => {
