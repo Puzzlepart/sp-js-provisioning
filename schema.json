@@ -568,6 +568,51 @@
             },
             "type": "object"
         },
+        "ISiteGroup": {
+            "properties": {
+                "AllowMembersEditMembership": {
+                    "type": "boolean"
+                },
+                "AllowRequestToJoinLeave": {
+                    "type": "boolean"
+                },
+                "AutoAcceptRequestToJoinLeave": {
+                    "type": "boolean"
+                },
+                "ClearExistingMembers": {
+                    "type": "boolean",
+                    "description": "Remove existing members that are not in Members."
+                },
+                "Description": {
+                    "type": "string"
+                },
+                "Members": {
+                    "items": {
+                        "type": "string"
+                    },
+                    "type": "array",
+                    "description": "Login names (UPN, email or claims) to add as members."
+                },
+                "OnlyAllowMembersViewMembership": {
+                    "type": "boolean"
+                },
+                "Owner": {
+                    "type": "string",
+                    "description": "Group owner: an associated group token, a site group title (including this group's own) or a user login name."
+                },
+                "RequestToJoinLeaveEmailSetting": {
+                    "type": "string"
+                },
+                "Title": {
+                    "type": "string",
+                    "description": "Group title, unique within the site collection. Supports tokens, e.g. {sitename}."
+                }
+            },
+            "required": [
+                "Title"
+            ],
+            "type": "object"
+        },
         "IWebPart": {
             "properties": {
                 "Contents": {
@@ -623,6 +668,32 @@
                 },
                 "value": {
                     "type": "string"
+                }
+            },
+            "type": "object"
+        },
+        "IWebSecurity": {
+            "properties": {
+                "BreakRoleInheritance": {
+                    "type": "boolean"
+                },
+                "ClearSubscopes": {
+                    "type": "boolean"
+                },
+                "CopyRoleAssignments": {
+                    "type": "boolean"
+                },
+                "RoleAssignments": {
+                    "items": {
+                        "$ref": "#/definitions/IRoleAssignment"
+                    },
+                    "type": "array"
+                },
+                "SiteGroups": {
+                    "items": {
+                        "$ref": "#/definitions/ISiteGroup"
+                    },
+                    "type": "array"
                 }
             },
             "type": "object"
@@ -736,6 +807,9 @@
                 "$ref": "#/definitions/IPropertyBagEntry"
             },
             "type": "array"
+        },
+        "Security": {
+            "$ref": "#/definitions/IWebSecurity"
         },
         "SiteFields": {
             "items": {

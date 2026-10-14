@@ -5,6 +5,30 @@ All notable changes to this package are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 For releases older than 1.3.6, see the git history.
 
+## [Unreleased]
+
+### Added
+
+- New top-level `Security` section and handler, run right before `Lists`
+  ([spec](./docs/specs/site-groups-and-web-security.md)):
+  - `SiteGroups` creates SharePoint site groups, or updates the group when one with the same
+    title exists, with description, membership settings, members and owner.
+    `ClearExistingMembers` removes members that are not in the template.
+  - `BreakRoleInheritance`, `CopyRoleAssignments`, `ClearSubscopes` and `RoleAssignments` apply
+    permissions on the web, with the same principal and role definition rules as list
+    `Security`. Inheritance is only broken when the web still inherits.
+  - List `Security` can grant permissions to groups created by the same template.
+- `{sitename}` token, resolving to the title of the web being provisioned (PnP semantics), e.g.
+  for per-site group names such as `{sitename} Styringsgruppe`.
+
+### Changed
+
+- Tokens such as `{sitename}` and `{parameter:Name}` are now replaced in list `Security` role
+  assignment principals before they are resolved.
+- Principal and role definition resolution moved from the `Lists` handler to
+  `src/util/security.ts`, shared by list and web `Security`. Site group names with an apostrophe
+  are now escaped in the lookup url.
+
 ## [1.4.0] - 2026-09-21
 
 ### Changed

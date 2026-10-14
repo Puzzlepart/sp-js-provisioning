@@ -10,6 +10,7 @@ import { Hooks } from './hooks'
 import { Lists } from './lists'
 import { Navigation } from './navigation'
 import { PropertyBagEntries } from './propertybagentries'
+import { Security } from './security'
 import { SiteFields } from './sitefields'
 import { Taxonomy } from './taxonomy'
 import { WebSettings } from './websettings'
@@ -24,6 +25,7 @@ export type Handler =
   | 'Lists'
   | 'Navigation'
   | 'PropertyBagEntries'
+  | 'Security'
   | 'WebSettings'
   | 'SiteFields'
   | 'Taxonomy'
@@ -41,6 +43,7 @@ export const DefaultHandlerMap = (
   Lists: new Lists(config),
   Navigation: new Navigation(config),
   PropertyBagEntries: new PropertyBagEntries(config),
+  Security: new Security(config),
   WebSettings: new WebSettings(config),
   SiteFields: new SiteFields(config),
   Taxonomy: new Taxonomy(config),
@@ -55,6 +58,9 @@ export const DefaultHandlerSort: Record<Handler, number> = {
   CustomActions: 5,
   Features: 2,
   Files: 4,
+  // Right before `Lists`, whose `Security` can grant permissions to the site
+  // groups this handler creates.
+  Security: 2.5,
   Lists: 3,
   Navigation: 9,
   PropertyBagEntries: 8,

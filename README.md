@@ -4,8 +4,9 @@
 [![license](https://img.shields.io/npm/l/sp-js-provisioning.svg)](./LICENSE)
 
 Template-based SharePoint Online provisioning in pure JavaScript/TypeScript. Apply a JSON
-template to a web — site fields, content types, lists (fields, views, folders, seeded rows,
-permissions), files, client-side pages, navigation, taxonomy and more — from the browser
+template to a web — site fields, content types, site groups and permissions, lists (fields,
+views, folders, seeded rows, permissions), files, client-side pages, navigation, taxonomy and
+more — from the browser
 (SharePoint Framework) or from Node. Built on [PnPjs](https://pnp.github.io/pnpjs/) and used by
 [Prosjektportalen 365](https://github.com/Puzzlepart/prosjektportalen365) for template-driven
 project setup.
@@ -80,16 +81,17 @@ a dedicated handler, applied in this order:
 | 1     | `Taxonomy`           | Term groups, term sets and terms (ids, sort order, custom properties). `UpdateExistingTerms` fills missing custom properties onto existing terms                                                             |
 | 2     | `SiteFields`         | Site columns from field XML                                                                                                                                                                                  |
 | 3     | `ContentTypes`       | Content types with fixed ids, field refs (by name) and field link order                                                                                                                                      |
-| 4     | `Features`           | Web feature activation and deactivation                                                                                                                                                                 |
-| 5     | `Lists`              | Lists and libraries: settings, content type bindings, list fields, field refs (site columns added to the list, by id), views, folder hierarchies, seeded rows (`DataRows`) and list permissions (`Security`) |
-| 6     | `Files`              | Files with web parts, properties and overwrite control                                                                                                                                                              |
-| 7     | `CustomActions`      | User custom actions, including SPFx extension registrations                                                                                                                                                  |
-| 8     | `ComposedLook`       | Theme (composed look)                                                                                                                                                                                        |
-| 9     | `ClientSidePages`    | Modern pages with sections and web parts                                                                                                                                                                     |
-| 10    | `PropertyBagEntries` | Property bag values                                                                                                                                                                                          |
-| 11    | `Navigation`         | Quick launch and top navigation nodes                                                                                                                                                                        |
-| 12    | `WebSettings`        | Web properties such as welcome page and master page                                                                                                                                                          |
-| 13    | `Hooks`              | HTTP callbacks after provisioning                                                                                                                                                                            |
+| 4     | `Features`           | Web feature activation and deactivation                                                                                                                                                                      |
+| 5     | `Security`           | Site groups (properties, owner, members) and role inheritance and role assignments on the web                                                                                                                |
+| 6     | `Lists`              | Lists and libraries: settings, content type bindings, list fields, field refs (site columns added to the list, by id), views, folder hierarchies, seeded rows (`DataRows`) and list permissions (`Security`) |
+| 7     | `Files`              | Files with web parts, properties and overwrite control                                                                                                                                                       |
+| 8     | `CustomActions`      | User custom actions, including SPFx extension registrations                                                                                                                                                  |
+| 9     | `ComposedLook`       | Theme (composed look)                                                                                                                                                                                        |
+| 10    | `ClientSidePages`    | Modern pages with sections and web parts                                                                                                                                                                     |
+| 11    | `PropertyBagEntries` | Property bag values                                                                                                                                                                                          |
+| 12    | `Navigation`         | Quick launch and top navigation nodes                                                                                                                                                                        |
+| 13    | `WebSettings`        | Web properties such as welcome page and master page                                                                                                                                                          |
+| 14    | `Hooks`              | HTTP callbacks after provisioning                                                                                                                                                                            |
 
 [`schema.json`](./schema.json) is a JSON Schema for the template format — reference it from
 your template files for editor validation and IntelliSense:
@@ -112,6 +114,44 @@ key value exists, it is updated (`UpdateBehavior: "Overwrite"`, the default) or 
 the field's type — lookup and user values resolve to item/user ids, taxonomy values
 (`{ termId, label }`) write the hidden note field, and string values get token replacement.
 
+### Site groups and web permissions (`Security`)
+
+```json
+"Security": {
+  "SiteGroups": [
+    {
+      "Title": "{sitename} Styringsgruppe",
+      "Description": "Styringsgruppen for {sitename}",
+      "Owner": "{associatedownergroupid}",
+      "AllowMembersEditMembership": false,
+      "OnlyAllowMembersViewMembership": false,
+      "Members": ["kari.nordmann@contoso.no"],
+      "ClearExistingMembers": false
+    }
+  ],
+  "BreakRoleInheritance": false,
+  "RoleAssignments": [
+    { "Principal": "{sitename} Styringsgruppe", "RoleDefinition": "Lese" }
+  ]
+}
+```
+
+Site groups are matched by title, so re-applying a template updates an existing group instead
+of creating a duplicate. Members are login names (UPN, email or claims, e.g. an Entra ID group
+claim) and are ensured on the web before they are added. `ClearExistingMembers` removes members
+that are not in `Members`, but only when every listed member could be added. `Owner` is resolved
+like a role assignment principal (below) and may be the group itself; without it SharePoint
+keeps the provisioning user as owner.
+
+`BreakRoleInheritance`, `CopyRoleAssignments`, `ClearSubscopes` and `RoleAssignments` work as for
+lists, but on the web. Inheritance is only broken when the web still inherits, so re-running a
+template with `ClearSubscopes` does not wipe list permissions set since. The root web of a site
+collection always has unique permissions and takes role assignments directly.
+
+`Security` runs right before `Lists`, so list permissions can grant access to the groups it
+creates. If you pass your own `handlerSort` to `WebProvisioner`, give `Security` a lower value
+than `Lists`.
+
 ### List permissions (`Security`)
 
 ```json
@@ -127,9 +167,10 @@ the field's type — lookup and user values resolve to item/user ids, taxonomy v
 ```
 
 A principal can be one of the associated-group tokens above, a principal id, a site group
-name or a user login name. Role definitions are resolved by their name as it exists on the
-web (localized), with a fallback to the well-known role types for the English names
-`Full Control`, `Design`, `Edit`, `Contribute` and `Read`.
+name (including groups created by `Security` in the same template) or a user login name. Other
+tokens such as `{sitename}` and `{parameter:Name}` are replaced first. Role definitions are
+resolved by their name as it exists on the web (localized), with a fallback to the well-known
+role types for the English names `Full Control`, `Design`, `Edit`, `Contribute` and `Read`.
 
 ### Tokens
 
@@ -144,11 +185,12 @@ one in Node — see [`debug/`](./debug)) and resolve to `null` without one.
 | `{listid:List Title}`                                                                   | Id of a list on the web                                                              |
 | `{listviewid:List Title\|View Title}`                                                   | Id of a list view                                                                    |
 | `{webid}` / `{siteid}`                                                                  | Id of the web being provisioned                                                      |
+| `{sitename}`                                                                            | Title of the web being provisioned                                                   |
 | `{sitecollectionid}`                                                                    | Id of the site collection                                                            |
 | `{sitecollectiontermstoreid}` / `{termstoreid}`                                         | Id of the default term store — enables managed metadata site columns from a template |
 | `{parameter:Name}`                                                                      | Value from `IProvisioningConfig.parameters`                                          |
 | `{site}` / `{sitecollection}`                                                           | Server-relative / absolute URL (in URLs)                                             |
-| `{associatedownergroupid}` / `{associatedmembergroupid}` / `{associatedvisitorgroupid}` | Associated group (in `Security` principals)                                          |
+| `{associatedownergroupid}` / `{associatedmembergroupid}` / `{associatedvisitorgroupid}` | Associated group (in `Security` principals and group owners)                         |
 
 ## Configuration
 
@@ -159,8 +201,8 @@ one in Node — see [`debug/`](./debug)) and resolve to `null` without one.
 - `logging` — `prefix` and `activeLogLevel` for the built-in `@pnp/logging` console listener.
 
 Errors are thrown as `ProvisioningError`, carrying the name of the handler that failed.
-Sub-operations such as individual data rows, folders and role assignments log failures and
-continue, so one bad row does not abort the template.
+Sub-operations such as individual data rows, folders, site groups, group members and role
+assignments log failures and continue, so one bad row does not abort the template.
 
 ## Development
 

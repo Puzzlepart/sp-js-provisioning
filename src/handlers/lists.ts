@@ -1,5 +1,5 @@
 /* eslint-disable unicorn/no-array-for-each */
-import { IList, ISiteGroup, IWeb } from '@pnp/sp/presets/all'
+import { IList, IWeb } from '@pnp/sp/presets/all'
 import initSpfxJsom, { JsomContext } from 'spfx-jsom'
 import * as xmljs from 'xml-js'
 import { IProvisioningConfig } from '../provisioningconfig'
@@ -13,14 +13,9 @@ import {
   IListView
 } from '../schema'
 import { addFieldAttributes } from '../util'
+import { resolvePrincipalId, resolveRoleDefinitionId } from '../util/security'
 import { TokenHelper } from '../util/tokenhelper'
 import { HandlerBase } from './handlerbase'
-
-/**
- * Role type kind as used by `roleDefinitions.getByType` (mirrors pnpjs'
- * `RoleTypeKind`, which the package does not re-export).
- */
-type RoleTypeKind = 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7
 
 export interface ISPField {
   Id: string
@@ -872,9 +867,11 @@ export class Lists extends HandlerBase {
    * adds role assignments. A principal may be a PnP-style token for one of the
    * web's associated groups (`{associatedownergroupid}`,
    * `{associatedmembergroupid}`, `{associatedvisitorgroupid}`), a principal id,
-   * a site group name or a user login name. Role definitions are resolved by
-   * their (localized) name, falling back to the well-known role type for the
-   * English names. Runs after data rows. Errors are logged, not thrown.
+   * a site group name or a user login name; other tokens in the principal
+   * (e.g. `{sitename}`, `{parameter:Name}`) are replaced first. Role definitions
+   * are resolved by their (localized) name, falling back to the well-known role
+   * type for the English names. Runs after data rows. Errors are logged, not
+   * thrown.
    *
    * @param web - The web
    * @param lc - The list configuration
@@ -913,24 +910,29 @@ export class Lists extends HandlerBase {
         )
       }
       for (const assignment of security.RoleAssignments || []) {
+        const principal =
+          typeof assignment.Principal === 'string'
+            ? this.tokenHelper.replaceTokens(assignment.Principal)
+            : assignment.Principal
         try {
-          const principalId = await this._resolvePrincipalId(
+          const principalId = await resolvePrincipalId(
             web,
-            assignment.Principal
+            principal,
+            (message) => this.log_info('resolvePrincipalId', message)
           )
-          const roleDefinitionId = await this._resolveRoleDefinitionId(
+          const roleDefinitionId = await resolveRoleDefinitionId(
             web,
             assignment.RoleDefinition
           )
           await list.roleAssignments.add(principalId, roleDefinitionId)
           super.log_info(
             'processListSecurity',
-            `Role assignment added on list ${lc.Title}: ${assignment.Principal} (${principalId}) -> ${assignment.RoleDefinition} (${roleDefinitionId}).`
+            `Role assignment added on list ${lc.Title}: ${principal} (${principalId}) -> ${assignment.RoleDefinition} (${roleDefinitionId}).`
           )
         } catch (error) {
           super.log_error(
             'processListSecurity',
-            `Failed to add role assignment ${assignment.Principal} -> ${
+            `Failed to add role assignment ${principal} -> ${
               assignment.RoleDefinition
             } on list ${lc.Title}: ${(error && error.message) || error}`
           )
@@ -944,94 +946,6 @@ export class Lists extends HandlerBase {
         }`
       )
     }
-  }
-
-  /**
-   * Resolves a role assignment principal to a principal id: associated group
-   * tokens, a numeric id, a site group name, or a user login name (ensured).
-   */
-  private async _resolvePrincipalId(
-    web: IWeb,
-    principal: string | number
-  ): Promise<number> {
-    if (typeof principal === 'number') return principal
-    const value = String(principal).trim()
-    if (/^\d+$/.test(value)) return Number(value)
-    const token = value.replace(/[{}]/g, '').toLowerCase()
-    const associatedGroups: { [key: string]: () => ISiteGroup } = {
-      associatedownergroupid: () => web.associatedOwnerGroup,
-      associatedmembergroupid: () => web.associatedMemberGroup,
-      associatedvisitorgroupid: () => web.associatedVisitorGroup
-    }
-    if (associatedGroups[token]) {
-      const group = await associatedGroups[token]().select('Id')<{
-        Id: number
-      }>()
-      return group.Id
-    }
-    try {
-      const group = await web.siteGroups.getByName(value).select('Id')<{
-        Id: number
-      }>()
-      return group.Id
-    } catch (groupError) {
-      super.log_info(
-        '_resolvePrincipalId',
-        `No site group named '${value}', resolving it as a user: ${
-          (groupError && groupError.message) || groupError
-        }`
-      )
-      try {
-        const user = await web.ensureUser(value)
-        return user.Id
-      } catch (userError) {
-        throw new Error(
-          `Could not resolve principal '${value}' as a site group (${
-            (groupError && groupError.message) || groupError
-          }) or as a user (${(userError && userError.message) || userError})`
-        )
-      }
-    }
-  }
-
-  /**
-   * Resolves a role definition by (localized) name, falling back to the
-   * well-known role type for the English names (Full Control, Design, Edit,
-   * Contribute, Read, View Only).
-   */
-  private async _resolveRoleDefinitionId(
-    web: IWeb,
-    roleDefinition: string
-  ): Promise<number> {
-    try {
-      const byName = await web.roleDefinitions
-        .getByName(roleDefinition)
-        .select('Id')<{ Id: number }>()
-      return byName.Id
-    } catch (error) {
-      const roleTypeKind =
-        Lists._wellKnownRoleTypes[String(roleDefinition).trim().toLowerCase()]
-      if (roleTypeKind === undefined) throw error
-      const byType = await web.roleDefinitions
-        .getByType(roleTypeKind)
-        .select('Id')<{ Id: number }>()
-      return byType.Id
-    }
-  }
-
-  /**
-   * Well-known English role definition names mapped to `RoleTypeKind`
-   * (Reader=2, Contributor=3, WebDesigner=4, Administrator=5, Editor=6). Other
-   * role definitions, including `View Only` and every localized name, must be
-   * named exactly as they exist on the web.
-   */
-  private static _wellKnownRoleTypes: { [name: string]: RoleTypeKind } = {
-    'full control': 5,
-    administrator: 5,
-    design: 4,
-    edit: 6,
-    contribute: 3,
-    read: 2
   }
 
   /**

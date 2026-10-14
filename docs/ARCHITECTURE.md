@@ -68,6 +68,7 @@ Current order:
 | 0 | `SiteFields` | Creates or updates web fields used by content types and lists. |
 | 1 | `ContentTypes` | Uses site fields and produces content types used by list bindings. |
 | 2 | `Features` | Activates or deactivates web features before list and page work. |
+| 2.5 | `Security` | Creates site groups and applies web permissions; runs right before `Lists` so list `Security` can grant permissions to those groups. |
 | 3 | `Lists` | Creates lists, binds content types, adds list fields, field refs, and views. |
 | 4 | `Files` | Uploads files and classic pages, can add web parts and list view web parts. |
 | 5 | `CustomActions` | Adds user custom actions after base structures exist. |
@@ -100,6 +101,7 @@ Defined in `src/schema.ts`.
 - `ClientSidePages?: IClientSidePage[]`
 - `CustomActions?: ICustomAction[]`
 - `Features?: IFeature[]`
+- `Security?: IWebSecurity`
 - `ComposedLook?: IComposedLook`
 - `PropertyBagEntries?: IPropertyBagEntry[]`
 - `Navigation?: INavigation`
@@ -150,6 +152,7 @@ Supports context/config tokens with the patterns `{token}` and `{token:value}`:
 - `{listid:List Title}` -> `context.lists[List Title]`
 - `{listviewid:List Title|View Title}` -> `context.listViews[...]`
 - `{webid}` / `{siteid}` -> `context.web.Id` (PnP semantics: `{siteid}` is the web ID)
+- `{sitename}` -> `context.web.Title` (PnP semantics: the title of the web)
 - `{sitecollectionid}` -> `context.siteId` (falls back to `context.web.Id`)
 - `{sitecollectiontermstoreid}` / `{termstoreid}` -> `context.termStoreId`
 - `{parameter:Name}` -> `config.parameters.Name`
@@ -160,7 +163,7 @@ Important limitations:
 
 - The regex only matches lowercase token keys (`[a-z]+`); the value part may contain anything but braces. Unknown keys and JSON-like text such as `{"a":1}` or `{Title}` are left untouched.
 - It replaces a match only when the token resolves; an unresolved token is left in place. A resolved empty value does replace the token, so an empty `{parameter:Name}` yields an empty string.
-- Where tokens are applied: field XML (site and list fields), list `DataRows` values (every string value whose field type is not handled specially, plus `URL.Url`), file sources and web part XML, and client-side page properties and server-processed content. Not view queries and not custom action properties.
+- Where tokens are applied: field XML (site and list fields), list `DataRows` values (every string value whose field type is not handled specially, plus `URL.Url`), file sources and web part XML, client-side page properties and server-processed content, site group titles, string properties, owners and members, and role assignment principals (web and list `Security`). Not view queries and not custom action properties.
 
 ### URL Tokens
 
@@ -239,6 +242,30 @@ Related design notes:
 - The JSOM explicit-ID decision is tracked in `docs/adr/jsom-explicit-content-type-ids.md`.
 - Context initialization must be awaited before create-versus-update decisions depend on `context.contentTypes`.
 
+### `Security`
+
+File: `src/handlers/security.ts`
+
+Responsibilities:
+
+- Creates site groups (`SiteGroups`), or updates the configured properties of a group that already exists with the same title.
+- Adds group members (each login name is ensured on the web first) and, with `ClearExistingMembers`, removes members that are not in the template.
+- Sets the group owner after the members are added, so the provisioning user still owns a new group while it is being filled.
+- Breaks role inheritance on the web when `BreakRoleInheritance` is set and the web still inherits.
+- Adds role assignments on the web.
+
+Key contracts:
+
+- Groups are matched by title through `siteGroups.getByName` (apostrophes escaped); a 404 means the group is missing and is created.
+- Group owners and role assignment principals are resolved by `resolvePrincipalId` in `src/util/security.ts`, shared with list `Security`: associated group tokens, a principal ID, a site group title or a user login name. Role definitions use `resolveRoleDefinitionId` from the same module.
+- `ClearExistingMembers` is skipped (with a warning) when any configured member could not be added, so an unresolved login cannot cause an existing member to be removed.
+
+Important behavior:
+
+- Failures are logged per group, member, owner and role assignment and never abort the template.
+- The handler does not remove groups or role assignments that are missing from the template.
+- Consumers with a custom `handlerSort` must sort `Security` before `Lists`; an unknown key sorts as 99 and would run after `Lists`.
+
 ### `Lists`
 
 File: `src/handlers/lists.ts`
@@ -281,7 +308,7 @@ Key contracts:
 Important behavior:
 
 - `processField` deletes a list field by ID before recreating it. This is intentional for fields that cannot be updated cleanly, but it is destructive for list-local field state.
-- `Security` principals accept the PnP tokens `{associatedownergroupid}`, `{associatedmembergroupid}` and `{associatedvisitorgroupid}`, a principal ID, a site group name or a user login name; role definitions are resolved by localized name with a fallback to the well-known role type for the English names. Failures are logged per assignment and never abort the template.
+- `Security` principals accept the PnP tokens `{associatedownergroupid}`, `{associatedmembergroupid}` and `{associatedvisitorgroupid}`, a principal ID, a site group name or a user login name; other tokens in a principal are replaced first. Role definitions are resolved by localized name with a fallback to the well-known role type for the English names. The resolution lives in `src/util/security.ts`, shared with the `Security` handler. Failures are logged per assignment and never abort the template.
 - Several list operations catch errors and log failures without throwing. Agents should inspect logs and behavior, not just promise success.
 
 ### `Files`

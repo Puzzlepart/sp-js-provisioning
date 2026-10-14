@@ -2,6 +2,7 @@ import assert from 'node:assert/strict'
 import { describe, it } from 'node:test'
 import { Lists } from '../../src/handlers/lists'
 import { ProvisioningContext } from '../../src/provisioningcontext'
+import { resolvePrincipalId } from '../../src/util/security'
 import { TokenHelper } from '../../src/util/tokenhelper'
 
 /**
@@ -245,7 +246,6 @@ describe('Lists: v4 ensureUser result', () => {
   it('reads Id off the ensureUser result when resolving a principal', async () => {
     // v4 resolves `ensureUser` with ISiteUserInfo - the v3 `{ data }` wrapper
     // is gone.
-    const handler = createHandler(new ProvisioningContext())
     let ensuredLogin: string
     const web: any = {
       siteGroups: { getByName: () => createMissingGroup() },
@@ -255,7 +255,7 @@ describe('Lists: v4 ensureUser result', () => {
       }
     }
 
-    const principalId = await handler._resolvePrincipalId(
+    const principalId = await resolvePrincipalId(
       web,
       'i:0#.f|membership|kari@contoso.no'
     )
@@ -281,5 +281,59 @@ describe('Lists: v4 ensureUser result', () => {
       await handler._resolveUserId(web, 'kari@contoso.no'),
       undefined
     )
+  })
+})
+
+describe('Lists: security principals', () => {
+  it('replaces tokens in a principal before resolving it', async () => {
+    // Groups created by the `Security` handler are often named per site, so
+    // list role assignments must resolve the same tokens.
+    const context = new ProvisioningContext()
+    context.web = { Title: 'Prosjekt A' }
+    const handler: any = new Lists({ parameters: { Rolle: 'Lese' } })
+    handler.context = context
+    handler.tokenHelper = new TokenHelper(context, handler.config)
+    const groupNames: string[] = []
+    const assignments: number[][] = []
+    const select = (id: number) => {
+      const queryable: any = async () => ({ Id: id })
+      queryable.select = () => queryable
+      return queryable
+    }
+    const web: any = {
+      lists: {
+        getByTitle: () => ({
+          breakRoleInheritance: async () => undefined,
+          roleAssignments: {
+            add: async (principalId: number, roleDefinitionId: number) => {
+              assignments.push([principalId, roleDefinitionId])
+            }
+          }
+        })
+      },
+      siteGroups: {
+        getByName: (name: string) => {
+          groupNames.push(name)
+          return select(12)
+        }
+      },
+      roleDefinitions: { getByName: () => select(1073741826) }
+    }
+
+    await handler.processListSecurity(web, {
+      Title: 'Risikoer',
+      Security: {
+        BreakRoleInheritance: true,
+        RoleAssignments: [
+          {
+            Principal: '{sitename} Styringsgruppe',
+            RoleDefinition: '{parameter:Rolle}'
+          }
+        ]
+      }
+    })
+
+    assert.deepEqual(groupNames, ['Prosjekt A Styringsgruppe'])
+    assert.deepEqual(assignments, [[12, 1073741826]])
   })
 })

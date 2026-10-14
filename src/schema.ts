@@ -14,6 +14,7 @@ export interface Schema {
   SiteFields?: string[]
   ContentTypes?: IContentType[]
   Taxonomy?: ITaxonomy
+  Security?: IWebSecurity
   [key: string]: any
 }
 
@@ -237,6 +238,55 @@ export interface IListSecurity {
    * inherited assignments are kept only with `CopyRoleAssignments`.
    */
   RoleAssignments?: IRoleAssignment[]
+}
+
+/**
+ * A SharePoint site group. Mirrors the PnP provisioning schema `SiteGroup`
+ * element. Groups are matched by title, so re-applying a template updates the
+ * group instead of creating a duplicate.
+ */
+export interface ISiteGroup {
+  /**
+   * Group title, unique within the site collection. Supports tokens, e.g.
+   * `{sitename} Styringsgruppe`.
+   */
+  Title: string
+  Description?: string
+  /**
+   * Group owner, resolved like a role assignment principal: an associated
+   * group token, a site group title (including this group's own title) or a
+   * user login name. Without it SharePoint keeps the provisioning user as owner.
+   */
+  Owner?: string
+  AllowMembersEditMembership?: boolean
+  AllowRequestToJoinLeave?: boolean
+  AutoAcceptRequestToJoinLeave?: boolean
+  OnlyAllowMembersViewMembership?: boolean
+  RequestToJoinLeaveEmailSetting?: string
+  /**
+   * Members to add, as login names (UPN, email or claims, e.g. an Entra ID
+   * group claim). Each one is ensured on the web before it is added.
+   */
+  Members?: string[]
+  /**
+   * Remove existing members that are not in `Members`.
+   */
+  ClearExistingMembers?: boolean
+}
+
+/**
+ * Web security: site groups, and role inheritance and role assignments on the
+ * web itself. Mirrors the PnP provisioning schema `Security` element. The
+ * members inherited from {@link IListSecurity} behave as they do for lists, but
+ * apply to the web; the root web of a site collection always has unique
+ * permissions, so it takes role assignments without `BreakRoleInheritance`.
+ */
+export interface IWebSecurity extends IListSecurity {
+  /**
+   * Site groups to create or update. They are provisioned before `Lists`, so
+   * list `Security` can grant permissions to them.
+   */
+  SiteGroups?: ISiteGroup[]
 }
 
 export interface IListInstance {

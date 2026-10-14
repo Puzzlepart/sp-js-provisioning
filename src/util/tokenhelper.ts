@@ -14,6 +14,7 @@ import { IProvisioningConfig } from '../provisioningconfig'
  * - `{listid:List Title}` - list id from `context.lists`
  * - `{listviewid:List Title|View Title}` - view id from `context.listViews`
  * - `{webid}` / `{siteid}` - id of the web being provisioned
+ * - `{sitename}` - title of the web being provisioned
  * - `{sitecollectionid}` - id of the site collection (falls back to the web id)
  * - `{sitecollectiontermstoreid}` / `{termstoreid}` - id of the default term store
  * - `{parameter:Name}` - value from `config.parameters`
@@ -72,6 +73,8 @@ export class TokenHelper {
       case 'webid':
       case 'siteid':
         return this.context.web && this.context.web.Id
+      case 'sitename':
+        return this.context.web && this.context.web.Title
       case 'sitecollectionid':
         return this.context.siteId || (this.context.web && this.context.web.Id)
       case 'sitecollectiontermstoreid':
