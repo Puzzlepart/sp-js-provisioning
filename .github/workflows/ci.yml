@@ -1,0 +1,64 @@
+# Offline CI: build, lint, type check, unit tests with coverage floors, the package contents and a
+# scan for committed tenant values. Nothing here reaches a tenant or needs a secret, so it runs on
+# every pull request, forks included. The tenant tests are a separate, manually dispatched workflow
+# (docs/specs/integration-testing.md, Phase 3).
+#
+# The job name is the required check for main. No path filter: a workflow skipped by a path filter
+# leaves a required check pending and blocks the merge.
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: Build and offline tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      - run: npm ci
+
+      - name: Lint (without rewriting)
+        run: npm run lint:check
+
+      - name: Build
+        run: npm run build
+
+      - name: Type check the tests with src and the runner
+        run: npm run typecheck:tests
+
+      - name: Unit tests (spec + JUnit)
+        run: npm run test:ci
+
+      - name: Coverage floors
+        run: npm run test:coverage
+
+      - name: Package contents
+        run: npm run check:pack
+
+      - name: No tenant URLs, cookies, tokens or certificates committed
+        run: npm run check:secrets
+
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: test-results
+          path: test-results/
+          retention-days: 7
+          if-no-files-found: ignore

@@ -20,7 +20,8 @@ import {
   UsageError
 } from '../../debug/lib/cli'
 import { authMode, configured, readEnv, ROOT } from '../../debug/lib/env'
-import { sourceOf } from '../../debug/lib/logs'
+import { sourceOf, startRun } from '../../debug/lib/logs'
+import { FunctionListener, Logger, LogLevel } from '@pnp/logging'
 import { DefaultHandlerSort } from '../../src/handlers/exports'
 
 const handlers = handlerOrder(DefaultHandlerSort)
@@ -525,6 +526,41 @@ describe('runner: sign-in pipeline', () => {
       assert.equal(write.headers.get('Cookie'), 'FedAuth=session')
     } finally {
       rmSync(directory, { recursive: true, force: true })
+    }
+  })
+})
+
+describe('runner: log collection per run', () => {
+  it('clears the collector for each run and leaves the other listeners alone', () => {
+    // The engine subscribes its console listener once per process, so the
+    // runner must not clear the logger's listeners between runs.
+    const other: string[] = []
+    Logger.subscribe(FunctionListener((entry) => other.push(entry.message)))
+    try {
+      const first = startRun()
+      Logger.write(
+        '(provision #1) (Lists): (processList): first',
+        LogLevel.Error
+      )
+      const firstErrors = first.errors().map((entry) => entry.message)
+      const second = startRun()
+      Logger.write(
+        '(provision #2) (Lists): (processList): second',
+        LogLevel.Error
+      )
+
+      assert.equal(second, first)
+      assert.deepEqual(firstErrors, [
+        '(provision #1) (Lists): (processList): first'
+      ])
+      assert.deepEqual(
+        second.errors().map((entry) => entry.source),
+        ['Lists']
+      )
+      assert.equal(second.errors().length, 1)
+      assert.equal(other.length, 2)
+    } finally {
+      Logger.clearSubscribers()
     }
   })
 })

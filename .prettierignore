@@ -1,0 +1,4 @@
+lib/
+coverage/
+test-results/
+node_modules/

@@ -104,6 +104,33 @@ export class ClientSidePages extends HandlerBase {
   }
 
   /**
+   * Adds a part to a section or column of a page. A part that cannot be added is logged as an
+   * error and the page is saved without it.
+   *
+   * @param target - The vertical section or column
+   * @param part - The part
+   * @param partDef - The part's definition (for its name)
+   * @param pageName - The page (for logging)
+   */
+  private _addControl(
+    target: { addControl(part: any): any },
+    part: any,
+    partDef: { Name: string },
+    pageName: string
+  ): void {
+    try {
+      target.addControl(part)
+    } catch (error) {
+      super.log_error(
+        'processClientSidePage',
+        `Failed adding part ${partDef.Name} to client side page ${pageName}: ${
+          (error && error.message) || error
+        }`
+      )
+    }
+  }
+
+  /**
    * Provision a client side page
    *
    * @param web - The web
@@ -157,14 +184,7 @@ export class ClientSidePages extends HandlerBase {
           control
         )
         if (!part) continue
-        try {
-          verticalSection.addControl(part)
-        } catch {
-          super.log_info(
-            'processClientSidePage',
-            `Failed adding part ${partDef.Name} to client side page ${clientSidePage.Name}`
-          )
-        }
+        this._addControl(verticalSection, part, partDef, clientSidePage.Name)
       }
     }
     const sections = clientSidePage.Sections || []
@@ -178,14 +198,7 @@ export class ClientSidePages extends HandlerBase {
             control
           )
           if (!part) continue
-          try {
-            column.addControl(part)
-          } catch {
-            super.log_info(
-              'processClientSidePage',
-              `Failed adding part ${partDef.Name} to client side page ${clientSidePage.Name}`
-            )
-          }
+          this._addControl(column, part, partDef, clientSidePage.Name)
         }
       }
     }

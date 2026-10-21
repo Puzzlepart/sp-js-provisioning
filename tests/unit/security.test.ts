@@ -6,6 +6,8 @@ import {
 } from '../../src/handlers/exports'
 import { Security } from '../../src/handlers/security'
 import { ProvisioningContext } from '../../src/provisioningcontext'
+import { LogLevel } from '@pnp/logging'
+import { captureLogs, levelOf } from '../helpers/logs'
 
 /**
  * Makes a fake queryable: invokable (resolving with `result()`) and selectable,
@@ -30,8 +32,9 @@ interface IFakeGroup {
  * every write the `Security` handler makes.
  *
  * @param options - Existing groups, whether the web has unique permissions,
- * logins `ensureUser` should reject and group titles `siteGroups.add` should
- * reject
+ * logins `ensureUser` should reject, group titles `siteGroups.add` should
+ * reject, and whether SharePoint ignores an owner change (as REST's
+ * `SetUserAsOwner` does for a group id)
  */
 function createWeb(
   options: {
@@ -39,6 +42,7 @@ function createWeb(
     hasUniqueRoleAssignments?: boolean
     failEnsure?: string[]
     failAdd?: string[]
+    ignoreOwner?: boolean
   } = {}
 ) {
   const groups: IFakeGroup[] = options.groups || []
@@ -46,6 +50,13 @@ function createWeb(
   const getByNameCalls: string[] = []
   let nextId = 100
   const findGroup = (id: number) => groups.find((g) => g.Id === id)
+  // The associated owner, visitor and member groups, and who owns each group
+  // (the signed-in user, 7, until the handler changes it).
+  const associatedGroupIds = [3, 4, 5]
+  const owners = new Map<number, number>()
+  const setOwner = (groupId: number, ownerId: number) => {
+    if (!options.ignoreOwner) owners.set(groupId, ownerId)
+  }
   const roleDefinitions: { [name: string]: number } = { Lese: 1073741826 }
   const web: any = {
     siteGroups: {
@@ -90,7 +101,20 @@ function createWeb(
           },
           setUserAsOwner: async (ownerId: number) => {
             events.push(`owner ${id} ${ownerId}`)
-          }
+            setOwner(id, ownerId)
+          },
+          // `getById(id).select('Id')()`: does the group exist?
+          select: () =>
+            queryable(() => {
+              if (!findGroup(id) && !associatedGroupIds.includes(id))
+                throw Object.assign(new Error('Group not found'), {
+                  status: 404
+                })
+              return { Id: id }
+            }),
+          // `getById(id).expand('Owner').select('Owner/Id')()`
+          expand: () =>
+            queryable(() => ({ Owner: { Id: owners.get(id) ?? 7 } }))
         }
       }
     },
@@ -124,7 +148,36 @@ function createWeb(
       }
     }
   }
-  return { web, groups, events, getByNameCalls }
+  /**
+   * The CSOM request that sets a group's owner, replayed against the fake:
+   * the first Int32 parameter is the group, the second its new owner.
+   *
+   * @param _web - The web
+   * @param request - The request XML
+   */
+  const processQuery = async (_web: any, request: string) => {
+    const ids: number[] = []
+    const pattern = /<Parameter Type="Int32">(\d+)<\/Parameter>/g
+    let match: RegExpExecArray | null
+    while ((match = pattern.exec(request))) ids.push(Number(match[1]))
+    events.push(`csom-owner ${ids[0]} ${ids[1]}`)
+    setOwner(ids[0], ids[1])
+    return [{ ErrorInfo: null }]
+  }
+  // Test-only: the CSOM stand-in `securityFor` hands to the handler.
+  web.csom = processQuery
+  return { web, groups, events, getByNameCalls, owners }
+}
+
+/**
+ * A `Security` handler whose CSOM requests go to the fake web.
+ *
+ * @param web - The fake web from `createWeb`
+ */
+function securityFor(web: any): Security {
+  const handler = new Security({})
+  handler.processQuery = web.csom
+  return handler
 }
 
 /**
@@ -140,7 +193,7 @@ describe('Security: site groups', () => {
   it('creates a missing group with its properties, members and owner', async () => {
     const { web, events } = createWeb()
 
-    await new Security({}).ProvisionObjects(
+    await securityFor(web).ProvisionObjects(
       web,
       {
         SiteGroups: [
@@ -157,7 +210,7 @@ describe('Security: site groups', () => {
     )
 
     // The owner is set last, so the provisioning user still owns the group
-    // while its members are added.
+    // while its members are added. A group owner goes through CSOM.
     assert.deepEqual(events, [
       `add ${JSON.stringify({
         Title: 'Prosjekt A Styringsgruppe',
@@ -165,7 +218,7 @@ describe('Security: site groups', () => {
         AllowMembersEditMembership: false
       })}`,
       'member 100 i:0#.f|membership|ola@contoso.no',
-      'owner 100 3'
+      'csom-owner 100 3'
     ])
   })
 
@@ -174,7 +227,7 @@ describe('Security: site groups', () => {
       groups: [{ Id: 7, Title: "Prosjektleder's", users: [] }]
     })
 
-    await new Security({}).ProvisionObjects(
+    await securityFor(web).ProvisionObjects(
       web,
       {
         SiteGroups: [
@@ -196,13 +249,75 @@ describe('Security: site groups', () => {
   it('can make a new group its own owner', async () => {
     const { web, events } = createWeb()
 
-    await new Security({}).ProvisionObjects(
+    await securityFor(web).ProvisionObjects(
       web,
       { SiteGroups: [{ Title: 'Styringsgruppe', Owner: 'Styringsgruppe' }] },
       createContext()
     )
 
-    assert.equal(events[events.length - 1], 'owner 100 100')
+    assert.equal(events[events.length - 1], 'csom-owner 100 100')
+  })
+
+  it('makes a user the owner through SetUserAsOwner', async () => {
+    const { web, events, owners } = createWeb()
+
+    const { entries } = await captureLogs(() =>
+      securityFor(web).ProvisionObjects(
+        web,
+        { SiteGroups: [{ Title: 'Styringsgruppe', Owner: 'kari@contoso.no' }] },
+        createContext()
+      )
+    )
+
+    // Not a site group, so ensured as a user (id 50).
+    assert.equal(events[events.length - 1], 'owner 100 50')
+    assert.equal(owners.get(100), 50)
+    assert.equal(
+      levelOf(entries, /Owner of site group Styringsgruppe set to/),
+      LogLevel.Info
+    )
+  })
+
+  it('takes a bare owner id that is a site group as a group', async () => {
+    const { web, events } = createWeb()
+
+    await securityFor(web).ProvisionObjects(
+      web,
+      { SiteGroups: [{ Title: 'Styringsgruppe', Owner: '5' }] },
+      createContext()
+    )
+
+    assert.equal(events[events.length - 1], 'csom-owner 100 5')
+  })
+
+  it('logs an error when SharePoint does not apply the owner', async () => {
+    // What the first tenant run found: REST's SetUserAsOwner answered
+    // success for a group id and left the owner unchanged.
+    const { web } = createWeb({ ignoreOwner: true })
+
+    const { entries } = await captureLogs(() =>
+      securityFor(web).ProvisionObjects(
+        web,
+        {
+          SiteGroups: [
+            { Title: 'Styringsgruppe', Owner: '{associatedownergroupid}' }
+          ]
+        },
+        createContext()
+      )
+    )
+
+    assert.equal(
+      levelOf(
+        entries,
+        /Owner of site group Styringsgruppe is 7 after setting it to .* \(3\): SharePoint did not apply the change/
+      ),
+      LogLevel.Error
+    )
+    assert.equal(
+      levelOf(entries, /set to \{associatedownergroupid\}/),
+      undefined
+    )
   })
 
   it('removes members not in the template with ClearExistingMembers', async () => {
@@ -219,7 +334,7 @@ describe('Security: site groups', () => {
       ]
     })
 
-    await new Security({}).ProvisionObjects(
+    await securityFor(web).ProvisionObjects(
       web,
       {
         SiteGroups: [
@@ -252,7 +367,7 @@ describe('Security: site groups', () => {
       failEnsure: ['ukjent@contoso.no']
     })
 
-    await new Security({}).ProvisionObjects(
+    await securityFor(web).ProvisionObjects(
       web,
       {
         SiteGroups: [
@@ -275,7 +390,7 @@ describe('Security: site groups', () => {
   it('logs a failing group and still provisions the next one', async () => {
     const { web, groups } = createWeb({ failAdd: ['Feiler'] })
 
-    await new Security({}).ProvisionObjects(
+    await securityFor(web).ProvisionObjects(
       web,
       { SiteGroups: [{ Title: 'Feiler' }, { Title: 'Prosjektledere' }] },
       createContext()
@@ -292,7 +407,7 @@ describe('Security: web permissions', () => {
   it('breaks inheritance and adds role assignments for groups from the template', async () => {
     const { web, events } = createWeb()
 
-    await new Security({}).ProvisionObjects(
+    await securityFor(web).ProvisionObjects(
       web,
       {
         SiteGroups: [{ Title: '{sitename} Styringsgruppe' }],
@@ -319,7 +434,7 @@ describe('Security: web permissions', () => {
     // re-run of the template.
     const { web, events } = createWeb({ hasUniqueRoleAssignments: true })
 
-    await new Security({}).ProvisionObjects(
+    await securityFor(web).ProvisionObjects(
       web,
       {
         BreakRoleInheritance: true,
@@ -337,7 +452,7 @@ describe('Security: web permissions', () => {
   it('logs a failing role assignment and still adds the next one', async () => {
     const { web, events } = createWeb()
 
-    await new Security({}).ProvisionObjects(
+    await securityFor(web).ProvisionObjects(
       web,
       {
         RoleAssignments: [

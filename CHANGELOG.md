@@ -29,10 +29,48 @@ For releases older than 1.3.6, see the git history.
   `src/util/security.ts`, shared by list and web `Security`. Site group names with an apostrophe
   are now escaped in the lookup url.
 
+### Fixed
+
+Found by the tests of the [integration testing spec](./docs/specs/integration-testing.md),
+Phase 0b; each fix has the test that exposed it.
+
+- `Security`: a site group as `Owner` (an associated group token, a group title, or the group
+  itself) is now applied. It goes through CSOM (`Group.Owner` over
+  `_vti_bin/client.svc/ProcessQuery`), because REST's `SetUserAsOwner` answered success for a group
+  id and changed nothing; the first tenant run found every group still owned by the provisioning
+  user while the log said otherwise. The owner is read back, and an owner SharePoint did not change
+  is logged as an error. A user owner still goes through `SetUserAsOwner`.
+- Failures that `Lists` and `ClientSidePages` log and carry on after are logged as errors instead
+  of Info: a content type binding, a list field, a view's fields, a list's root folder, a folder,
+  a data row, a page control. A content type removal SharePoint refuses because the content type
+  is in use is a warning. Listeners that collect errors (PP365's install log) now see them.
+- `ProvisioningError` has a readable message whatever the handler failed with, keeps `handler`,
+  adds the original error as `cause`, and is an `instanceof ProvisioningError` in the ES5 build
+  (`lib/`). A `PropertyBagEntries` rejection used to make its constructor throw a `TypeError`,
+  losing the handler name.
+- `Files` and `PropertyBagEntries` fail with an `Error` that names the reason and is logged by the
+  handler, instead of a bare string and an empty rejection. A template with either section still
+  stops there when an SPFx context is set, as before.
+- The console listener is subscribed once per process instead of on every `applyTemplate`. PP365's
+  setup wizard applies a template and then each extension, and printed every line once per earlier
+  call.
+- `applyTemplate` no longer throws a `TypeError` when `setup()` was given no `logging`, or was not
+  called.
+
 ### Development
 
 Tooling only; nothing here ships in the package. Plan:
-[integration testing spec](./docs/specs/integration-testing.md), Phase 0a.
+[integration testing spec](./docs/specs/integration-testing.md), Phases 0a and 0b.
+
+- Offline CI (`.github/workflows/ci.yml`, job `Build and offline tests`) on every pull request and
+  push to `main`: `lint:check`, build, `typecheck:tests`, `test:ci` (spec + JUnit to
+  `test-results/unit.xml`), `test:coverage` (source-mapped, floors 60/71/58 for lines, branches
+  and functions, which only rise), `check:pack` (the package holds `lib/index.js` and every handler) and
+  `check:secrets` (no tenant URL, cookie, token or certificate in `tests/`, `debug/`,
+  `.env.example`). eslint's `quotes` rule allows `"''"` (it conflicted with prettier), and
+  `.prettierignore` keeps `lib/` out of the formatting check.
+- `tests/fixtures/templates/failures.json`: a list field that cannot be created, a `Files` and a
+  `PropertyBagEntries` entry, for checking that failures surface (`--strict` exits 1 for each).
 
 - `package-lock.json` is regenerated: it still resolved every `@pnp/*` package to 3.17.0, so
   `npm ci` refused the tree and the runner ran a v3 `@pnp/nodejs` over v4 queryables.

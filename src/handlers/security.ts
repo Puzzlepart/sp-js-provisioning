@@ -2,7 +2,12 @@ import { ISiteGroupInfo, IWeb } from '@pnp/sp/presets/all'
 import { IProvisioningConfig } from '../provisioningconfig'
 import { ProvisioningContext } from '../provisioningcontext'
 import { IRoleAssignment, ISiteGroup, IWebSecurity } from '../schema'
-import { resolvePrincipalId, resolveRoleDefinitionId } from '../util/security'
+import { processQuery, setGroupOwnerToGroupRequest } from '../util/csom'
+import {
+  resolvePrincipal,
+  resolvePrincipalId,
+  resolveRoleDefinitionId
+} from '../util/security'
 import { TokenHelper } from '../util/tokenhelper'
 import { HandlerBase } from './handlerbase'
 
@@ -30,6 +35,11 @@ const siteGroupProperties: Array<keyof ISiteGroup & keyof ISiteGroupInfo> = [
  */
 export class Security extends HandlerBase {
   public tokenHelper: TokenHelper
+  /** Posts a CSOM request (a seam for unit tests, which have no real PnPjs web). */
+  public processQuery: (
+    web: IWeb,
+    request: string
+  ) => Promise<any[]> = processQuery
 
   /**
    * Creates a new instance of the Security class
@@ -221,9 +231,11 @@ export class Security extends HandlerBase {
   }
 
   /**
-   * Sets the group owner. The owner is resolved like a role assignment
-   * principal, so it can be an associated group token, a site group title
-   * (including the group's own) or a user login name.
+   * Sets the group owner and reads it back. The owner is resolved like a role assignment
+   * principal, so it can be an associated group token, a site group title (including the group's
+   * own) or a user login name. A group becomes the owner through CSOM (`Group.Owner`), since REST's
+   * `SetUserAsOwner` answers success for a group id and changes nothing; a user through
+   * `SetUserAsOwner`. An owner that did not change is logged as an error.
    *
    * @param web - The web
    * @param groupId - The group id
@@ -238,13 +250,28 @@ export class Security extends HandlerBase {
   ): Promise<void> {
     const owner = this.tokenHelper.replaceTokens(gc.Owner)
     try {
-      const ownerId = await resolvePrincipalId(web, owner, (message) =>
+      const principal = await resolvePrincipal(web, owner, (message) =>
         this.log_info('resolvePrincipalId', message)
       )
-      await web.siteGroups.getById(groupId).setUserAsOwner(ownerId)
+      const isGroup =
+        principal.isGroup ?? (await this.isSiteGroup(web, principal.id))
+      await (isGroup
+        ? this.processQuery(
+            web,
+            setGroupOwnerToGroupRequest(groupId, principal.id)
+          )
+        : web.siteGroups.getById(groupId).setUserAsOwner(principal.id))
+      const actual = await this.getOwnerId(web, groupId)
+      if (actual !== principal.id) {
+        super.log_error(
+          'processSiteGroupOwner',
+          `Owner of site group ${title} is ${actual} after setting it to ${owner} (${principal.id}): SharePoint did not apply the change.`
+        )
+        return
+      }
       super.log_info(
         'processSiteGroupOwner',
-        `Owner of site group ${title} set to ${owner} (${ownerId}).`
+        `Owner of site group ${title} set to ${owner} (${principal.id}).`
       )
     } catch (error) {
       super.log_error(
@@ -254,6 +281,38 @@ export class Security extends HandlerBase {
         }`
       )
     }
+  }
+
+  /**
+   * Whether a principal id is a site group of the site collection (else it is taken as a user).
+   *
+   * @param web - The web
+   * @param id - The principal id
+   */
+  private async isSiteGroup(web: IWeb, id: number): Promise<boolean> {
+    try {
+      await web.siteGroups.getById(id).select('Id')()
+      return true
+    } catch {
+      return false
+    }
+  }
+
+  /**
+   * The id of a site group's owner.
+   *
+   * @param web - The web
+   * @param groupId - The group id
+   */
+  private async getOwnerId(
+    web: IWeb,
+    groupId: number
+  ): Promise<number | undefined> {
+    const group = await web.siteGroups
+      .getById(groupId)
+      .expand('Owner')
+      .select('Owner/Id')<{ Owner?: { Id: number } }>()
+    return group.Owner && group.Owner.Id
   }
 
   /**

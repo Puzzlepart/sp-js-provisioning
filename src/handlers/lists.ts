@@ -208,7 +208,7 @@ export class Lists extends HandlerBase {
               .getById(ContentTypeId)
               .delete()
               .catch((error) =>
-                super.log_info(
+                super.log_warn(
                   'processContentTypeBindings',
                   `Failed to remove content type ${ContentTypeId} from list ${
                     lc.Title
@@ -266,7 +266,7 @@ export class Lists extends HandlerBase {
         `Content Type ${contentTypeID} added successfully to list ${lc.Title}.`
       )
     } catch (error) {
-      super.log_info(
+      super.log_error(
         'processContentTypeBinding',
         `Failed to add Content Type ${contentTypeID} to list ${lc.Title}: ${
           (error && error.message) || error
@@ -346,10 +346,12 @@ export class Lists extends HandlerBase {
         'processField',
         `Field '${fieldDisplayName}' added successfully to list ${lc.Title}.`
       )
-    } catch {
-      super.log_info(
+    } catch (error) {
+      super.log_error(
         'processField',
-        `Failed to add field '${fieldDisplayName}' to list ${lc.Title}.`
+        `Failed to add field '${fieldDisplayName}' to list ${lc.Title}: ${
+          (error && error.message) || error
+        }`
       )
     }
   }
@@ -610,10 +612,12 @@ export class Lists extends HandlerBase {
         'processViewFields',
         `View fields successfully processed for view ${lvc.Title}.`
       )
-    } catch {
-      super.log_info(
+    } catch (error) {
+      super.log_error(
         'processViewFields',
-        `Failed to process view fields for view ${lvc.Title}.`
+        `Failed to process view fields for view ${lvc.Title}: ${
+          (error && error.message) || error
+        }`
       )
     }
   }
@@ -644,7 +648,7 @@ export class Lists extends HandlerBase {
       const rootInfo = await list.rootFolder.select('ServerRelativeUrl')()
       rootServerRelativeUrl = rootInfo.ServerRelativeUrl
     } catch (error) {
-      super.log_info(
+      super.log_error(
         'processListFolders',
         `Could not resolve root folder for list ${lc.Title}: ${
           (error && error.message) || error
@@ -717,7 +721,7 @@ export class Lists extends HandlerBase {
           )
         }
       } catch (error) {
-        super.log_info(
+        super.log_error(
           'processListFolders',
           `Failed to provision folder '${childServerRelativeUrl}' in list ${listTitle}: ${
             (error && error.message) || error
@@ -786,7 +790,7 @@ export class Lists extends HandlerBase {
           await list.items.add(values)
         }
       } catch (error) {
-        super.log_info(
+        super.log_error(
           'processListDataRows',
           `Failed to provision row ${index} in list ${lc.Title}: ${
             (error && error.message) || error

@@ -16,6 +16,7 @@
   },
   "include": [
     "unit/**/*.ts",
+    "helpers/**/*.ts",
     "types/**/*.d.ts",
     "../src/**/*.ts",
     "../debug/lib/**/*.ts",

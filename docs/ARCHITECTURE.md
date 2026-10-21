@@ -250,7 +250,7 @@ Responsibilities:
 
 - Creates site groups (`SiteGroups`), or updates the configured properties of a group that already exists with the same title.
 - Adds group members (each login name is ensured on the web first) and, with `ClearExistingMembers`, removes members that are not in the template.
-- Sets the group owner after the members are added, so the provisioning user still owns a new group while it is being filled.
+- Sets the group owner after the members are added, so the provisioning user still owns a new group while it is being filled. A group owner goes through CSOM (`Group.Owner` over `_vti_bin/client.svc/ProcessQuery`, `src/util/csom.ts`), a user owner through REST's `SetUserAsOwner`, which answers success for a group id and changes nothing. The owner is read back; a mismatch is logged as an error.
 - Breaks role inheritance on the web when `BreakRoleInheritance` is set and the web still inherits.
 - Adds role assignments on the web.
 
@@ -530,7 +530,7 @@ Do not hand-edit `lib/`. Change `src/` and rebuild.
 
 Logging uses `@pnp/logging`.
 
-`WebProvisioner.onSetup()` subscribes `ConsoleListener()` and sets `Logger.activeLogLevel` when `config.logging` is present.
+`WebProvisioner.onSetup()` subscribes `ConsoleListener()` once per process (a module-level flag; every `applyTemplate` used to add one) and sets `Logger.activeLogLevel` when `config.logging` is present.
 
 Handlers use `HandlerBase` logging helpers for consistent messages:
 
@@ -542,11 +542,11 @@ Errors:
 
 - Handler-level errors should be thrown.
 - `WebProvisioner.applyTemplate` catches handler errors and throws `ProvisioningError`.
-- `ProvisioningError.handler` records the handler name active at failure.
+- `ProvisioningError.handler` records the handler name active at failure, `cause` what it threw or rejected with; the message is readable for an `Error`, a string or nothing (`undefined`).
 
 Important caveat:
 
-- Some handler internals catch errors and only log them. This means `applyTemplate` success does not always prove every sub-operation succeeded.
+- Some handler internals catch errors and only log them. They log them with `log_error` (a refused in-use content type removal with `log_warn`), so a listener that collects errors sees them, but `applyTemplate` success still does not prove every sub-operation succeeded: SharePoint can also accept a request and change nothing (REST's `SetUserAsOwner` with a group id). Reading the result back is the proof (`docs/specs/integration-testing.md`).
 
 ## Extension Guidelines For Agents
 

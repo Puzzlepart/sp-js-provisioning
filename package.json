@@ -58,9 +58,14 @@
     "build": "tsc",
     "watch": "tsc --watch",
     "lint": "eslint --ext .ts ./src --color --fix && prettier '**/*.ts*' --write --loglevel silent",
+    "lint:check": "eslint --ext .ts ./src && prettier \"**/*.ts*\" --check",
     "prepack": "npm run build",
     "test": "tsx --tsconfig tests/tsconfig.json --test \"tests/unit/*.test.ts\"",
+    "test:ci": "node -e \"require('node:fs').mkdirSync('test-results',{recursive:true})\" && tsx --tsconfig tests/tsconfig.json --test --test-reporter=spec --test-reporter-destination=stdout --test-reporter=junit --test-reporter-destination=test-results/unit.xml \"tests/unit/*.test.ts\"",
+    "test:coverage": "tsx --enable-source-maps --tsconfig tests/tsconfig.json --test --experimental-test-coverage --test-coverage-include=\"src/**\" --test-coverage-lines=60 --test-coverage-branches=71 --test-coverage-functions=58 \"tests/unit/*.test.ts\"",
     "typecheck:tests": "tsc -p tests/tsconfig.json",
+    "check:pack": "node .tasks/check-pack.js",
+    "check:secrets": "node .tasks/check-secrets.js",
     "postversion": "tsc && npm publish",
     "provision": "tsx --tsconfig debug/tsconfig.json debug/provision.ts"
   },
@@ -113,7 +118,10 @@
       ],
       "quotes": [
         "error",
-        "single"
+        "single",
+        {
+          "avoidEscape": true
+        }
       ],
       "yoda": 2,
       "require-await": 2,

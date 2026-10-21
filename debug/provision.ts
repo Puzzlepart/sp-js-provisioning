@@ -185,8 +185,8 @@ async function main(): Promise<number> {
   })
   if (args.strict && !failed)
     console.log(
-      '\nNote: --strict sees errors a handler logs at Error level. Lists and ClientSidePages ' +
-        'still log some failures at Info (docs/specs/integration-testing.md, Phase 0b).'
+      '\nNote: --strict sees what the handlers log as errors; it does not read the result ' +
+        'back from the site (docs/specs/integration-testing.md, Phase 1).'
     )
   return failed ? 1 : 0
 }

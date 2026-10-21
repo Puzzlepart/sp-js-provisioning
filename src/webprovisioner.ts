@@ -14,6 +14,13 @@ import { extractWebUrl, IWeb, Site, SPInstance } from '@pnp/sp/presets/all'
 import '@pnp/sp/presets/all'
 
 /**
+ * Whether a provisioner in this process has subscribed the console listener. Every
+ * `applyTemplate` sets up logging, and a listener per call printed each line once per earlier
+ * call (PP365's setup wizard applies a template, then each extension).
+ */
+let consoleListenerSubscribed = false
+
+/**
  * Root class of Provisioning
  */
 export class WebProvisioner {
@@ -33,7 +40,10 @@ export class WebProvisioner {
 
   private async onSetup() {
     if (this.config?.logging) {
-      Logger.subscribe(ConsoleListener())
+      if (!consoleListenerSubscribed) {
+        Logger.subscribe(ConsoleListener())
+        consoleListenerSubscribed = true
+      }
       Logger.activeLogLevel = this.config.logging.activeLogLevel
     }
     this.handlerMap = DefaultHandlerMap(this.config)
@@ -118,7 +128,9 @@ export class WebProvisioner {
     progressCallback?: (handler: Handler) => void
   ): Promise<any> {
     Logger.log({
-      message: `${this.config.logging.prefix} (WebProvisioner): (applyTemplate): Applying template to web`,
+      message: `${
+        this.config?.logging?.prefix ?? ''
+      } (WebProvisioner): (applyTemplate): Applying template to web`,
       data: { handlers },
       level: LogLevel.Info
     })

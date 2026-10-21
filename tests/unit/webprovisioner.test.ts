@@ -5,6 +5,8 @@ import { describe, it } from 'node:test'
 import { Web } from '@pnp/sp/presets/all'
 import { RejectOnError, ResolveOnData } from '@pnp/queryable'
 import { WebProvisioner } from '../../src/webprovisioner'
+import { ProvisioningError } from '../../src/provisioningerror'
+import { Logger, LogLevel } from '@pnp/logging'
 
 /**
  * Records every request url the provisioner produces and short-circuits the
@@ -76,5 +78,103 @@ describe('WebProvisioner: loadContext urls', () => {
 
     assert.ok(listsUrl, `no lists request in ${JSON.stringify(urls)}`)
     assert.match(decodeURIComponent(listsUrl), /[?&]\$top=5000(&|$)/)
+  })
+})
+
+describe('WebProvisioner: handler failures', () => {
+  /**
+   * Applies a template to a recording web and returns the error and the
+   * handlers that ran.
+   *
+   * @param template - The template
+   * @param config - The provisioning config
+   */
+  async function apply(
+    template: any,
+    config: any
+  ): Promise<{ error: any; ran: string[] }> {
+    const ran: string[] = []
+    const provisioner = new WebProvisioner(createRecordingWeb([])).setup(config)
+    try {
+      await provisioner.applyTemplate(template, undefined, (handler) =>
+        ran.push(handler)
+      )
+      return { error: undefined, ran }
+    } catch (error) {
+      return { error, ran }
+    }
+  }
+
+  it('stops at Files with an SPFx context, naming the handler and the reason', async () => {
+    const { error, ran } = await apply(
+      {
+        Files: [{ Folder: '', Src: '', Url: 'a.txt' }],
+        Navigation: { QuickLaunch: [] }
+      },
+      { spfxContext: { pageContext: { site: {}, web: {} } } }
+    )
+
+    assert.ok(error instanceof ProvisioningError)
+    assert.equal(error.handler, 'Files')
+    assert.match(
+      error.message,
+      /Files handler is not supported with an SPFx context/
+    )
+    // The handlers after it do not run.
+    assert.deepEqual(ran, ['Files'])
+  })
+
+  it('stops at PropertyBagEntries in Node with a readable message', async () => {
+    const { error } = await apply(
+      {
+        PropertyBagEntries: [
+          { Key: 'k', Value: 'v', Indexed: false, Overwrite: true }
+        ]
+      },
+      {}
+    )
+
+    assert.ok(error instanceof ProvisioningError)
+    assert.equal(error.handler, 'PropertyBagEntries')
+    assert.match(
+      error.message,
+      /PropertyBagEntries handler is not supported in Node/
+    )
+  })
+
+  it('applies a template without logging configured, or without setup', async () => {
+    // The first log line read `config.logging.prefix` unguarded: a TypeError.
+    assert.equal((await apply({}, {})).error, undefined)
+    await new WebProvisioner(createRecordingWeb([])).applyTemplate({})
+  })
+})
+
+describe('WebProvisioner: console logging', () => {
+  it('subscribes its console listener once, however often a template is applied', async () => {
+    // PP365's setup wizard applies a template, then each extension: a listener
+    // per call printed every line once per earlier call.
+    const printed: string[] = []
+    const original = { ...console }
+    for (const method of ['log', 'info', 'warn', 'error'] as const)
+      console[method] = (...parts: any[]) => printed.push(parts.join(' '))
+    try {
+      const config = {
+        logging: { prefix: '(test)', activeLogLevel: LogLevel.Error }
+      }
+      const first = new WebProvisioner(createRecordingWeb([])).setup(config)
+      await first.applyTemplate({})
+      await first.applyTemplate({})
+      await new WebProvisioner(createRecordingWeb([]))
+        .setup(config)
+        .applyTemplate({})
+      Logger.write('spjs-console-marker', LogLevel.Error)
+    } finally {
+      Object.assign(console, original)
+    }
+
+    assert.equal(
+      printed.filter((line) => line.includes('spjs-console-marker')).length,
+      1
+    )
   })
 })

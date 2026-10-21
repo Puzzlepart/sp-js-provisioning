@@ -70,9 +70,11 @@ npm run provision -- --help
 
 Exit codes: 0 applied, 1 failed (or, with `--strict`, an error was logged), 2 usage error.
 
-`--strict` sees what handlers log at Error level. Lists and ClientSidePages still log some
-failures at Info, so a green strict run is not yet proof that everything was applied; reading the
-result back is the next phase of the plan.
+`--strict` sees what the handlers log as errors, including the failures they log and carry on
+after (a list field, a view's fields, a folder, a row, a page control). It does not read the result
+back from the site, so a green strict run is not proof that everything was applied: the first
+tenant run found a group owner that SharePoint silently did not change. Reading back is Phase 1
+of the plan.
 
 ## What runs in Node
 

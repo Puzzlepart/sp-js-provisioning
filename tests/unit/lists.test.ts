@@ -4,6 +4,9 @@ import { Lists } from '../../src/handlers/lists'
 import { ProvisioningContext } from '../../src/provisioningcontext'
 import { resolvePrincipalId } from '../../src/util/security'
 import { TokenHelper } from '../../src/util/tokenhelper'
+import { LogLevel } from '@pnp/logging'
+import { ClientSidePages } from '../../src/handlers/clientsidepages'
+import { captureLogs, levelOf } from '../helpers/logs'
 
 /**
  * Creates a `Lists` handler with the two members that the private methods
@@ -335,5 +338,174 @@ describe('Lists: security principals', () => {
 
     assert.deepEqual(groupNames, ['Prosjekt A Styringsgruppe'])
     assert.deepEqual(assignments, [[12, 1073741826]])
+  })
+})
+
+describe('Lists: failure log levels', () => {
+  // A failure the handler logs and carries on after must be logged as an
+  // error, or `--strict` and the tests' zero-error assertion cannot see it.
+  const failing = async () => {
+    throw new Error('SharePoint said no')
+  }
+  /**
+   * A fake queryable that rejects, with `select` returning itself.
+   */
+  const rejecting = (): any => {
+    const instance: any = failing
+    instance.select = () => instance
+    return instance
+  }
+  const lc: any = { Title: 'Risikoer' }
+
+  it('logs a content type binding that fails as an error', async () => {
+    const handler = createHandler(new ProvisioningContext())
+    const list: any = { contentTypes: failing }
+
+    const { entries } = await captureLogs(() =>
+      handler.processContentTypeBinding(lc, list, '0x0100AA')
+    )
+
+    assert.equal(
+      levelOf(entries, /Failed to add Content Type 0x0100AA/),
+      LogLevel.Error
+    )
+  })
+
+  it('logs a content type removal SharePoint refuses (in use) as a warning', async () => {
+    const handler = createHandler(new ProvisioningContext())
+    const contentTypes: any = async () => [{ Id: { StringValue: '0x0100BB' } }]
+    contentTypes.getById = () => ({ delete: failing })
+    const list: any = { contentTypes }
+
+    const { entries } = await captureLogs(() =>
+      handler.processContentTypeBindings(lc, list, [], true)
+    )
+
+    assert.equal(
+      levelOf(entries, /Failed to remove content type 0x0100BB/),
+      LogLevel.Warning
+    )
+  })
+
+  it('logs a list field that cannot be added as an error, a missing one as info', async () => {
+    const handler = createHandler(new ProvisioningContext())
+    const fields: any = {
+      getById: () => ({ delete: failing }),
+      createFieldAsXml: failing
+    }
+    const web: any = { lists: { getByTitle: () => ({ fields }) } }
+
+    const { entries } = await captureLogs(() =>
+      handler.processField(
+        web,
+        lc,
+        '<Field ID="{11111111-AAAA-1111-1111-111111111111}" Name="GtLookup" DisplayName="Oppslag" Type="Lookup" List="{listid:Missing}" />'
+      )
+    )
+
+    assert.equal(
+      levelOf(
+        entries,
+        /Failed to add field 'Oppslag' to list Risikoer: SharePoint said no/
+      ),
+      LogLevel.Error
+    )
+    assert.equal(
+      levelOf(entries, /does not exist in list Risikoer/),
+      LogLevel.Info
+    )
+  })
+
+  it("logs a view's fields that fail as an error", async () => {
+    const handler = createHandler(new ProvisioningContext())
+    const view: any = { fields: { removeAll: failing } }
+
+    const { entries } = await captureLogs(() =>
+      handler.processViewFields(view, { Title: 'Alle', ViewFields: ['Title'] })
+    )
+
+    assert.equal(
+      levelOf(entries, /Failed to process view fields for view Alle/),
+      LogLevel.Error
+    )
+  })
+
+  it('logs a root folder or a folder that fails as an error', async () => {
+    const handler = createHandler(new ProvisioningContext())
+    const web: any = {
+      lists: { getByTitle: () => ({ rootFolder: rejecting() }) }
+    }
+    const parent: any = {
+      folders: rejecting(),
+      addSubFolderUsingPath: failing
+    }
+
+    const root = await captureLogs(() =>
+      handler.processListFolders(web, {
+        Title: 'Dokumenter',
+        Folders: [{ Name: 'A' }]
+      })
+    )
+    const folder = await captureLogs(() =>
+      handler._processFolderLevel(
+        parent,
+        '/sites/x/Dokumenter',
+        [{ Name: 'A' }],
+        'Dokumenter'
+      )
+    )
+
+    assert.equal(
+      levelOf(root.entries, /Could not resolve root folder/),
+      LogLevel.Error
+    )
+    assert.equal(
+      levelOf(folder.entries, /Failed to provision folder/),
+      LogLevel.Error
+    )
+  })
+
+  it('logs a data row that fails as an error', async () => {
+    const handler = createHandler(new ProvisioningContext())
+    const fields: any = async () => []
+    fields.select = () => fields
+    const web: any = {
+      lists: { getByTitle: () => ({ fields, items: { add: failing } }) }
+    }
+
+    const { entries } = await captureLogs(() =>
+      handler.processListDataRows(web, {
+        Title: 'Risikoer',
+        DataRows: { Rows: [{ Title: 'En risiko' }] }
+      })
+    )
+
+    assert.equal(
+      levelOf(entries, /Failed to provision row 0 in list Risikoer/),
+      LogLevel.Error
+    )
+  })
+})
+
+describe('ClientSidePages: failure log levels', () => {
+  it('logs a part that cannot be added to a page as an error', async () => {
+    const handler: any = new ClientSidePages({})
+    const column = {
+      addControl: () => {
+        throw new Error('Invalid part')
+      }
+    }
+
+    const { entries } = await captureLogs(async () =>
+      handler._addControl(column, {}, { Name: 'Hurtigkoblinger' }, 'Hjem.aspx')
+    )
+
+    assert.equal(
+      levelOf(
+        entries,
+        /Failed adding part Hurtigkoblinger to client side page Hjem\.aspx: Invalid part/
+      ),
+      LogLevel.Error
+    )
   })
 })

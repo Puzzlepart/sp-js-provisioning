@@ -60,15 +60,20 @@ export function collectLogs(): ILogCollector {
   }
 }
 
+/** The collector of this process, subscribed on the first run. */
+let collector: ILogCollector | undefined
+
 /**
- * Starts a provisioning run's logging: removes every listener (the engine subscribes a console
- * listener on every `applyTemplate`, so a second run would print each line twice) and subscribes a
- * fresh collector.
+ * Starts a provisioning run's logging: one collector per process, cleared for each run. Listeners
+ * are not removed, since the engine subscribes its console listener once per process and a
+ * cleared one would not come back for the next run.
  *
- * Take `Logger` from here, not from `await import('@pnp/logging')`: a dynamic import of the package
- * loads its ES module build, a different `Logger` from the one the engine's static imports share.
+ * Use this module's `Logger`, not one from `await import('@pnp/logging')`: a dynamic import of the
+ * package loads its ES module build, a different `Logger` from the one the engine's static imports
+ * share.
  */
 export function startRun(): ILogCollector {
-  Logger.clearSubscribers()
-  return collectLogs()
+  collector ??= collectLogs()
+  collector.clear()
+  return collector
 }

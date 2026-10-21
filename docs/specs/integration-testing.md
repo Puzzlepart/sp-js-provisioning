@@ -1,6 +1,6 @@
 # Spec: Integration Testing Against A Site
 
-Status: Ready (Phase 0a done 2026-10-21; Phase 0b next)
+Status: Ready (Phases 0a and 0b done 2026-10-21; 0b's CI check to be confirmed on GitHub; Phase 1 next)
 
 Owner: Remi Blom-Ohlsen
 
@@ -200,7 +200,7 @@ Result.
 
 ```json
 "test:ci": "node -e \"require('node:fs').mkdirSync('test-results',{recursive:true})\" && tsx --tsconfig tests/tsconfig.json --test --test-reporter=spec --test-reporter-destination=stdout --test-reporter=junit --test-reporter-destination=test-results/unit.xml \"tests/unit/*.test.ts\"",
-"test:coverage": "tsx --tsconfig tests/tsconfig.json --test --experimental-test-coverage --test-coverage-include=\"src/**\" --test-coverage-lines=68 --test-coverage-branches=77 --test-coverage-functions=77 \"tests/unit/*.test.ts\"",
+"test:coverage": "tsx --enable-source-maps --tsconfig tests/tsconfig.json --test --experimental-test-coverage --test-coverage-include=\"src/**\" --test-coverage-lines=60 --test-coverage-branches=71 --test-coverage-functions=58 \"tests/unit/*.test.ts\"",
 "lint:check": "eslint --ext .ts ./src && prettier \"**/*.ts*\" --check",
 "check:tenant": "tsx --tsconfig tests/tsconfig.json tests/integration/run.ts reachability",
 "test:integration": "tsx --tsconfig tests/tsconfig.json tests/integration/run.ts",
@@ -397,8 +397,13 @@ lookups.
 ### Offline layers and CI (D5)
 
 - 0b: eslint `quotes: ['error', 'single', { avoidEscape: true }]` and a `.prettierignore` (`lib/`,
-  `coverage/`, `test-results/`) end the lint conflict. Coverage floors start at the measured
-  68.02 / 77.65 / 77.48 (lines, branches, functions; `src/**`) as 68/77/77 and only rise.
+  `coverage/`, `test-results/`) end the lint conflict. Coverage is measured with
+  `--enable-source-maps`: without it Node maps V8 offsets in tsx's compiled JS onto the `.ts` text,
+  so the figures were wrong per file and changed with the length of the checkout path (the earlier
+  68.02 / 77.65 / 77.48 and 73.94 / 76.91 / 79.89 were such figures). The floors start at the
+  source-mapped measurement when they were first enforced, at the end of 0b (2026-10-21):
+  61.03 / 72.18 / 59.18 (lines, branches, functions; `src/**`), set one point below as 60/71/58
+  so small differences between machines do not fail the check. They only rise.
 - Phase 2: `tests/contract/` turns the recording web of `webprovisioner.test.ts` into a fake
   transport (`on.send.replace`, canned `Response` bodies, recorded `{ url, method, body }`, an
   SPFx-style relative mode) pinning wire shapes (`createfieldasxml`, `$top=5000`, OData escaping,
@@ -453,7 +458,7 @@ spike re-tests it.
 | Phase | Delivers | Size | Status |
 |---|---|---|---|
 | 0a. A runner you can trust | As above | S | Done 2026-10-21: first tenant run green twice, recorded in the Security spec; it found the group-owner defect (D4) |
-| 0b. Offline CI and log levels | `ci.yml`, lint fix, `test:ci` (mkdir), coverage floors, `npm pack` check; D4's log-level and `ProvisioningError` fixes (Lists/ClientSidePages levels, non-`Error` and `undefined` causes, Files/PropertyBagEntries `Error`s) plus two small logging guards (`ConsoleListener` once, `logging.prefix`); `tests/fixtures/templates/failures.json` (a list whose `Fields` holds a well-formed Lookup to a missing list, a `Files` entry, a `PropertyBagEntries` entry) | S-M | |
+| 0b. Offline CI and log levels | `ci.yml`, lint fix, `test:ci` (mkdir), coverage floors, `npm pack` check; D4's log-level and `ProvisioningError` fixes (Lists/ClientSidePages levels, non-`Error` and `undefined` causes, Files/PropertyBagEntries `Error`s) plus two small logging guards (`ConsoleListener` once, `logging.prefix`); `tests/fixtures/templates/failures.json` (a list whose `Fields` holds a well-formed Lookup to a missing list, a `Files` entry, a `PropertyBagEntries` entry) | S-M | Done 2026-10-21: the CI sequence green locally (77 unit tests; source-mapped coverage 61.03/72.18/59.18, floors 60/71/58); the three `failures.json` runs exit 1 with the handler and a readable message; `smoke.json --twice --strict` green with each line printed once and both group owners read back as set (also the Security owner defect). Pending: the first `ci.yml` run on GitHub and branch protection. |
 | 1. Every Node-capable handler against a site | Site guard; scratch webs with associated groups; reachability with the NoScript probe; `apply`, readers, `verify`, `inspect`, `cleanup`; suites and fixtures for the ten Node-capable handlers, skipping suites for the four JSOM ones; D4's Phase 1 fixes; `AGENTS.md`, `docs/TESTING.md`, two skills, `check-skills` (in `ci.yml`); the gulp-era `.vscode/launch.json`, `.vscode/tasks.json` and `settings.example.js` removed; the Security spec's Verification Plan amended for D2 and Security Verified | M-L | |
 | 2. Depth, packages, schema | DataRows value matrix (DateTime under `TZ` Europe/Oslo, UTC, Asia/Tokyo); `all.node.json`; contract tests; `--mode project`; `packages.test.ts`; `schema.json`; floors raised; two skills | M | |
 | 3. Tenant CI | `integration.yml`, the `tenant` environment | S | |

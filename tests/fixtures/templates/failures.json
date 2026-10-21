@@ -1,0 +1,30 @@
+{
+  "$schema": "../../../schema.json",
+  "Lists": [
+    {
+      "Title": "SPJS Itest Failures",
+      "Description": "Created by sp-js-provisioning's failures template: its lookup field is meant to fail",
+      "Template": 100,
+      "ContentTypesEnabled": false,
+      "Fields": [
+        "<Field ID=\"{8c1e7d42-3b5a-4f0e-9a26-d1f4b7c2e905}\" Name=\"SPJSItestMissingLookup\" StaticName=\"SPJSItestMissingLookup\" DisplayName=\"SPJS Itest Missing Lookup\" Type=\"Lookup\" List=\"{listid:SPJS Itest Missing List}\" ShowField=\"Title\" />"
+      ]
+    }
+  ],
+  "Files": [
+    {
+      "Folder": "SiteAssets",
+      "Src": "https://example.org/spjs-itest.txt",
+      "Url": "spjs-itest.txt",
+      "Overwrite": true
+    }
+  ],
+  "PropertyBagEntries": [
+    {
+      "Key": "spjs_itest",
+      "Value": "never written",
+      "Indexed": false,
+      "Overwrite": true
+    }
+  ]
+}

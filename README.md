@@ -200,7 +200,8 @@ one in Node — see [`debug/`](./debug)) and resolve to `null` without one.
 - `spfxContext` — the SPFx context; used for URL token resolution in the browser.
 - `logging` — `prefix` and `activeLogLevel` for the built-in `@pnp/logging` console listener.
 
-Errors are thrown as `ProvisioningError`, carrying the name of the handler that failed.
+Errors are thrown as `ProvisioningError`, carrying the name of the handler that failed (`handler`)
+and what it failed with (`cause`).
 Sub-operations such as individual data rows, folders, site groups, group members and role
 assignments log failures and continue, so one bad row does not abort the template.
 

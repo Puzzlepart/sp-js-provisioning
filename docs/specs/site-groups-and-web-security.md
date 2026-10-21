@@ -1,6 +1,6 @@
 # Spec: Site Groups And Web Security
 
-Status: Implemented (tenant-tested; group-as-owner defect open)
+Status: Implemented (tenant-tested, group owner fixed in Phase 0b; to be Verified by the Phase 1 suite of the integration testing spec)
 
 Owner: Remi Blom-Ohlsen
 
@@ -166,13 +166,19 @@ so list `Security` also accepts `{sitename}` and `{parameter:...}` in principals
     user (principal 7, `PrincipalType` 1), although the log says "Owner of site group ... set to
     {associatedownergroupid} (3)" and "... set to SPJS Itest Owners (13)". `SetUserAsOwner`
     answers success for a group id and changes nothing. A user owner was not tested.
+- 2026-10-21, after the integration testing spec's Phase 0b fix (a group owner through CSOM
+  `Group.Owner` over `ProcessQuery`, then read back): the same run, twice, exit 0, no errors or
+  warnings, each line printed once. Read back: `SPJS Itest Readers` (12) is owned by the
+  associated owner group (3, `PrincipalType` 8) and `SPJS Itest Owners` (13) by itself. The unit
+  tests cover a user owner (`SetUserAsOwner`), a bare id that is a group, and an owner SharePoint
+  ignores (logged as an error).
 - Not yet verified: members, `ClearExistingMembers`, `BreakRoleInheritance` on a web that
   inherits (needs a subweb), and a user as owner. These are Phase 1 work in the integration
   testing spec.
 
 ## Open Questions
 
-- Answered 2026-10-21: `SetUserAsOwner` with a group id does **not** make the group the owner; it
+- Answered and fixed 2026-10-21: `SetUserAsOwner` with a group id does **not** make the group the owner; it
   returns success and leaves the owner unchanged, so the handler logs a success that did not
   happen. A group owner needs CSOM (`Group.Owner = <group>` over `_vti_bin/client.svc/
   ProcessQuery`), as PnP PowerShell's `Set-PnPGroup -Owner` does. Tracked as an engine defect in
