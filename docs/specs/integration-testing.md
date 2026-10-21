@@ -1,6 +1,6 @@
 # Spec: Integration Testing Against A Site
 
-Status: Ready (Phase 0a in progress)
+Status: Ready (Phase 0a done 2026-10-21; Phase 0b next)
 
 Owner: Remi Blom-Ohlsen
 
@@ -132,7 +132,7 @@ Norwegian guide. Only `CI_*`, `INTEGRATION_AUTH`, `INTEGRATION_COOKIES_FILE`, `I
 and `INTEGRATION_STRICT` mean what they mean in PP365; PP365's `INTEGRATION_LOCALE` (the SPFx
 bundle locale) has no counterpart, the template locale is `--lang`.
 
-### Phase 0a: a runner you can trust (in progress)
+### Phase 0a: a runner you can trust (done)
 
 No `src/` change:
 
@@ -348,6 +348,7 @@ Token reach: T = `TokenHelper` (`{listid:}`, `{listviewid:}`, `{webid}`/`{siteid
 | Files throws a string; PropertyBagEntries rejects with `undefined` and logs unprefixed | an `Error` naming the reason, logged through `log_error` | unit tests; `--handlers Files` | 0b |
 | `ConsoleListener` subscribed on every `applyTemplate` | once per process; the runner's `startRun()` then subscribes its collector once and clears it per run, since its `Logger.clearSubscribers()` would remove that listener before run 2 | `webprovisioner.test.ts`: `applyTemplate` twice (same and a new provisioner, `logging` set) leaves one `ConsoleListener`; then `provision --twice` printing each line once is also evidence | 0b |
 | `this.config.logging.prefix` read unguarded | optional chaining, as `logWarning` does | `setup({})` unit test | 0b |
+| Security: a group as `Owner` is not applied (found by the 0a tenant run, 2026-10-21): `SetUserAsOwner` answers success for a group id and changes nothing, and the handler logs success | CSOM `Group.Owner` over `_vti_bin/client.svc/ProcessQuery` when the principal is a group (`SetUserAsOwner` kept for users); read the owner back and `log_error` on a mismatch | unit test with a fake web that ignores the call (asserts the logged error); `provision --twice --strict` on `smoke.json` plus a read-back of `Owner` | 0b |
 | WebSettings updates the web only with `WelcomePage` | update whenever other keys are set; no empty update | `tests/unit/websettings.test.ts` (fake web: `update` without `WelcomePage`, no empty update); `tests/integration/websettings.test.ts` | 1 |
 | Hooks hangs after 202 then 200 | resolve on a non-202 2xx | fake-`fetch` unit test, `hooks.test.ts` | 1 |
 | `src/util` reads `window`/`document` unconditionally | origin from `spfxContext.pageContext.web.absoluteUrl`, `_spPageContextInfo` only with `window`, `new URL` in `makeUrlRelative`, `Buffer` when `btoa` is missing; runner shims removed | `tests/unit/util.test.ts` without `window`, and with a fake `window` for browser precedence | 1 |
@@ -451,7 +452,7 @@ spike re-tests it.
 
 | Phase | Delivers | Size | Status |
 |---|---|---|---|
-| 0a. A runner you can trust | As above | S | In progress |
+| 0a. A runner you can trust | As above | S | Done 2026-10-21: first tenant run green twice, recorded in the Security spec; it found the group-owner defect (D4) |
 | 0b. Offline CI and log levels | `ci.yml`, lint fix, `test:ci` (mkdir), coverage floors, `npm pack` check; D4's log-level and `ProvisioningError` fixes (Lists/ClientSidePages levels, non-`Error` and `undefined` causes, Files/PropertyBagEntries `Error`s) plus two small logging guards (`ConsoleListener` once, `logging.prefix`); `tests/fixtures/templates/failures.json` (a list whose `Fields` holds a well-formed Lookup to a missing list, a `Files` entry, a `PropertyBagEntries` entry) | S-M | |
 | 1. Every Node-capable handler against a site | Site guard; scratch webs with associated groups; reachability with the NoScript probe; `apply`, readers, `verify`, `inspect`, `cleanup`; suites and fixtures for the ten Node-capable handlers, skipping suites for the four JSOM ones; D4's Phase 1 fixes; `AGENTS.md`, `docs/TESTING.md`, two skills, `check-skills` (in `ci.yml`); the gulp-era `.vscode/launch.json`, `.vscode/tasks.json` and `settings.example.js` removed; the Security spec's Verification Plan amended for D2 and Security Verified | M-L | |
 | 2. Depth, packages, schema | DataRows value matrix (DateTime under `TZ` Europe/Oslo, UTC, Asia/Tokyo); `all.node.json`; contract tests; `--mode project`; `packages.test.ts`; `schema.json`; floors raised; two skills | M | |

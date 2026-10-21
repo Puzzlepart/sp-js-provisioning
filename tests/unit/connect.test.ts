@@ -6,7 +6,7 @@ import * as os from 'os'
 import * as path from 'path'
 // Deliberately no `import '@pnp/sp/presets/all'` here: test files run in their
 // own process, so this proves connect() loads what it needs by itself.
-import { connect } from '../../debug/lib/connect'
+import { accessDenied, connect } from '../../debug/lib/connect'
 import { readEnv } from '../../debug/lib/env'
 
 describe('runner: connect', () => {
@@ -86,5 +86,25 @@ describe('runner: connect', () => {
       globalThis.fetch = realFetch
       rmSync(directory, { recursive: true, force: true })
     }
+  })
+})
+
+describe('runner: access denied', () => {
+  const site = 'https://contoso.sharepoint.com/sites/spjs-itest'
+
+  it('names the account to give access to the site', () => {
+    const cookies = accessDenied({ status: 403 }, site, 'cookies')
+    assert.match(cookies, /refused the cookies sign-in to .*spjs-itest \(403\)/)
+    assert.match(cookies, /E2E_USERNAME/)
+    assert.match(cookies, /owner/)
+    assert.match(
+      accessDenied({ status: 401 }, site, 'certificate'),
+      /Sites\.FullControl\.All/
+    )
+  })
+
+  it('leaves other errors alone', () => {
+    assert.equal(accessDenied({ status: 500 }, site, 'cookies'), undefined)
+    assert.equal(accessDenied(new Error('network'), site, 'cookies'), undefined)
   })
 })

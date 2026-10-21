@@ -1,6 +1,6 @@
 # Spec: Site Groups And Web Security
 
-Status: Implemented (unit tested; tenant verification pending)
+Status: Implemented (tenant-tested; group-as-owner defect open)
 
 Owner: Remi Blom-Ohlsen
 
@@ -151,13 +151,34 @@ so list `Security` also accepts `{sitename}` and `{parameter:...}` in principals
 - 2026-10-14: `npm run build`, `npm test` (30/30, of which 13 new) and `npm run typecheck:tests`
   pass. Prettier is clean; eslint reports only the `"''"` OData escape, the same pattern
   as the existing `_escapeOData` in `lists.ts`, where prettier and eslint `quotes` disagree.
-- Tenant verification with `npm run provision` is still pending.
+- 2026-10-21, first tenant run (integration testing spec, Phase 0a): `npm run provision --
+  --package tests/fixtures/templates/smoke.json --twice --strict` against a reserved team site,
+  signed in with cookies as PP365's e2e user. Both runs exited 0 with 0 errors and 0 warnings
+  logged. Read back through REST afterwards:
+  - Site groups `SPJS Itest Readers` (12) and `SPJS Itest Owners` (13) created once; the second
+    run updated them (same ids, no duplicates). `{sitename}` resolved in the description;
+    `AllowMembersEditMembership: false` applied.
+  - Web role assignment `SPJS Itest Readers` -> `Lese` (the English `Read` resolved by role
+    type on a Norwegian site).
+  - The list got unique permissions with the inherited assignments copied, plus
+    `SPJS Itest Owners` -> `Full kontroll` and `SPJS Itest Readers` -> `Lese`.
+  - **Defect: the group owner is not applied.** Both groups are still owned by the signed-in
+    user (principal 7, `PrincipalType` 1), although the log says "Owner of site group ... set to
+    {associatedownergroupid} (3)" and "... set to SPJS Itest Owners (13)". `SetUserAsOwner`
+    answers success for a group id and changes nothing. A user owner was not tested.
+- Not yet verified: members, `ClearExistingMembers`, `BreakRoleInheritance` on a web that
+  inherits (needs a subweb), and a user as owner. These are Phase 1 work in the integration
+  testing spec.
 
 ## Open Questions
 
-- `SetUserAsOwner` with a group id (a group owning a group) is expected to work through REST but
-  has to be confirmed on a tenant. Until then a failure is logged and the group keeps the
-  provisioning user as owner.
+- Answered 2026-10-21: `SetUserAsOwner` with a group id does **not** make the group the owner; it
+  returns success and leaves the owner unchanged, so the handler logs a success that did not
+  happen. A group owner needs CSOM (`Group.Owner = <group>` over `_vti_bin/client.svc/
+  ProcessQuery`), as PnP PowerShell's `Set-PnPGroup -Owner` does. Tracked as an engine defect in
+  [integration testing](./integration-testing.md) (D4, Phase 0b): set the owner through
+  ProcessQuery when the principal is a group, read the owner back, and log an error when it
+  differs.
 
 ## Rollout Notes
 

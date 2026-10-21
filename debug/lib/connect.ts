@@ -105,3 +105,27 @@ export async function connect(
     mode
   }
 }
+
+/**
+ * A clear message for SharePoint refusing the sign-in (401/403), naming the account to give
+ * access to the site; `undefined` for any other error.
+ *
+ * @param error - The error from `connect()`
+ * @param site - The site
+ * @param mode - The sign-in mode
+ */
+export function accessDenied(
+  error: any,
+  site: string,
+  mode: AuthMode | undefined
+): string | undefined {
+  const status = error && error.status
+  if (status !== 401 && status !== 403) return undefined
+  const account =
+    mode === 'certificate'
+      ? 'The app (CI_CLIENT_ID) needs Sites.FullControl.All, or Sites.Selected with a grant on the site.'
+      : "The cookie session is PP365's e2e user (E2E_USERNAME in prosjektportalen365/e2e/.env): " +
+        'make that account an owner (or site collection administrator) of the site. If it already ' +
+        'is, renew the session with `npx playwright test --project=setup` in prosjektportalen365/e2e.'
+  return `SharePoint refused the ${mode} sign-in to ${site} (${status}).\n${account}`
+}

@@ -24,7 +24,7 @@ import {
   usage,
   UsageError
 } from './lib/cli'
-import { env } from './lib/env'
+import { authMode, env } from './lib/env'
 
 /**
  * The engine's `util` reads `window`/`document` (it is a browser-first library). Provide just
@@ -111,11 +111,19 @@ async function main(): Promise<number> {
   if (!site)
     throw new UsageError('Missing --site (or INTEGRATION_SITE_URL in .env)')
 
-  const { connect } = await import('./lib/connect')
+  const { accessDenied, connect } = await import('./lib/connect')
   const { LogLevel, startRun } = await import('./lib/logs')
   const { WebProvisioner } = await import('../src/index')
 
-  const connection = await connect(site)
+  let connection: import('./lib/connect').ISiteConnection
+  try {
+    connection = await connect(site)
+  } catch (error) {
+    const message = accessDenied(error, site, authMode())
+    if (!message) throw error
+    console.error(`\n${message}`)
+    return 1
+  }
   console.log(
     `Signed in with ${connection.mode} to "${connection.webInfo.Title}" (${connection.webInfo.Url})\n`
   )
