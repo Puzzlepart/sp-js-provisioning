@@ -19,6 +19,12 @@ declare module 'node:assert/strict' {
     equal(actual: any, expected: any, message?: string): void
     deepEqual(actual: any, expected: any, message?: string): void
     match(value: string, pattern: RegExp, message?: string): void
+    throws(
+      fn: () => any,
+      error?: RegExp | Function | object,
+      message?: string
+    ): void
+    fail(message?: string): never
     rejects(
       promise: Promise<any> | (() => Promise<any>),
       error?: RegExp | Function | object,
@@ -31,6 +37,10 @@ declare module 'node:assert/strict' {
 
 declare module 'node:fs' {
   export function readFileSync(path: string, encoding: string): string
+  export function rmSync(
+    path: string,
+    options?: { recursive?: boolean; force?: boolean }
+  ): void
 }
 
 declare module 'node:path' {

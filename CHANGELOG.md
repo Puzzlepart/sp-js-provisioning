@@ -29,6 +29,30 @@ For releases older than 1.3.6, see the git history.
   `src/util/security.ts`, shared by list and web `Security`. Site group names with an apostrophe
   are now escaped in the lookup url.
 
+### Development
+
+Tooling only; nothing here ships in the package. Plan:
+[integration testing spec](./docs/specs/integration-testing.md), Phase 0a.
+
+- `package-lock.json` is regenerated: it still resolved every `@pnp/*` package to 3.17.0, so
+  `npm ci` refused the tree and the runner ran a v3 `@pnp/nodejs` over v4 queryables.
+- The local runner (`npm run provision`) signs in from `.env` (`.env.example`): locally with the
+  session cookies of PP365's Playwright sign-in, in CI with an app certificate
+  (`CI_TENANT`/`CI_CLIENT_ID`/`CI_CERT_BASE64`), ported from PP365's integration tests.
+  `debug/provision.settings.ts` and the client-secret option are gone (SharePoint Online refuses
+  app-only tokens from a secret), and so is the `@pnp/nodejs` devDependency (replaced by
+  `@azure/msal-node`, `node-forge` and `dotenv`).
+- The runner takes its handler list from `DefaultHandlerSort`, so a template's `Security` and
+  `WebSettings` sections are applied again (its own list had left them out), and it checks
+  `--handlers` against the engine.
+- New runner flags: `--parameters` for `{parameter:...}` tokens, `--strict` (exit 1 when a
+  handler logged an error), `--twice` (apply twice); `--site` defaults to `INTEGRATION_SITE_URL`.
+- `--mode cloud` now matches PP365's `provisionCloudTemplateHubDependencies`: lists with hub
+  configuration rows and Taxonomy are kept, `listContent` source lists are left out.
+- `tests/fixtures/templates/smoke.json` for a first live run, and `tests/unit/runner.test.ts`
+  for the runner and its sign-in, including the cookie pipeline through real PnPjs with a fake
+  transport.
+
 ## [1.4.0] - 2026-09-21
 
 ### Changed

@@ -30,13 +30,13 @@ debug/*
 !debug/debug.ts
 !debug/example.ts
 !debug/provision.ts
-!debug/provision.settings.example.ts
 !debug/README.md
 !debug/tsconfig.json
 !debug/stubs
 !debug/stubs/spfx-jsom.ts
-# local provisioning runner credentials — never commit
-debug/provision.settings.ts
+# local sign-in and run output — never commit
+.env
+test-results
 
 # project settings
 settings.js
@@ -47,3 +47,5 @@ bower_components
 # with updates to dist will be disallowed
 dist/
 lib/
+# the runner's harness, not build output
+!debug/lib/

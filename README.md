@@ -67,9 +67,9 @@ await provisioner.applyTemplate(template, undefined, (handler) => {
 in a fixed order (see below). Pass an array of handler names as the second argument to run a
 subset, e.g. `['SiteFields', 'ContentTypes', 'Lists']`.
 
-Running from Node works with a PnPjs web set up via `@pnp/nodejs` (install it yourself — it is
-not a runtime dependency of this package) — see [`debug/`](./debug) for a ready-made runner with
-MSAL certificate auth.
+Running from Node works with any PnPjs v4 web, for example one set up with `@pnp/nodejs` (install
+it yourself; it is not a dependency of this package). [`debug/`](./debug) has a ready-made runner
+that signs in with a Playwright session or an app certificate (`debug/lib/auth.ts`).
 
 ## The template
 
@@ -210,14 +210,14 @@ assignments log failures and continue, so one bad row does not abort the templat
 git clone https://github.com/Puzzlepart/sp-js-provisioning.git
 cd sp-js-provisioning
 nvm use        # Node version from .nvmrc
-npm install    # .npmrc enables legacy peer dependency resolution
+npm ci         # .npmrc enables legacy peer dependency resolution
 npm run build  # tsc → lib/
 npm test       # node:test unit tests
 npm run typecheck:tests  # type-checks the tests together with src
 ```
 
-`npm run provision` runs a template against a real site from Node — see
-[`debug/README.md`](./debug/README.md) for setup. Changes are documented in
+`npm run provision` runs a template against a real site from Node, signed in from `.env`
+(`.env.example`) — see [`debug/README.md`](./debug/README.md) for setup. Changes are documented in
 [`CHANGELOG.md`](./CHANGELOG.md).
 
 ## Contributing

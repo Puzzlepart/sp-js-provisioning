@@ -1,0 +1,55 @@
+{
+  "$schema": "../../../schema.json",
+  "SiteFields": [
+    "<Field ID=\"{5a3e4c1b-7d2f-4b8e-9c61-0f2a8d4e9b17}\" Name=\"SPJSItestNote\" StaticName=\"SPJSItestNote\" DisplayName=\"SPJS Itest Note\" Type=\"Note\" NumLines=\"4\" RichText=\"FALSE\" Group=\"SPJS Itest\" />"
+  ],
+  "Security": {
+    "SiteGroups": [
+      {
+        "Title": "SPJS Itest Readers",
+        "Description": "Created by sp-js-provisioning's smoke template ({sitename})",
+        "Owner": "{associatedownergroupid}",
+        "AllowMembersEditMembership": false,
+        "OnlyAllowMembersViewMembership": false
+      },
+      {
+        "Title": "SPJS Itest Owners",
+        "Description": "Owns itself: the group-owns-group case of the Security spec",
+        "Owner": "SPJS Itest Owners"
+      }
+    ],
+    "RoleAssignments": [
+      { "Principal": "SPJS Itest Readers", "RoleDefinition": "Read" }
+    ]
+  },
+  "Lists": [
+    {
+      "Title": "SPJS Itest Smoke",
+      "Description": "Created by sp-js-provisioning's smoke template",
+      "Template": 100,
+      "ContentTypesEnabled": false,
+      "FieldRefs": [
+        {
+          "ID": "5a3e4c1b-7d2f-4b8e-9c61-0f2a8d4e9b17",
+          "Name": "SPJSItestNote"
+        }
+      ],
+      "DataRows": {
+        "KeyColumn": "Title",
+        "UpdateBehavior": "Overwrite",
+        "Rows": [
+          { "Title": "First row", "SPJSItestNote": "Written on {sitename}" },
+          { "Title": "Second row", "SPJSItestNote": "Overwritten on every run" }
+        ]
+      },
+      "Security": {
+        "BreakRoleInheritance": true,
+        "CopyRoleAssignments": true,
+        "RoleAssignments": [
+          { "Principal": "SPJS Itest Owners", "RoleDefinition": "Full Control" },
+          { "Principal": "SPJS Itest Readers", "RoleDefinition": "Read" }
+        ]
+      }
+    }
+  ]
+}
