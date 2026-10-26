@@ -1,0 +1,7 @@
+{
+  "$schema": "../../../schema.json",
+  "WebSettings": {
+    "Description": "SPJS Itest web settings without a welcome page",
+    "TreeViewEnabled": false
+  }
+}

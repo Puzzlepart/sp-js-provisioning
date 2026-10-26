@@ -13,8 +13,10 @@ The plan this runner is part of is `docs/specs/integration-testing.md`.
 
 1. **Node** from `.nvmrc` (`nvm use`), then `npm ci`.
 2. **A site reserved for these runs.** Create a site that nothing else writes to, for example
-   `/sites/spjs-itest`, and make the account the runner signs in as (step 4) an owner of it. The
-   runner writes to the site you give it, and a template run cannot be undone.
+   `/sites/spjs-itest`, and make the account the runner signs in as (step 4) a site collection
+   administrator of it (the integration tests and `cleanup` need it; `provision` alone needs an
+   owner). A template run cannot be undone, so `provision` and `cleanup` write only to that site
+   and webs below it (the site guard): any other site needs `--allow-site` repeating it.
 3. **Settings:**
    ```sh
    cp .env.example .env
@@ -43,8 +45,11 @@ npm run provision -- --package tests/fixtures/templates/smoke.json --twice --str
 npm run provision -- --package ../prosjektportalen-hosting/packages/pp-testprosjekt
 npm run provision -- --package ../prosjektportalen-hosting/dist/pp-testprosjekt-1.0.0.pppkg
 
-# Another site than INTEGRATION_SITE_URL, only some handlers, values for {parameter:...} tokens
-npm run provision -- --site <url> --package <path> --handlers SiteFields,Security,Lists
+# A web below INTEGRATION_SITE_URL, only some handlers, values for {parameter:...} tokens
+npm run provision -- --site <reserved-site>/<web> --package <path> --handlers SiteFields,Security,Lists
+
+# Another site than INTEGRATION_SITE_URL: --allow-site must repeat it
+npm run provision -- --site <url> --allow-site <url> --package <path>
 npm run provision -- --package <path> --parameters stamp=1,owner=kari@contoso.com
 
 # The cloud-template subset, the English hub template, no taxonomy, or only the plan
@@ -57,7 +62,8 @@ npm run provision -- --help
 
 | Flag | Does |
 | --- | --- |
-| `--site <url>` | The target site. Default: `INTEGRATION_SITE_URL`. |
+| `--site <url>` | The target site. Default: `INTEGRATION_SITE_URL`. Must be that site or a web below it, unless `--allow-site` names it. |
+| `--allow-site <url>` | Write to a site outside `INTEGRATION_SITE_URL`; the same URL as `--site`, to confirm it (exit 2 otherwise). |
 | `--package <path>` | A package folder (with `manifest.json`), a `.pppkg`/`.zip` (extracted with `unzip`), or a raw template JSON. A package resolves to its hub template. |
 | `--lang <locale>` | The package's localized hub template and list content, e.g. `en-US`. |
 | `--mode hub\|cloud` | `hub`: the whole hub template (default). `cloud`: the subset PP365 applies when a package is published as a cloud template. |
@@ -68,13 +74,27 @@ npm run provision -- --help
 | `--twice` | Apply twice; the second run shows what re-applying does. |
 | `--dry-run` | Print the plan and exit, without signing in (no site needed). |
 
-Exit codes: 0 applied, 1 failed (or, with `--strict`, an error was logged), 2 usage error.
+Exit codes: 0 applied, 1 failed (or, with `--strict`, an error was logged), 2 usage error (also a
+target the site guard refuses).
 
 `--strict` sees what the handlers log as errors, including the failures they log and carry on
 after (a list field, a view's fields, a folder, a row, a page control). It does not read the result
 back from the site, so a green strict run is not proof that everything was applied: the first
-tenant run found a group owner that SharePoint silently did not change. Reading back is Phase 1
-of the plan.
+tenant run found a group owner that SharePoint silently did not change. The integration suites
+read back (`npm run test:integration`, `docs/TESTING.md`).
+
+## Clean up
+
+```sh
+npm run cleanup -- --webs                    # scratch webs and their groups older than 2 h: the plan
+npm run cleanup -- --webs --older-than 0m    # also younger ones (only while no run is active)
+npm run cleanup -- --prefix 'SPJS Itest'     # prefixed lists, pages, fields, actions, nodes, groups
+npm run cleanup -- --webs --apply            # remove what the plan lists
+```
+
+`cleanup` prints what it would remove and removes it only with `--apply`. It follows the same site
+guard (`--site`, `--allow-site`), deletes a web's subwebs before the web, and never removes the
+web's own associated groups (a site titled `SPJS Itest` has `SPJS Itest Owners`).
 
 ## What runs in Node
 
@@ -111,9 +131,15 @@ so the certificate secret and the cookie file serve both repositories.
 | File | Holds |
 | --- | --- |
 | `provision.ts` | The command |
-| `lib/env.ts` | `.env` and the sign-in mode |
+| `cleanup.ts` | Removes leftovers of runs and tests (a plan unless `--apply`) |
+| `lib/env.ts` | `.env`, the sign-in mode, the skip reasons, site URL normalisation |
 | `lib/auth.ts` | Cookie and certificate sign-in for PnPjs |
-| `lib/connect.ts` | A signed-in client and the SPFx context stand-in |
+| `lib/connect.ts` | A signed-in client, the SPFx context stand-in, the site guard (`assertWritable`) |
+| `lib/apply.ts` | `apply(conn, template, options)`: one template run, with its handlers, errors and warnings |
 | `lib/cli.ts` | Arguments, handler plan, package and cloud-subset resolution (unit-tested in `tests/unit/runner.test.ts`) |
-| `lib/logs.ts` | Collects log lines by handler for `--strict` |
+| `lib/logs.ts` | Collects log lines by handler for `--strict` and the tests |
+| `lib/scratch.ts` | Scratch webs for the integration tests: names, create, delete with their groups |
+| `lib/cleanup.ts` | What `cleanup` finds: scratch leftovers by age, prefixed artefacts |
+| `lib/redact.ts` | Removes cookies, tokens and tenant hosts from what is printed |
+| `lib/readback/<handler>.ts` | What a handler provisioned, read back for the integration tests |
 | `stubs/spfx-jsom.ts` | Node stand-in for `spfx-jsom` |

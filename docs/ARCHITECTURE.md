@@ -44,7 +44,7 @@ Important responsibilities:
 - Holds the target `IWeb`.
 - Stores `IProvisioningConfig`.
 - Creates `DefaultHandlerMap(config)` during setup.
-- Loads `context.web` with `await this.web()`.
+- Loads `context.web` from a fresh copy of the web (`Web(this.web)`), and hands every handler a fresh copy too. PnPjs 4's `select()` sets the query on the queryable itself, so a `$select` a handler left on a shared web made the next `applyTemplate` load only that property (`{sitename}` stayed literal).
 - Sorts top-level template keys with `DefaultHandlerSort`.
 - Filters to requested handlers if `handlers` is supplied.
 - Executes handlers sequentially.
@@ -174,10 +174,10 @@ Supports:
 - `{site}` -> site server-relative URL
 - `{sitecollection}` -> site absolute URL
 - `{wpgallery}` -> site absolute URL plus `/_catalogs/wp`
-- `{hosturl}` -> current browser protocol, host, and port
+- `{hosturl}` -> the origin (`https://contoso.sharepoint.com`, no trailing colon): from the SPFx context's web, else `window.location`; left in place when there is neither
 - `{themegallery}` -> site absolute URL plus `/_catalogs/theme/15`
 
-URL token replacement uses `config.spfxContext` when available. Otherwise it falls back to browser globals such as `_spPageContextInfo` and `window`.
+URL token replacement uses `config.spfxContext` when available. Otherwise it falls back to `window._spPageContextInfo`; without either (Node with no SPFx context) the site tokens become `null`. `window` and `document` are reached through `browserWindow()`, so the URL tokens, `makeUrlRelative` and the property bag key encoding also work in Node.
 
 ## Handler Architecture
 
@@ -343,7 +343,7 @@ Responsibilities:
 - Creates or overwrites modern pages.
 - Adds vertical section controls.
 - Adds section, column, text, and web part controls.
-- Replaces config/context tokens in web part properties and server-processed content.
+- Replaces config/context tokens in web part properties and server-processed content, in each string value (and key) with `mapStrings` (`src/util/index.ts`), not in their JSON text: a token value with a quote or a backslash used to break `JSON.parse` and lose the part.
 - Saves the page.
 - Enables or disables comments.
 
@@ -378,6 +378,7 @@ Responsibilities:
 
 - Activates or deactivates web features.
 - Processes features sequentially.
+- Reads the active web features once and leaves a feature that is already in the requested state alone (logged at Info): SharePoint refuses to activate an active feature (500) and to deactivate an inactive one (400). `force` still re-activates an active feature; a feature listed twice follows each entry in order.
 
 Template contract:
 
@@ -394,6 +395,7 @@ Responsibilities:
 - Applies SharePoint theme URLs using `web.applyTheme`.
 - Replaces URL tokens.
 - Converts absolute URLs to relative URLs before applying theme assets.
+- `FontSchemeUrl` and `BackgroundImageUrl` are optional; a missing one is sent as `null` (no font scheme of its own, no background image).
 
 ### `PropertyBagEntries`
 
@@ -444,7 +446,8 @@ Responsibilities:
 
 Important behavior:
 
-- If `WelcomePage` is absent, the current implementation does not call `web.update(settings)`. Be careful if changing this behavior, because it may expose settings that were previously ignored.
+- `web.update(settings)` runs whether or not `WelcomePage` is set (up to 1.4.0 it ran only together with a welcome page, so settings without one were ignored). Nothing is sent when there is nothing to set.
+- The welcome page is split off with object rest (not `object.omit`, which failed as a namespace import in Node).
 
 ### `Hooks`
 
@@ -455,7 +458,7 @@ Responsibilities:
 - Runs external HTTP hooks after provisioning.
 - Supports `GET` and `POST`.
 - For `POST`, merges `hook.Body` with `web.allProperties()`.
-- Supports long-running `202 Accepted` responses by polling the `location` header every 5 seconds until a non-202 response.
+- Supports long-running `202 Accepted` responses by polling the `Location` header (resolved against the URL that answered, after any redirect) every 5 seconds until a non-202 response. A `202` without `Location`, or any request that fails or cannot be sent (network, CORS), fails the hook with its name.
 
 Important behavior:
 
@@ -485,7 +488,7 @@ JSOM is used where PnPjs does not cover the needed behavior cleanly or where cla
 - classic web parts on files/pages
 - property bag indexing
 
-Several modules assume browser globals:
+Several modules assume browser globals (`src/util/index.ts` no longer does: it reaches them through `browserWindow()`):
 
 - `window`
 - `document`
@@ -573,10 +576,10 @@ When adding or modifying behavior:
    - Browser-only handlers should fail early with clear errors.
    - SPFx restrictions should be documented in code and specs.
 
-6. Verify with build and targeted SharePoint smoke tests.
-   - `npm run build`
-   - relevant handler scenario on a fresh site
-   - relevant handler scenario on an existing site
+6. Verify with the tests ([`docs/TESTING.md`](./TESTING.md)).
+   - `npm run build`, `npm test`, `npm run typecheck:tests`
+   - the handler's integration suite, which applies its fixture twice to a fresh scratch web and reads the result back: `npm run test:integration -- <Handler>`
+   - a template by hand on the reserved site: `npm run provision -- --package <path> --twice --strict` (`debug/README.md`)
 
 7. Keep docs close to architectural decisions.
    - Use `docs/specs/` for behavior and implementation plans.

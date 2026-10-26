@@ -178,3 +178,38 @@ describe('WebProvisioner: console logging', () => {
     )
   })
 })
+
+describe("WebProvisioner: the caller's web", () => {
+  // PnPjs 4's `select()` sets the query on the queryable itself. A `$select`
+  // left on the web made the next applyTemplate read only those properties:
+  // `{sitename}` and `{webid}` stayed unresolved (found by the Security suite).
+  it('reads the web without a $select the caller left on it', async () => {
+    const urls: string[] = []
+    const web = createRecordingWeb(urls)
+    web.select('HasUniqueRoleAssignments')
+
+    await new WebProvisioner(web).setup({}).applyTemplate({})
+
+    assert.equal(urls[0], 'https://contoso.sharepoint.com/sites/demo/_api/web')
+  })
+
+  it('leaves no $select on the web after a handler read it', async () => {
+    const urls: string[] = []
+    const web = createRecordingWeb(urls)
+
+    await new WebProvisioner(web)
+      .setup({})
+      .applyTemplate({ Security: { BreakRoleInheritance: true } })
+
+    assert.ok(
+      urls.some((url) =>
+        decodeURIComponent(url).includes('$select=HasUniqueRoleAssignments')
+      ),
+      'the Security handler read the web'
+    )
+    assert.equal(
+      web.toRequestUrl(),
+      'https://contoso.sharepoint.com/sites/demo/_api/web'
+    )
+  })
+})

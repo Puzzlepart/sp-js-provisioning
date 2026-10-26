@@ -1,0 +1,10 @@
+{
+  "$schema": "../../../schema.json",
+  "Features": [
+    {
+      "id": "a7a2793e-67cd-4dc1-9fd0-43f61581207a",
+      "deactivate": true,
+      "force": false
+    }
+  ]
+}

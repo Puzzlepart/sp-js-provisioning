@@ -470,6 +470,35 @@ describe('Security: web permissions', () => {
   })
 })
 
+describe('Security: associated groups', () => {
+  it('logs a clear error for an associated group the web does not have', async () => {
+    // A web that inherits permissions has no associated groups of its own:
+    // the id came back undefined and was sent as principalid=undefined.
+    const { web, events } = createWeb()
+    web.associatedVisitorGroup = queryable(() => ({}))
+
+    const { entries } = await captureLogs(() =>
+      securityFor(web).ProvisionObjects(
+        web,
+        {
+          RoleAssignments: [
+            { Principal: '{associatedvisitorgroupid}', RoleDefinition: 'Lese' },
+            { Principal: '{associatedmembergroupid}', RoleDefinition: 'Lese' }
+          ]
+        },
+        createContext()
+      )
+    )
+
+    assert.equal(
+      levelOf(entries, /The web has no visitor group of its own/),
+      LogLevel.Error
+    )
+    // The next assignment is still added.
+    assert.deepEqual(events, ['assign 5 1073741826'])
+  })
+})
+
 describe('Security: handler registration', () => {
   it('runs before Lists, so list Security can use the groups it creates', () => {
     assert.ok(DefaultHandlerSort.Security < DefaultHandlerSort.Lists)

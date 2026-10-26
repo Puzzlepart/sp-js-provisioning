@@ -31,9 +31,11 @@ export class ComposedLook extends HandlerBase {
         makeUrlRelative(
           replaceUrlTokens(composedLook.ColorPaletteUrl, this.config)
         ),
-        makeUrlRelative(
-          replaceUrlTokens(composedLook.FontSchemeUrl, this.config)
-        ),
+        composedLook.FontSchemeUrl
+          ? makeUrlRelative(
+              replaceUrlTokens(composedLook.FontSchemeUrl, this.config)
+            )
+          : null,
         composedLook.BackgroundImageUrl
           ? makeUrlRelative(
               replaceUrlTokens(composedLook.BackgroundImageUrl, this.config)

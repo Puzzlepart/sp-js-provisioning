@@ -1,0 +1,16 @@
+{
+  "$schema": "../../../schema.json",
+  "SiteFields": [
+    "<Field ID=\"{030a3ce7-2f14-4c44-bbd1-9f0f151c3d7a}\" Name=\"SPJSItestSfText\" StaticName=\"SPJSItestSfText\" DisplayName=\"SPJS Itest Text Renamed\" Description=\"Text column on {sitename}\" Type=\"Text\" MaxLength=\"120\" Required=\"TRUE\" Group=\"SPJS Itest\" />",
+    "<Field ID=\"{86a4e77a-0226-45fc-a516-a493d77b97ca}\" Name=\"SPJSItestSfNote\" StaticName=\"SPJSItestSfNote\" DisplayName=\"SPJS Itest Note\" Type=\"Note\" NumLines=\"6\" RichText=\"FALSE\" Required=\"FALSE\" Group=\"SPJS Itest\" />",
+    "<Field ID=\"{65002032-fb23-4727-8d87-738a18f1a991}\" Name=\"SPJSItestSfNumber\" StaticName=\"SPJSItestSfNumber\" DisplayName=\"SPJS Itest Number\" Type=\"Number\" Min=\"0\" Max=\"100\" Decimals=\"2\" Required=\"TRUE\" Group=\"SPJS Itest\" />",
+    "<Field ID=\"{882f8fe0-f45f-4844-a550-522e46883139}\" Name=\"SPJSItestSfDate\" StaticName=\"SPJSItestSfDate\" DisplayName=\"SPJS Itest Date\" Type=\"DateTime\" Format=\"DateOnly\" Required=\"FALSE\" Group=\"SPJS Itest\" />",
+    "<Field ID=\"{0e85db19-384a-405d-80b6-86734c611241}\" Name=\"SPJSItestSfBoolean\" StaticName=\"SPJSItestSfBoolean\" DisplayName=\"SPJS Itest Boolean\" Type=\"Boolean\" Group=\"SPJS Itest\"><Default>1</Default></Field>",
+    "<Field ID=\"{8bbbc71c-21c6-4954-9d55-631b96deb9a1}\" Name=\"SPJSItestSfChoice\" StaticName=\"SPJSItestSfChoice\" DisplayName=\"SPJS Itest Choice\" Type=\"Choice\" Format=\"Dropdown\" FillInChoice=\"FALSE\" Required=\"FALSE\" Group=\"SPJS Itest\"><Default>Beta</Default><CHOICES><CHOICE>Alfa</CHOICE><CHOICE>Beta</CHOICE><CHOICE>Gamma</CHOICE></CHOICES></Field>",
+    "<Field ID=\"{a9125489-fd99-42ee-b486-af55cdc61eb6}\" Name=\"SPJSItestSfMultiChoice\" StaticName=\"SPJSItestSfMultiChoice\" DisplayName=\"SPJS Itest MultiChoice\" Type=\"MultiChoice\" FillInChoice=\"TRUE\" Required=\"FALSE\" Group=\"SPJS Itest\"><CHOICES><CHOICE>Rød</CHOICE><CHOICE>Grønn</CHOICE><CHOICE>Blå</CHOICE></CHOICES></Field>",
+    "<Field ID=\"{90228b9a-9a85-419f-a53d-2dd45bc1700b}\" Name=\"SPJSItestSfUrl\" StaticName=\"SPJSItestSfUrl\" DisplayName=\"SPJS Itest Url\" Type=\"URL\" Format=\"Hyperlink\" Required=\"FALSE\" Group=\"SPJS Itest\" />",
+    "<Field ID=\"{5b2ff75a-47b0-4362-8e84-f33c629d03c4}\" Name=\"SPJSItestSfUser\" StaticName=\"SPJSItestSfUser\" DisplayName=\"SPJS Itest User\" Type=\"User\" List=\"UserInfo\" ShowField=\"ImnName\" UserSelectionMode=\"PeopleOnly\" UserSelectionScope=\"0\" Required=\"FALSE\" Group=\"SPJS Itest\" />",
+    "<Field ID=\"{fa25fcbf-acb3-4350-b7ef-8d4e8f169499}\" Name=\"SPJSItestSfCalculated\" StaticName=\"SPJSItestSfCalculated\" DisplayName=\"SPJS Itest Calculated\" Type=\"Calculated\" ResultType=\"Number\" Decimals=\"0\" Required=\"FALSE\" Group=\"SPJS Itest\"><Formula>=[SPJS Itest Number]*2</Formula><FieldRefs><FieldRef Name=\"SPJSItestSfNumber\" /></FieldRefs></Field>",
+    "<Field ID=\"{cf9d3103-f63b-4666-a9ca-da4098eb1e90}\" Name=\"SPJSItestSfLookup\" StaticName=\"SPJSItestSfLookup\" DisplayName=\"SPJS Itest Lookup\" Type=\"Lookup\" List=\"{listid:SPJS Itest Sitefields Source}\" ShowField=\"Title\" Required=\"FALSE\" Group=\"SPJS Itest\" />"
+  ]
+}

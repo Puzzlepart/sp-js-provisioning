@@ -1,0 +1,107 @@
+{
+  "$schema": "../../../schema.json",
+  "ClientSidePages": [
+    {
+      "Name": "SPJS-Itest-Kept.aspx",
+      "Title": "SPJS Itest Kept",
+      "PageLayoutType": "Article",
+      "CommentsDisabled": true,
+      "Overwrite": false,
+      "VerticalSection": [
+        {
+          "Id": "PageText",
+          "Text": "<p>SPJS Itest vertical section</p>",
+          "Properties": {}
+        }
+      ],
+      "Sections": [
+        {
+          "Columns": [
+            {
+              "Factor": 6,
+              "Controls": [
+                {
+                  "Id": "Text",
+                  "Text": "<p>SPJS Itest left column</p>",
+                  "Properties": {}
+                }
+              ]
+            },
+            {
+              "Factor": 6,
+              "Controls": [
+                {
+                  "Id": "c70391ea-0b10-4ee9-b2b4-006d3fcad0cd",
+                  "Properties": {
+                    "layoutId": "List",
+                    "hideWebPartWhenEmpty": false,
+                    "spjsItestNote": "Quick links on {sitename}"
+                  },
+                  "ServerProcessedContent": {
+                    "htmlStrings": {},
+                    "searchablePlainTexts": { "title": "{sitename} links" },
+                    "imageSources": {},
+                    "links": {}
+                  }
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "Columns": [
+            {
+              "Factor": 12,
+              "Controls": [
+                {
+                  "Id": "d1d91016-032f-456d-98a4-721247c305e8",
+                  "Properties": {
+                    "altText": "SPJS Itest image on {sitename}",
+                    "captionText": "SPJS Itest caption",
+                    "linkUrl": "{site}/SitePages"
+                  }
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "Name": "SPJS-Itest-Overwritten.aspx",
+      "Title": "SPJS Itest Overwritten",
+      "PageLayoutType": "Article",
+      "CommentsDisabled": false,
+      "Overwrite": true,
+      "Sections": [
+        {
+          "Columns": [
+            {
+              "Factor": 4,
+              "Controls": [
+                {
+                  "Id": "Text",
+                  "Text": "<p>SPJS Itest first version</p>",
+                  "Properties": {}
+                }
+              ]
+            },
+            {
+              "Factor": 8,
+              "Controls": [
+                {
+                  "Id": "c70391ea-0b10-4ee9-b2b4-006d3fcad0cd",
+                  "Properties": {
+                    "layoutId": "CompactCard",
+                    "hideWebPartWhenEmpty": false,
+                    "spjsItestNote": "First version on {sitename}"
+                  }
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

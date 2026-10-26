@@ -28,11 +28,49 @@ For releases older than 1.3.6, see the git history.
 - Principal and role definition resolution moved from the `Lists` handler to
   `src/util/security.ts`, shared by list and web `Security`. Site group names with an apostrophe
   are now escaped in the lookup url.
+- `{hosturl}` resolves to the origin (`https://contoso.sharepoint.com`), from the SPFx context's
+  web first, then the page's location. It used to end in a colon (`${protocol}//${host}:${port}`
+  with an empty port), so a template that worked around that may need a change.
+- The URL tokens, `makeUrlRelative` and the base64 encoding of indexed property bag keys work
+  without a browser (`window`, `document`, `btoa`): in Node they no longer throw a
+  `ReferenceError`, so no browser shims are needed there. In a browser nothing changes.
 
 ### Fixed
 
 Found by the tests of the [integration testing spec](./docs/specs/integration-testing.md),
-Phase 0b; each fix has the test that exposed it.
+Phases 0b and 1; each fix has the test that exposed it.
+
+- A `$select` left on the web passed to `WebProvisioner` no longer leaks into the next run.
+  PnPjs 4's `select()` sets the query on the queryable itself, so after a handler read the web
+  (ClientSidePages and Files read `ServerRelativeUrl`, web `Security` reads
+  `HasUniqueRoleAssignments`) the next `applyTemplate` on the same web loaded only that property:
+  `{sitename}`, `{webid}` and `{siteid}` stayed unresolved. PP365's setup wizard applies
+  the template and then each extension to the same web. `WebProvisioner` now reads the web, and
+  hands each handler the web, as a fresh queryable.
+- `{associatedownergroupid}`, `{associatedmembergroupid}` and `{associatedvisitorgroupid}` on a web
+  that has no such group of its own (one that inherits permissions) fail with an error naming it,
+  instead of a role assignment sent with `principalid=undefined`.
+- `Features` leaves a feature that is already in the requested state alone. SharePoint refuses to
+  activate an active feature (500) and to deactivate an inactive one (400), so applying a template
+  a second time stopped there with a `ProvisioningError`. `force` still re-activates an active
+  feature, and a feature listed twice follows each entry in order.
+- `WebSettings` applies its settings when the template has no `WelcomePage`; it used to update the
+  web only together with a welcome page. It sends no update when there is nothing to set.
+- `WebSettings` with a `WelcomePage` no longer fails with "omit is not a function" where
+  `object.omit` is loaded as a namespace (Node); the welcome page is split off with object rest.
+- `Hooks`: a POST hook answered with `202 Accepted` now finishes when its `Location` answers
+  another 2xx; it used to wait forever. A poll request that fails now fails the hook instead of
+  escaping as an unhandled rejection. A relative `Location` is resolved against the URL that
+  answered (in a browser it was resolved against the SharePoint page), and a `202` without a
+  `Location`, or with one that is not a URL, fails the hook, naming it, instead of polling `null`.
+- `Hooks`: a request that cannot be sent (a network or CORS failure) fails the hook with its name,
+  as an error status does, instead of a bare "Failed to fetch".
+- `ClientSidePages` replaces tokens in each string of a web part's properties and server-processed
+  content instead of in their JSON text. A `{sitename}` or `{parameter:...}` value with a quote or
+  a backslash (a web titled `Rehab "Gamle skole"`) made the text invalid JSON, and the page was
+  saved without the part.
+- `ComposedLook` applies a look without `FontSchemeUrl` (it threw a `TypeError`); `FontSchemeUrl`
+  and `BackgroundImageUrl` are optional in `IComposedLook`, as `schema.json` already had them.
 
 - `Security`: a site group as `Owner` (an associated group token, a group title, or the group
   itself) is now applied. It goes through CSOM (`Group.Owner` over
@@ -60,17 +98,28 @@ Phase 0b; each fix has the test that exposed it.
 ### Development
 
 Tooling only; nothing here ships in the package. Plan:
-[integration testing spec](./docs/specs/integration-testing.md), Phases 0a and 0b.
+[integration testing spec](./docs/specs/integration-testing.md), Phases 0a, 0b and 1.
 
 - Offline CI (`.github/workflows/ci.yml`, job `Build and offline tests`) on every pull request and
   push to `main`: `lint:check`, build, `typecheck:tests`, `test:ci` (spec + JUnit to
-  `test-results/unit.xml`), `test:coverage` (source-mapped, floors 60/71/58 for lines, branches
+  `test-results/unit.xml`), `test:coverage` (source-mapped, floors 66/74/65 for lines, branches
   and functions, which only rise), `check:pack` (the package holds `lib/index.js` and every handler) and
-  `check:secrets` (no tenant URL, cookie, token or certificate in `tests/`, `debug/`,
-  `.env.example`). eslint's `quotes` rule allows `"''"` (it conflicted with prettier), and
+  `check:secrets` (no tenant URL, cookie, token or certificate in any committed or new text
+  file, docs and specs included). eslint's `quotes` rule allows `"''"` (it conflicted with prettier), and
   `.prettierignore` keeps `lib/` out of the formatting check.
 - `tests/fixtures/templates/failures.json`: a list field that cannot be created, a `Files` and a
   `PropertyBagEntries` entry, for checking that failures surface (`--strict` exits 1 for each).
+- Integration tests against a tenant (Phase 1): `npm run check:tenant`, `npm run test:integration`
+  (`-- <Handler ...>`, `--keep`, `:ci`), one suite per handler in `tests/integration/` applying a
+  fixture twice to a scratch web (a subweb of the reserved site with its own associated groups) and
+  comparing the read-backs; the JSOM handlers' suites skip. `npm run cleanup` removes leftovers (a
+  plan unless `--apply`); `provision` and `cleanup` refuse a site outside `INTEGRATION_SITE_URL`
+  unless `--allow-site` repeats it; `cleanup` never removes the web's own associated groups.
+  Each attempt at a request the harness sends is bounded at 120 s (a throttled one still waits
+  `Retry-After`), and on a CI runner the log and the JUnit reports pass through `redact()`. The runner no longer installs browser shims.
+- Agent docs: `AGENTS.md` (and `CLAUDE.md`), `docs/TESTING.md`, the `spjs-testing` and
+  `spjs-provision` skills in `.claude/skills`, checked by `npm run check-skills` in CI. The
+  gulp-era `.vscode/launch.json`, `.vscode/tasks.json` and `settings.example.js` are gone.
 
 - `package-lock.json` is regenerated: it still resolved every `@pnp/*` package to 3.17.0, so
   `npm ci` refused the tree and the runner ran a v3 `@pnp/nodejs` over v4 queryables.

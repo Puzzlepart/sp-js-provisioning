@@ -1,0 +1,92 @@
+{
+  "$schema": "../../../schema.json",
+  "Lists": [
+    {
+      "Title": "SPJS Itest DataRows Source",
+      "Description": "Lookup source for sp-js-provisioning's lists-datarows fixture",
+      "Template": 100,
+      "ContentTypesEnabled": false,
+      "DataRows": {
+        "KeyColumn": "Title",
+        "Rows": [
+          { "Title": "SPJS Itest Source A" },
+          { "Title": "SPJS Itest Source B" },
+          { "Title": "SPJS Itest Source C" }
+        ]
+      }
+    },
+    {
+      "Title": "SPJS Itest DataRows Recreated",
+      "Description": "Skip rows in a column the list's Fields declare (recreated on every run)",
+      "Template": 100,
+      "ContentTypesEnabled": false,
+      "Fields": [
+        "<Field ID=\"{ba1b3238-b6ae-4a3d-b4bd-2e606e69cf39}\" Name=\"SPJSItestDrNote\" StaticName=\"SPJSItestDrNote\" DisplayName=\"SPJS Itest Note\" Type=\"Text\" />"
+      ],
+      "DataRows": {
+        "KeyColumn": "Title",
+        "UpdateBehavior": "Skip",
+        "Rows": [
+          { "Title": "SPJS Itest Kept", "SPJSItestDrNote": "Written once" }
+        ]
+      }
+    },
+    {
+      "Title": "SPJS Itest DataRows Tokenised",
+      "Description": "A row whose KeyColumn value holds a token",
+      "Template": 100,
+      "ContentTypesEnabled": false,
+      "DataRows": {
+        "KeyColumn": "Title",
+        "UpdateBehavior": "Overwrite",
+        "Rows": [{ "Title": "{sitename} row" }]
+      }
+    },
+    {
+      "Title": "SPJS Itest DataRows Link",
+      "Description": "A URL value without a Description",
+      "Template": 100,
+      "ContentTypesEnabled": false,
+      "Fields": [
+        "<Field ID=\"{59e51aaa-f0b4-4916-b3bb-430471275653}\" Name=\"SPJSItestDrLinkOnly\" StaticName=\"SPJSItestDrLinkOnly\" DisplayName=\"SPJS Itest Link only\" Type=\"URL\" Format=\"Hyperlink\" />"
+      ],
+      "DataRows": {
+        "KeyColumn": "Title",
+        "Rows": [
+          {
+            "Title": "SPJS Itest Link without description",
+            "SPJSItestDrLinkOnly": {
+              "Url": "https://contoso.com/spjs-itest/{parameter:SPJSItestSlug}"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "Title": "SPJS Itest DataRows Unresolved",
+      "Description": "Lookup values that match no item in the source list",
+      "Template": 100,
+      "ContentTypesEnabled": false,
+      "Fields": [
+        "<Field ID=\"{0b9deb6a-8a58-4eb9-8eea-d125c8e1bd3a}\" Name=\"SPJSItestDrMissing\" StaticName=\"SPJSItestDrMissing\" DisplayName=\"SPJS Itest Missing\" Type=\"Lookup\" List=\"{{listid:SPJS Itest DataRows Source}}\" ShowField=\"Title\" />",
+        "<Field ID=\"{651911d0-ae6e-4b2a-8efb-8bc345cff62b}\" Name=\"SPJSItestDrLookups\" StaticName=\"SPJSItestDrLookups\" DisplayName=\"SPJS Itest Lookups\" Type=\"LookupMulti\" Mult=\"TRUE\" List=\"{{listid:SPJS Itest DataRows Source}}\" ShowField=\"Title\" />"
+      ],
+      "DataRows": {
+        "KeyColumn": "Title",
+        "Rows": [
+          {
+            "Title": "SPJS Itest Unresolved single",
+            "SPJSItestDrMissing": { "lookupValue": "SPJS Itest missing single" }
+          },
+          {
+            "Title": "SPJS Itest Unresolved multi",
+            "SPJSItestDrLookups": [
+              { "lookupValue": "SPJS Itest Source A" },
+              { "lookupValue": "SPJS Itest missing multi" }
+            ]
+          }
+        ]
+      }
+    }
+  ]
+}

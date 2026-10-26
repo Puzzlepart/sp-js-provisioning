@@ -73,8 +73,16 @@ export async function resolvePrincipal(
   }
   if (associatedGroups[token]) {
     const group = await associatedGroups[token]().select('Id')<{
-      Id: number
+      Id?: number
     }>()
+    // A web that inherits permissions has no associated groups of its own.
+    if (typeof group.Id !== 'number')
+      throw new Error(
+        `The web has no ${token.replace(
+          /^associated|groupid$/g,
+          ''
+        )} group of its own (${value}); a web that inherits permissions has none`
+      )
     return { id: group.Id, isGroup: true }
   }
   try {

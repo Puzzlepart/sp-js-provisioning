@@ -1,6 +1,6 @@
 import { ConfidentialClientApplication } from '@azure/msal-node'
-import { combine, isUrlAbsolute, TimelinePipe } from '@pnp/core'
-import { BrowserFetchWithRetry, DefaultParse, Queryable } from '@pnp/queryable'
+import { combine, delay, isUrlAbsolute, TimelinePipe } from '@pnp/core'
+import { DefaultParse, Queryable } from '@pnp/queryable'
 import { DefaultHeaders, DefaultInit, RequestDigest } from '@pnp/sp'
 import * as fs from 'fs'
 import * as forge from 'node-forge'
@@ -118,6 +118,73 @@ async function appToken(
 }
 
 /**
+ * How long one attempt at a request may take. Without a limit a request SharePoint never answered
+ * waited for Node's own 300 s timeout, three times over (PnPjs's `BrowserFetchWithRetry` sent it
+ * again): one scratch web's set-up took 15 minutes, and the web was left behind.
+ */
+export const REQUEST_TIMEOUT = 120_000
+
+/**
+ * PnPjs's `BrowserFetchWithRetry` with a time limit on each attempt. A throttled request (429, 503,
+ * 504) waits what `Retry-After` says and tries again with a fresh limit; a network error is tried
+ * again; an attempt not answered in time fails the request, as sending it again could repeat a
+ * write SharePoint is still carrying out. A request with a signal of its own keeps it.
+ *
+ * @param ms - The limit per attempt
+ * @param retries - Attempts in all
+ * @param onRetry - Told of each retry (throttling, a network error): stderr by default
+ */
+export function fetchWithRetry(
+  ms: number,
+  retries = 3,
+  onRetry: (what: string) => void = (what) =>
+    // A run that throttling slows down says so (no URL: it goes to logs).
+    // eslint-disable-next-line no-console
+    console.error(`# SharePoint: ${what}, trying again`)
+): TimelinePipe<Queryable> {
+  return (instance) => {
+    instance.on.send.replace(async function (
+      url: URL,
+      init: any
+    ): Promise<Response> {
+      let wait = 200
+      for (let attempt = 1; ; attempt++) {
+        let response: Response
+        try {
+          response = await fetch(url.toString(), {
+            ...init,
+            signal: init.signal ?? (AbortSignal as any).timeout(ms)
+          })
+        } catch (error) {
+          if (
+            attempt >= retries ||
+            /AbortError|TimeoutError/.test(error && error.name)
+          )
+            throw error
+          onRetry(`${init.method || 'GET'} failed (${error && error.message})`)
+          continue
+        }
+        if (
+          response.ok ||
+          attempt >= retries ||
+          ![429, 503, 504].includes(response.status)
+        )
+          return response
+        const after = parseInt(response.headers.get('Retry-After') || '', 10)
+        wait = after > 0 ? after * 1000 : wait * 2
+        onRetry(
+          `${init.method || 'GET'} answered ${response.status}; waiting ${Math.round(
+            wait / 1000
+          )} s`
+        )
+        await delay(wait)
+      }
+    })
+    return instance
+  }
+}
+
+/**
  * Signed in as the app: a bearer token on every request. SharePoint needs no request digest with
  * one.
  *
@@ -138,7 +205,7 @@ function certificateBehavior(
     instance.using(
       DefaultHeaders(),
       DefaultInit(),
-      BrowserFetchWithRetry(),
+      fetchWithRetry(REQUEST_TIMEOUT),
       DefaultParse()
     )
     instance.on.auth.replace(async (url: URL, init: any) => {
@@ -218,7 +285,7 @@ function cookieBehavior(
     instance.using(
       DefaultHeaders(),
       DefaultInit(),
-      BrowserFetchWithRetry(),
+      fetchWithRetry(REQUEST_TIMEOUT),
       DefaultParse(),
       RequestDigest()
     )

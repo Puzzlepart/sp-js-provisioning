@@ -12,13 +12,23 @@ describe('check-secrets', () => {
       'fabrikam',
       'contoso-admin',
       'contoso-my',
-      'Fabrikam-My'
+      'Fabrikam-My',
+      '<tenant>',
+      '<tenant>-admin'
     ])
       assert.equal(
         hasTenantUrl(`https://${host}.sharepoint.com/sites/x`),
         false,
         host
       )
+  })
+
+  it('allows a host built at run time', () => {
+    // A test writes `https://${tenant}.sharepoint.com`: the source names no host.
+    assert.equal(
+      hasTenantUrl('`https://${tenant}-admin.sharepoint.com`'),
+      false
+    )
   })
 
   it('flags any other SharePoint host', () => {

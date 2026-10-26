@@ -28,6 +28,8 @@ export type Mode = 'hub' | 'cloud'
 
 export interface IArgs {
   site?: string
+  /** `--allow-site`: write to a site outside `INTEGRATION_SITE_URL` (must equal the target). */
+  allowSite?: string
   package: string
   lang?: string
   mode: Mode
@@ -100,6 +102,9 @@ export function parseArgs(argv: string[]): IArgs {
     switch (arg) {
       case '--site':
         out.site = next()
+        break
+      case '--allow-site':
+        out.allowSite = next()
         break
       case '--package':
       case '--pkg':
@@ -381,6 +386,7 @@ export function usage(handlers: string[]): string {
     'Usage: npm run provision -- --package <path> [--site <url>] [options]',
     '',
     '  --site <url>          Target site (default: INTEGRATION_SITE_URL from .env)',
+    '  --allow-site <url>    Write to a site outside INTEGRATION_SITE_URL (repeat the target)',
     '  --package <path>      Package folder, .pppkg/.zip, or template JSON',
     '  --lang <locale>       Localized hub template (e.g. en-US). Default: the package default.',
     '  --mode <hub|cloud>    hub: the full hub template (default); cloud: the subset PP365',

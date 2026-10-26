@@ -1,0 +1,68 @@
+{
+  "$schema": "../../../schema.json",
+  "Security": {
+    "SiteGroups": [
+      {
+        "Title": "{sitename} Readers",
+        "Description": "Readers of {sitename}",
+        "Owner": "{associatedownergroupid}",
+        "AllowMembersEditMembership": false,
+        "OnlyAllowMembersViewMembership": true
+      },
+      {
+        "Title": "{sitename} Owners",
+        "Description": "Owns itself",
+        "Owner": "{sitename} Owners",
+        "AllowRequestToJoinLeave": true,
+        "AutoAcceptRequestToJoinLeave": false,
+        "RequestToJoinLeaveEmailSetting": "spjs-itest@contoso.com"
+      },
+      {
+        "Title": "{sitename} Members",
+        "Description": "Exactly one member",
+        "Owner": "{associatedownergroupid}",
+        "Members": [
+          "@@user@@"
+        ],
+        "ClearExistingMembers": true
+      }
+    ],
+    "BreakRoleInheritance": true,
+    "RoleAssignments": [
+      {
+        "Principal": "{sitename} Readers",
+        "RoleDefinition": "Read"
+      },
+      {
+        "Principal": "{sitename} Members",
+        "RoleDefinition": "Contribute"
+      },
+      {
+        "Principal": "{associatedvisitorgroupid}",
+        "RoleDefinition": "Read"
+      }
+    ]
+  },
+  "Lists": [
+    {
+      "Title": "SPJS Itest Security List",
+      "Description": "Granted to a group of the same template",
+      "Template": 100,
+      "ContentTypesEnabled": false,
+      "Security": {
+        "BreakRoleInheritance": true,
+        "CopyRoleAssignments": false,
+        "RoleAssignments": [
+          {
+            "Principal": "{sitename} Readers",
+            "RoleDefinition": "Read"
+          },
+          {
+            "Principal": "{associatedownergroupid}",
+            "RoleDefinition": "Full Control"
+          }
+        ]
+      }
+    }
+  ]
+}

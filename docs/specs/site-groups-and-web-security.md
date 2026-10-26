@@ -1,6 +1,6 @@
 # Spec: Site Groups And Web Security
 
-Status: Implemented (tenant-tested, group owner fixed in Phase 0b; to be Verified by the Phase 1 suite of the integration testing spec)
+Status: Verified (2026-10-21, `tests/integration/security.test.ts`, including a list granted to a group of the same template, and the list `Security` of `tests/integration/lists.test.ts`)
 
 Owner: Remi Blom-Ohlsen
 
@@ -140,11 +140,15 @@ so list `Security` also accepts `{sitename}` and `{parameter:...}` in principals
   webs: create versus update, owner, members, `ClearExistingMembers`, web role assignments,
   inheritance check, per-item failure isolation, handler order and `{sitename}`.
 - `npm run build`, `npm test`, `npm run typecheck:tests`.
-- Manual, on a test tenant with `npm run provision` (see `debug/README.md`):
-  - fresh group-connected site: groups created, owner set, members added, list permissions for
-    the new groups applied;
-  - second run on the same site: no duplicates, no errors;
-  - group owner set to another group (`{associatedownergroupid}`) and to the group itself.
+- On a test tenant, `npm run test:integration -- Security Lists`
+  ([integration testing](./integration-testing.md)): a scratch subweb with unique permissions and
+  its own associated groups (D2 there), in place of a fresh group-connected site:
+  - groups created, owner set, members added, list permissions for the new groups applied;
+  - second run on the same web: no duplicates, no errors, the read-back unchanged;
+  - group owner set to another group (`{associatedownergroupid}`) and to the group itself;
+  - a nested web that inherits permissions: inheritance broken once, assignments copied.
+- The 0a smoke run (`npm run provision -- --package tests/fixtures/templates/smoke.json --twice
+  --strict`) is its first tenant evidence.
 
 ## Verification Result
 
@@ -172,9 +176,16 @@ so list `Security` also accepts `{sitename}` and `{parameter:...}` in principals
   associated owner group (3, `PrincipalType` 8) and `SPJS Itest Owners` (13) by itself. The unit
   tests cover a user owner (`SetUserAsOwner`), a bare id that is a group, and an owner SharePoint
   ignores (logged as an error).
-- Not yet verified: members, `ClearExistingMembers`, `BreakRoleInheritance` on a web that
-  inherits (needs a subweb), and a user as owner. These are Phase 1 work in the integration
-  testing spec.
+- 2026-10-21, Verified by `tests/integration/security.test.ts` on a scratch subweb, twice in a
+  row in the full run of the integration suites: three site groups named through `{sitename}`
+  (owners: the associated owner group, and a group that owns itself), the join/leave settings,
+  `ClearExistingMembers` leaving exactly the template's member, web role assignments with `Read` /
+  `Contribute` resolved by role type on a Norwegian site, the "already unique" branch, and on a
+  nested web that inherits: inheritance broken once with the assignments copied. A second apply
+  changes nothing. List `Security` (break, copy, assignments to the scratch web's groups) is in
+  `tests/integration/lists.test.ts`; that `breakRoleInheritance` is sent on every run is pinned
+  there (SharePoint ignores it today). The suite also found that a `$select` left on the shared
+  web made a later run lose `{sitename}`, fixed in the integration testing spec (D4).
 
 ## Open Questions
 

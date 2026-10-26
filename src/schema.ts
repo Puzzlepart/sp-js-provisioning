@@ -143,8 +143,10 @@ export interface IWebPartContents {
 
 export interface IComposedLook {
   ColorPaletteUrl: string
-  FontSchemeUrl: string
-  BackgroundImageUrl: string
+  /** Without it, the theme has no font scheme of its own. */
+  FontSchemeUrl?: string
+  /** Without it, the theme has no background image (one set before is removed). */
+  BackgroundImageUrl?: string
 }
 
 export interface ICustomAction {

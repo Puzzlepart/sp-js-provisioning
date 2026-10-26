@@ -8,7 +8,7 @@ import {
 } from '@pnp/sp/presets/all'
 import { IProvisioningConfig } from '../provisioningconfig'
 import { ProvisioningContext } from '../provisioningcontext'
-import { replaceUrlTokens } from '../util'
+import { mapStrings, replaceUrlTokens } from '../util'
 import { TokenHelper } from '../util/tokenhelper'
 import { HandlerBase } from './handlerbase'
 import { IClientSideControl, IClientSidePage } from '../schema'
@@ -87,18 +87,19 @@ export class ClientSidePages extends HandlerBase {
         partDef: null
       }
     }
-    let properties = this.tokenHelper.replaceTokens(
-      JSON.stringify(control.Properties)
-    )
-    properties = replaceUrlTokens(properties, this.config)
+    // Tokens are replaced in each string: a value with a quote or a backslash
+    // broke the JSON text they used to be replaced in, and the part was lost.
     const part = ClientsideWebpart.fromComponentDef(partDef).setProperties<any>(
-      JSON.parse(properties)
+      mapStrings(control.Properties, (text) =>
+        replaceUrlTokens(this.tokenHelper.replaceTokens(text), this.config)
+      )
     )
     if (control.ServerProcessedContent) {
-      const serverProcessedContent = this.tokenHelper.replaceTokens(
-        JSON.stringify(control.ServerProcessedContent)
+      part.setServerProcessedContent(
+        mapStrings(control.ServerProcessedContent, (text) =>
+          this.tokenHelper.replaceTokens(text)
+        )
       )
-      part.setServerProcessedContent(JSON.parse(serverProcessedContent))
     }
     return { part, partDef } as const
   }

@@ -1,0 +1,9 @@
+{
+  "$schema": "../../../schema.json",
+  "WebSettings": {
+    "WelcomePage": "SitePages/Home.aspx",
+    "Description": "SPJS Itest web settings in {site}",
+    "TreeViewEnabled": true,
+    "QuickLaunchEnabled": false
+  }
+}

@@ -1,0 +1,71 @@
+{
+  "$schema": "../../../schema.json",
+  "ClientSidePages": [
+    {
+      "Name": "SPJS-Itest-Kept.aspx",
+      "Title": "SPJS Itest Kept B",
+      "PageLayoutType": "Article",
+      "CommentsDisabled": false,
+      "Overwrite": false,
+      "Sections": [
+        {
+          "Columns": [
+            {
+              "Factor": 12,
+              "Controls": [
+                {
+                  "Id": "Text",
+                  "Text": "<p>SPJS Itest must not replace the kept page</p>",
+                  "Properties": {}
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "Name": "SPJS-Itest-Overwritten.aspx",
+      "Title": "SPJS Itest Overwritten B",
+      "PageLayoutType": "Article",
+      "CommentsDisabled": true,
+      "Overwrite": true,
+      "Sections": [
+        {
+          "Columns": [
+            {
+              "Factor": 12,
+              "Controls": [
+                {
+                  "Id": "d1d91016-032f-456d-98a4-721247c305e8",
+                  "Properties": {
+                    "altText": "SPJS Itest second version on {sitename}",
+                    "captionText": "SPJS Itest caption B"
+                  }
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "Columns": [
+            {
+              "Factor": 6,
+              "Controls": [
+                {
+                  "Id": "Text",
+                  "Text": "<p>SPJS Itest second version</p>",
+                  "Properties": {}
+                }
+              ]
+            },
+            {
+              "Factor": 6,
+              "Controls": []
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

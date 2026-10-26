@@ -24,35 +24,17 @@ import {
   usage,
   UsageError
 } from './lib/cli'
+import { DefaultHandlerSort } from '../src/handlers/exports'
+import { apply } from './lib/apply'
+import {
+  accessDenied,
+  assertConnectedWritable,
+  assertWritable,
+  connect,
+  ISiteConnection
+} from './lib/connect'
 import { authMode, env } from './lib/env'
-
-/**
- * The engine's `util` reads `window`/`document` (it is a browser-first library). Provide just
- * enough of them for the Node code paths. Must run before the engine is imported.
- *
- * @param site - The target site
- */
-function installBrowserShims(site: string): void {
-  const url = new URL(site)
-  const g = globalThis as any
-  if (!g.window) {
-    g.window = {
-      location: {
-        protocol: url.protocol,
-        host: url.host,
-        hostname: url.hostname,
-        port: url.port,
-        href: site
-      },
-      btoa: (s: string) => Buffer.from(s, 'binary').toString('base64')
-    }
-  }
-  if (!g.document) {
-    g.document = {
-      location: { protocol: url.protocol, hostname: url.hostname }
-    }
-  }
-}
+import { describeError } from './lib/redact'
 
 /**
  * Prints the plan for a run.
@@ -91,10 +73,6 @@ function printPlan(
 async function main(): Promise<number> {
   const args = parseArgs(process.argv.slice(2))
   const site = (args.site ?? env.siteUrl ?? '').replace(/\/+$/, '')
-
-  // Shims first: before any engine code is imported.
-  installBrowserShims(site || 'https://localhost')
-  const { DefaultHandlerSort } = await import('../src/handlers/exports')
   const handlers = handlerOrder(DefaultHandlerSort)
   if (args.help) {
     console.log(usage(handlers))
@@ -110,12 +88,9 @@ async function main(): Promise<number> {
   }
   if (!site)
     throw new UsageError('Missing --site (or INTEGRATION_SITE_URL in .env)')
+  assertWritable(site, args.allowSite)
 
-  const { accessDenied, connect } = await import('./lib/connect')
-  const { LogLevel, startRun } = await import('./lib/logs')
-  const { WebProvisioner } = await import('../src/index')
-
-  let connection: import('./lib/connect').ISiteConnection
+  let connection: ISiteConnection
   try {
     connection = await connect(site)
   } catch (error) {
@@ -124,34 +99,22 @@ async function main(): Promise<number> {
     console.error(`\n${message}`)
     return 1
   }
+  // The web SharePoint reports, not the URL given, decides (a `..` in --site is resolved there).
+  assertConnectedWritable(connection, args.allowSite)
   console.log(
     `Signed in with ${connection.mode} to "${connection.webInfo.Title}" (${connection.webInfo.Url})\n`
   )
 
   /**
-   * One run, with fresh logging: the collector, and the engine's console listener, which prints
-   * each line with its data (e.g. the SharePoint error body).
+   * One run, printing the engine's log lines (with their data, e.g. the SharePoint error body).
    */
-  const run = async (attempt: number) => {
-    const logs = startRun()
-    const provisioner = new WebProvisioner(connection.web).setup({
-      spfxContext: connection.context,
+  const run = (attempt: number) =>
+    apply(connection, schema, {
+      handlers: plan.run,
       parameters: args.parameters,
-      logging: {
-        prefix: `(provision${args.twice ? ` #${attempt}` : ''})`,
-        activeLogLevel: LogLevel.Info
-      }
+      prefix: `(provision${args.twice ? ` #${attempt}` : ''})`,
+      onHandler: (handler) => console.log(`\n> ${handler}`)
     })
-    let error: any
-    try {
-      await provisioner.applyTemplate(schema, plan.run, (handler) => {
-        console.log(`\n> ${handler}`)
-      })
-    } catch (caught) {
-      error = caught
-    }
-    return { error, errors: logs.errors(), warnings: logs.warnings() }
-  }
 
   const results = []
   for (let attempt = 1; attempt <= (args.twice ? 2 : 1); attempt++) {
@@ -168,7 +131,7 @@ async function main(): Promise<number> {
       console.error(`\nFAILED ${name}: provisioning stopped.`)
       if (result.error.handler)
         console.error(`   Failing handler: ${result.error.handler}`)
-      console.error(`   Message: ${result.error.message || result.error}`)
+      console.error(`   Message: ${describeError(result.error)}`)
       return
     }
     const logged = `${result.errors.length} error(s), ${result.warnings.length} warning(s) logged`
@@ -201,6 +164,7 @@ main()
       process.exitCode = error.exitCode
       return
     }
-    console.error(error)
+    // The message only: the error object's response holds the response headers (`Set-Cookie`).
+    console.error(describeError(error))
     process.exitCode = 1
   })

@@ -1,0 +1,46 @@
+{
+  "$schema": "../../../schema.json",
+  "Hooks": [
+    {
+      "Title": "SPJS Itest GET hook",
+      "Url": "@@hookUrl@@/get?source=spjs-itest",
+      "Method": "GET",
+      "Headers": {
+        "Accept": "application/json",
+        "X-SPJS-Itest": "get"
+      }
+    },
+    {
+      "Title": "SPJS Itest POST hook",
+      "Url": "@@hookUrl@@/post",
+      "Method": "POST",
+      "Headers": {
+        "Content-Type": "application/json",
+        "X-SPJS-Itest": "post",
+        "X-SPJS-Itest-Run": "hooks"
+      },
+      "Body": {
+        "SPJSItestHook": "post",
+        "SPJSItestTitle": "SPJS Itest hook body",
+        "SPJSItestCount": 2,
+        "SPJSItestNested": { "SPJSItestList": [1, "two", true] }
+      }
+    },
+    {
+      "Title": "SPJS Itest slow hook",
+      "Url": "@@hookUrl@@/slow",
+      "Method": "POST",
+      "Headers": {
+        "Content-Type": "application/json",
+        "X-SPJS-Itest": "slow"
+      },
+      "Body": { "SPJSItestHook": "slow" }
+    },
+    {
+      "Title": "SPJS Itest PUT hook",
+      "Url": "@@hookUrl@@/put",
+      "Method": "PUT",
+      "Headers": { "X-SPJS-Itest": "put" }
+    }
+  ]
+}

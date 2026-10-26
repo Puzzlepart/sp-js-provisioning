@@ -10,7 +10,7 @@ import { IProvisioningConfig } from './provisioningconfig'
 import { ProvisioningContext } from './provisioningcontext'
 import { ProvisioningError } from './provisioningerror'
 import { Schema } from './schema'
-import { extractWebUrl, IWeb, Site, SPInstance } from '@pnp/sp/presets/all'
+import { extractWebUrl, IWeb, Site, SPInstance, Web } from '@pnp/sp/presets/all'
 import '@pnp/sp/presets/all'
 
 /**
@@ -47,7 +47,11 @@ export class WebProvisioner {
       Logger.activeLogLevel = this.config.logging.activeLogLevel
     }
     this.handlerMap = DefaultHandlerMap(this.config)
-    this.context.web = await this.web()
+    // A fresh queryable: PnPjs 4's `select()` sets the query on the instance itself, so a
+    // `$select` left on the caller's web (by a handler of an earlier run, or by the caller) would
+    // return only those properties, and `{sitename}`, `{webid}` and the server-relative URL
+    // would be missing.
+    this.context.web = await Web(this.web)()
     await this.loadContext()
   }
 
@@ -161,8 +165,10 @@ export class WebProvisioner {
             progressCallback(name)
           }
           currentHandler = name
+          // Each handler gets a fresh queryable for the web: one that reads it with
+          // `web.select(...)()` sets the query on its own copy, not on the caller's web.
           return handler.ProvisionObjects(
-            this.web,
+            Web(this.web),
             template[name],
             this.context
           )

@@ -1,6 +1,6 @@
 # Spec: Integration Testing Against A Site
 
-Status: Ready (Phases 0a and 0b done 2026-10-21; 0b's CI check to be confirmed on GitHub; Phase 1 next)
+Status: Ready (Phases 0a, 0b and 1 done 2026-10-21; the first `ci.yml` run on GitHub pending; Phase 2 next)
 
 Owner: Remi Blom-Ohlsen
 
@@ -8,7 +8,7 @@ Related:
 
 - PP365 `releases/1.15`: `integration/` (`src/env.ts`, `src/auth.ts`, `src/sites.ts`),
   `e2e/tests/auth.setup.ts`, `.claude/skills/pp365-testing`, `.tasks/check-skills.js`
-- [Site groups and web security](./site-groups-and-web-security.md) (tenant verification pending)
+- [Site groups and web security](./site-groups-and-web-security.md) (Verified in Phase 1)
 - [Deterministic content type ids](./deterministic-content-type-ids.md),
   [ADR](../adr/jsom-explicit-content-type-ids.md), `tests/smoke/deterministic-content-type-ids/`
 - `debug/README.md`, [Architecture](../ARCHITECTURE.md)
@@ -105,9 +105,9 @@ JUnit, skills gated by `check-skills`). This spec ports that shape to the engine
 | | Decision | Rationale |
 |---|---|---|
 | D1 | Local sign-in is cookie mode with PP365's Playwright storage state (default `INTEGRATION_COOKIES_FILE=../prosjektportalen365/e2e/.auth/user.json`, renewed with `npx playwright test --project=setup` in PP365 `e2e/`). CI signs in with the certificate (`CI_TENANT`, `CI_CLIENT_ID`, `CI_CERT_BASE64`, as in PP365). No client secret, no settings file. Device code and Azure CLI are a possible later addition, not planned work. | No app registration or certificate on a laptop; PP365 already renews the session; secret-based app-only is refused. |
-| D2 | A reserved site created once by hand (e.g. `/sites/spjs-itest`, subsites enabled). A scratch subweb per suite or run, created with unique permissions and its own associated groups (`web.createDefaultAssociatedGroups(...)`), deleted afterwards unless kept. Commands that write (tests, `cleanup`, `provision`) refuse a site that is not `INTEGRATION_SITE_URL` or below it unless an explicit override flag is given. NoScript is probed in reachability; the ScriptLink and PropertyBag suites skip naming the setting. | Provisioning cannot be undone; a fresh subweb gives "first" and "second apply" meaning; its own groups make `{associated*groupid}` resolve without a group-connected site; the guard keeps agents off customer sites. |
+| D2 | A reserved site created once by hand (e.g. `/sites/spjs-itest`, subsites enabled). A scratch subweb per suite or run, created with unique permissions and its own associated groups (`web.createDefaultAssociatedGroups(...)`), deleted afterwards unless kept; `cleanup` removes leftovers older than 2 h, so it never deletes the web of a run in progress (`--older-than`, `--all` when no other run is active). Commands that write (tests, `cleanup`, `provision`) refuse a site that is not `INTEGRATION_SITE_URL` or below it unless an explicit override flag is given. NoScript is probed in reachability; the ScriptLink and PropertyBag suites skip naming the setting. | Provisioning cannot be undone; a fresh subweb gives "first" and "second apply" meaning; its own groups make `{associated*groupid}` resolve without a group-connected site; the guard keeps agents off customer sites. |
 | D3 | The JSOM handlers (ContentTypes, Taxonomy, PropertyBagEntries, Files web parts) get `docs/specs/jsom-exit.md`: a half-day live spike (REST `contentTypes.add` with an explicit id; one `ProcessQuery` term set), then a port to CSOM over HTTP (`_vti_bin/client.svc/ProcessQuery`) and removal of `spfx-jsom`. Until then their suites skip with the documented reason. | CSOM keeps caller-supplied ids and runs in Node and the browser; the spike first checks whether REST suffices. |
-| D4 | Small defects the tests find are fixed with the test that exposes them, one CHANGELOG line each, shipped in 1.5.0 with Security. Lists' field recreation, unconditional list `breakRoleInheritance` and `RemoveExistingViews` scope are only pinned (`{ todo }`) and get their own spec. | Each fix is small and tested; the Lists behaviours change data on consumer sites. |
+| D4 | Small defects the tests find are fixed with the test that exposes them, one CHANGELOG line each, shipped in 1.5.0 with Security. Lists' field recreation, unconditional list `breakRoleInheritance` and `RemoveExistingViews` on every run are only pinned (`{ todo }`) and get their own spec. | Each fix is small and tested; the Lists behaviours change data on consumer sites. |
 | D5 | Tenant CI: `workflow_dispatch` only, from `main`, behind a protected GitHub environment with required reviewers, a concurrency group, `INTEGRATION_STRICT=true`. Offline CI (build, typecheck, unit and contract tests, coverage floors, lint once fixed, `check-skills`, `npm pack` check) on every pull request and push to `main`. No push-triggered tenant runs. | The repository is public and the certificate likely grants tenant-wide `Sites.FullControl.All`. |
 | D6 | Scope now: this spec plus Phase 0a. | The runner must work first. Its first live run is the first tenant evidence for Security, recorded in that spec's Verification Result; Security becomes Verified with `security.test.ts` in Phase 1, and 1.5.0 is cut then with D4's fixes. |
 
@@ -125,8 +125,8 @@ JUnit, skills gated by `check-skills`). This spec ports that shape to the engine
 | JSOM handlers | the smoke README, by hand | yes | until D3 |
 
 Ported from PP365 1.15: `configured()`, `authMode()`, both sign-in pipes, `connect(url)` with a
-stand-in SPFx context, `skipReason()` with `INTEGRATION_STRICT`, `appOnlyDenied()`, the
-reserved-site and read-back rules, `test:ci`, `check-skills.js`, the skill format.
+stand-in SPFx context, `skipReason()` with `INTEGRATION_STRICT`, the reserved-site and read-back
+rules, `test:ci`, `check-skills.js`, the skill format.
 Not ported: Jest/Heft, `pnpStub.js`, loader hooks, type stripping, a separate package, the
 Norwegian guide. Only `CI_*`, `INTEGRATION_AUTH`, `INTEGRATION_COOKIES_FILE`, `INTEGRATION_USER`
 and `INTEGRATION_STRICT` mean what they mean in PP365; PP365's `INTEGRATION_LOCALE` (the SPFx
@@ -188,31 +188,30 @@ Result.
 | Command | Phase | Does |
 |---|---|---|
 | `npm test`, `npm run typecheck:tests` | now | Offline unit tests (contract tests join in 2); type check. |
-| `npm run provision -- --package <path> [--site <url>] [--lang <locale>] [--mode hub\|cloud] [--handlers <csv>] [--parameters k=v,...] [--skip-taxonomy] [--strict] [--twice] [--dry-run]` | 0a | The runner. Phase 1 adds `--verify` and `--allow-site <url>`; Phase 2 adds `--mode project`. |
+| `npm run provision -- --package <path> [--site <url>] [--lang <locale>] [--mode hub\|cloud] [--handlers <csv>] [--parameters k=v,...] [--skip-taxonomy] [--strict] [--twice] [--dry-run]` | 0a | The runner. Phase 1 added `--allow-site <url>`; Phase 2 adds `--verify` and `--mode project`. |
 | `npm run test:ci`, `npm run test:coverage`, `npm run lint:check` | 0b | JUnit to `test-results/unit.xml`; coverage floors; lint without rewriting. |
-| `npm run check:tenant` | 1 | Reachability only: mode, site, scratch web, associated groups, term store, custom script, each missing permission named. |
-| `npm run test:integration -- [<Handler ...> \| all \| packages] [--keep]` | 1 | Reachability, then serial suites. No argument: every handler suite; `<Handler ...>`: those suites; `all` (2): the handler suites plus `everything.test.ts`; `packages` (2): `packages.test.ts`. `--keep` keeps scratch webs. |
-| `npm run test:integration:ci` | 1 | Strict, spec + JUnit to `test-results/integration.xml`. |
-| `npm run verify -- --package <path> [--site <url>] [--exact] [--json]` | 1 | Read-only template-versus-site diff; exit 1 on a finding. |
-| `npm run inspect -- [--site <url>] [--prefix <text>] [--out <file>]` | 1 | Read-only JSON dump of everything the handlers write. |
+| `npm run check:tenant` | 1 | Reachability only, strict: mode, site, scratch web, associated groups, term store, custom script, each missing permission named. |
+| `npm run test:integration -- [<Handler ...> \| all \| packages] [--keep]` | 1 | Reachability in its own process (the suites do not run when it fails), then serial suites. No argument: every handler suite; `<Handler ...>`: those suites; `all` (2): the handler suites plus `everything.test.ts`; `packages` (2): `packages.test.ts`. `--keep` keeps scratch webs. |
+| `npm run test:integration:ci` | 1 | Strict, spec + JUnit to `test-results/reachability.xml` and `test-results/integration.xml`. |
+| `npm run verify -- --package <path> [--site <url>] [--exact] [--json]` | 2 | Read-only template-versus-site diff; exit 1 on a finding. |
+| `npm run inspect -- [--site <url>] [--prefix <text>] [--out <file>]` | 2 | Read-only JSON dump of everything the handlers write. |
 | `npm run cleanup -- [--site <url>] [--webs] [--prefix <text>] [--older-than <age> \| --all] [--apply]` | 1 | Dry run unless `--apply`. |
 | `npm run check-skills` | 1 | Validates `.claude/skills`. |
 
 ```json
 "test:ci": "node -e \"require('node:fs').mkdirSync('test-results',{recursive:true})\" && tsx --tsconfig tests/tsconfig.json --test --test-reporter=spec --test-reporter-destination=stdout --test-reporter=junit --test-reporter-destination=test-results/unit.xml \"tests/unit/*.test.ts\"",
-"test:coverage": "tsx --enable-source-maps --tsconfig tests/tsconfig.json --test --experimental-test-coverage --test-coverage-include=\"src/**\" --test-coverage-lines=60 --test-coverage-branches=71 --test-coverage-functions=58 \"tests/unit/*.test.ts\"",
+"test:coverage": "tsx --enable-source-maps --tsconfig tests/tsconfig.json --test --experimental-test-coverage --test-coverage-include=\"src/**\" --test-coverage-lines=66 --test-coverage-branches=74 --test-coverage-functions=65 \"tests/unit/*.test.ts\"",
 "lint:check": "eslint --ext .ts ./src && prettier \"**/*.ts*\" --check",
-"check:tenant": "tsx --tsconfig tests/tsconfig.json tests/integration/run.ts reachability",
+"check:tenant": "tsx --tsconfig tests/tsconfig.json tests/integration/run.ts reachability --strict",
 "test:integration": "tsx --tsconfig tests/tsconfig.json tests/integration/run.ts",
 "test:integration:ci": "tsx --tsconfig tests/tsconfig.json tests/integration/run.ts --ci",
-"verify": "tsx --tsconfig debug/tsconfig.json debug/verify.ts",
-"inspect": "tsx --tsconfig debug/tsconfig.json debug/inspect.ts",
 "cleanup": "tsx --tsconfig debug/tsconfig.json debug/cleanup.ts",
 "check-skills": "node ./.tasks/check-skills.js"
 ```
 
 From Phase 2, `test`, `test:ci` and `test:coverage` run
-`"tests/unit/*.test.ts" "tests/contract/*.test.ts"`.
+`"tests/unit/*.test.ts" "tests/contract/*.test.ts"`, and `verify` and `inspect` join as
+`tsx --tsconfig debug/tsconfig.json debug/<name>.ts`.
 
 Later phases add to `.env.example`: `INTEGRATION_KEEP`, `INTEGRATION_SCRATCH=suite|run` (1),
 `INTEGRATION_HOSTING_DIR`, `INTEGRATION_PACKAGES=testprosjekt|all` (2).
@@ -233,16 +232,24 @@ Later phases add to `.env.example`: `INTEGRATION_KEEP`, `INTEGRATION_SCRATCH=sui
 ### Target site, scratch webs and the site guard (D2)
 
 - The reserved site is a modern team site with subsite creation enabled. Its URL lives in `.env`
-  and a GitHub environment variable, never in the repository. It need not be group-connected.
+  and a GitHub environment variable, never in the repository. It need not be group-connected (the
+  one in use is, `GROUP#0`). Subsite creation was disabled in the tenant ("Disable subsite
+  creation for all sites" also refuses `webs.add` through the API: "Nye sekundære områder er ikke
+  tilgjengelige for organisasjonen"); it was enabled on 2026-10-21 for D2. Custom script is
+  blocked on the reserved site (NoScript); `check:tenant` reports it.
 - Scratch web (`debug/lib/scratch.ts`, Phase 1): `webs.add(title, url, '', 'STS#3', lcid, false)`
   with title `SPJS Itest <suite> <stamp>`, url `spjs-itest-<suite>-<stamp>` and the reserved web's
   language, so it has unique permissions; then `createDefaultAssociatedGroups(title, owner)`.
-  PnPjs 4.21 calls `breakRoleInheritance(false, true)` first, then the REST method. The owner is
-  the signed-in user (cookies) or `INTEGRATION_USER` (certificate). `<stamp>` is UTC
-  `yyMMddHHmmss`, so age is readable from names. One web per suite file by default;
-  `INTEGRATION_SCRATCH=run` shares one per invocation. The web, its associated groups and the
-  stamped fixture groups (site groups outlive the web) are deleted in `after` unless kept. Only
-  site-collection-scoped artefacts need the stamp; fixtures get it through `{sitename}`.
+  PnPjs 4.21 calls `breakRoleInheritance(false, true)` first, then the REST method. A web created
+  with unique permissions has no associated groups until then. Under NoScript the call answers 403
+  although it creates and associates the groups (observed 2026-10-21), so a 403 is accepted when all
+  three groups are there afterwards. The owner is the signed-in user (cookies) or
+  `INTEGRATION_USER` (certificate). `<stamp>` is UTC `yyMMddHHmmss`, so age is readable from names.
+  One web per suite file by default; `INTEGRATION_SCRATCH=run` shares one per invocation. The web
+  and the site groups whose title starts with the web's title (its associated groups, and fixture
+  groups named through `{sitename}`) are deleted in `after` unless kept; site groups outlive the
+  web. Groups are matched by the whole title, not the stamp: two suites started in the same second
+  share a stamp, and a stamp-only match deleted another suite's groups during Phase 1.
 - Site guard (`assertWritable(url)` in `connect.ts`, Phase 1): `provision`, `cleanup` and every
   suite refuse a target that is not `INTEGRATION_SITE_URL` or a web below it (case-insensitive
   path prefix). `--allow-site <url>` (equal to `--site`) is the override for `provision` and
@@ -255,8 +262,8 @@ Later phases add to `.env.example`: `INTEGRATION_KEEP`, `INTEGRATION_SCRATCH=sui
   Reachability prints it; `customactions-script` and `propertybag` skip with "custom script is
   blocked (DenyAddAndCustomizePages); an SPO admin must allow it".
 - Cleanup (dry run unless `--apply`): `--webs` removes `spjs-itest-*` subwebs older than
-  `--older-than` (default 2 h; `--all` ignores age) and `SPJS Itest ...` groups whose stamp is older
-  or whose web is gone; `--prefix` removes prefixed artefacts from one web in dependency order
+  `--older-than` (default 2 h; `--all` ignores age) with their groups, and stamped `SPJS Itest ...`
+  groups older than that, whether or not their web is still there; `--prefix` removes prefixed artefacts from one web in dependency order
   (lists, content types, site fields, custom actions, navigation nodes, pages, site groups). The
   age threshold keeps a run from deleting another's webs; reachability reports younger scratch
   webs as "another run may be active". The 0a smoke run's artefacts on the reserved root go with
@@ -264,35 +271,51 @@ Later phases add to `.env.example`: `INTEGRATION_KEEP`, `INTEGRATION_SCRATCH=sui
 
 ### Harness (Phase 1)
 
-- `debug/lib/apply.ts`: `apply(conn, schema, { handlers?, parameters? })` returns
-  `{ logs, order, error? }` instead of throwing; `handlers` defaults to `planHandlers()`, and the
-  dropped ones are printed.
+- `debug/lib/apply.ts`: `apply(conn, schema, { handlers?, parameters?, prefix?, onHandler? })`
+  returns `{ order, skipped, entries, errors, warnings, error? }` instead of throwing; `handlers`
+  defaults to `planHandlers()`. Quiet without `prefix` (no console listener).
+- `debug/lib/redact.ts`: `redact()` and `describeError()`. Failures are reported by message only:
+  a `ProvisioningError`'s `cause.response` holds the response headers, `Set-Cookie` included, and a
+  failing `assert.equal(result.error, undefined)` printed them (found in Phase 1). Cookie values,
+  bearer tokens and non-example SharePoint hosts are replaced.
 - `debug/lib/readback/<handler>.ts`: REST readers returning normalised plain objects.
 - `debug/lib/verify.ts`: `expectations(schema, conn)` applies the engine's per-field token rules
   (matrix), not a blanket `TokenHelper` pass; `diff()` returns `{ handler, path, expected, actual }`
   findings. Lists compare as a superset unless `RemoveExisting*`; `Skip` rows by key; pages with
   `Overwrite: false` and custom actions by existence; navigation URLs only with `IgnoreExisting`.
   `--exact` compares everything on a fresh scratch web.
-- `debug/lib/cleanup.ts`; `debug/{verify,inspect,cleanup}.ts` as thin CLIs.
+- `debug/lib/cleanup.ts`; `debug/{verify,inspect,cleanup}.ts` as thin CLIs. Phase 1 delivered
+  `cleanup`; `verify` and `inspect` moved to Phase 2 (the suites' readers are their basis).
 - `tests/integration/run.ts` maps handler names to files and spawns
-  `tsx --tsconfig tests/tsconfig.json --test --test-concurrency=1` (reachability first); `--ci`
-  creates `test-results/`, sets `INTEGRATION_STRICT=true` and adds spec and JUnit reporters.
-- `tests/integration/helpers.ts`: `skipReason`, `withScratchWeb`, `applyTwice`, `hookServer`.
-  `tests/fixtures/fixtures.ts`: `loadFixture(name)`.
-- `.gitignore` whitelists `debug/verify.ts`, `debug/inspect.ts` and `debug/cleanup.ts`.
+  `tsx --tsconfig tests/tsconfig.json --test --test-concurrency=1`, reachability in a spawn of its
+  own first (`node --test` sorts the files it is given, so one spawn ran it in alphabetical place,
+  after ComposedLook); `--ci` creates `test-results/`, sets `INTEGRATION_STRICT=true` and adds
+  spec and JUnit reporters.
+- `tests/integration/helpers.ts`: `skipReason`, `withScratchWeb`, `applyTwice`, `assertClean`;
+  `tests/integration/hookserver.ts`: the local listener for Hooks. `tests/fixtures/fixtures.ts`:
+  `loadFixture(name, { user, hookUrl })`. A handler name selects its suites
+  (`Lists` runs `lists` and `lists-datarows`).
+- `.gitignore` whitelists `debug/cleanup.ts` and `debug/lib/` (Phase 1), then `debug/verify.ts`
+  and `debug/inspect.ts` (Phase 2).
   `tests/tsconfig.json` `include` adds `integration/**/*.ts`, `fixtures/**/*.ts` and
   `../debug/*.ts` (Phase 1), then `contract/**/*.ts` and `helpers/**/*.ts` (Phase 2).
 
 ### Test shape and assertion rules
 
 ```ts
-describe('Lists', { skip: skipReason('siteUrl') }, () => {
-  withScratchWeb('lists', (conn) => {
-    it('applies, reads back and changes nothing on a second apply', () =>
-      applyTwice(conn(), () => loadFixture('lists'), readLists))
+describe('Lists', { skip: skipReason() }, () => {
+  const scratch = withScratchWeb('lists')
+  it('applies, reads back and changes nothing on a second apply', async () => {
+    const { conn } = scratch()
+    const { afterFirst } = await applyTwice(conn, () => loadFixture('lists'), (c) =>
+      readLists(c, [TASKS, DOCS])
+    )
+    // assertions on afterFirst, with tenant values read in the test
   })
 })
 ```
+
+As built in Phase 1 (`docs/TESTING.md` has the reference suite).
 
 1. Read back through REST and compare with the fixture. Tenant-dependent values (role definition
    ids, group ids, web part component ids) are read in the same test.
@@ -310,8 +333,9 @@ describe('Lists', { skip: skipReason('siteUrl') }, () => {
    (User values, members in certificate mode) and `@@hookUrl@@` (Hooks `Url`). No token in a
    `KeyColumn` value.
 6. A missing site or sign-in skips the `describe` (`skipReason`), and throws under
-   `INTEGRATION_STRICT=true`. A missing permission (`appOnlyDenied`, 403 in certificate mode), user
-   or custom script skips the test naming it. No retries: a flaky call becomes `{ todo }` and an
+   `INTEGRATION_STRICT=true`. A refused sign-in fails `before` with what to do (`accessDenied()`
+   in `connectToSite()`). A missing permission (a 403 in certificate mode, checked in the test, as
+   reachability does for the term store), user or custom script skips the test naming it. No retries: a flaky call becomes `{ todo }` and an
    issue. Known defects are pinned with `{ todo }`.
 
 ### Per-handler matrix
@@ -336,29 +360,52 @@ Token reach: T = `TokenHelper` (`{listid:}`, `{listviewid:}`, `{webid}`/`{siteid
 | PropertyBagEntries (8) | no: `reject()` with `undefined` | none | `web.allProperties()`, `vti_indexedpropertykeys` | same | skips (D3, NoScript); D4 `Error` (0b); writes only `Overwrite: true` entries (pinned) |
 | Navigation (9) | yes, shims | U in `Url` only | `quicklaunch()`, `topNavigationBar()`, children: titles, URLs, order | same count and order (new ids) | deletes all nodes first (scratch defaults vanish: asserted); an existing title keeps its URL unless `IgnoreExisting` (B) |
 | WebSettings (10) | yes, shims (old `HANDLERS` omitted it) | U in string values | `web.select(...)`, `rootFolder.select('WelcomePage')` | same | D4: apply without `WelcomePage` (1); master page and CSS URLs out of the fixture (NoScript) |
-| Hooks (11) | yes (global `fetch`) | none | a local `node:http` listener (reachable: hooks run in the calling process) records method, headers, body with merged `allProperties()` | called again by design | D4: resolve after 202 then 2xx (1); relative `Location` `{ todo }` |
+| Hooks (11) | yes (global `fetch`) | none | a local `node:http` listener (reachable: hooks run in the calling process) records method, headers, body with merged `allProperties()` | called again by design | D4: resolve after 202 then 2xx, a relative `Location`, a 202 without one, a failed poll (1, fixed) |
 | WebProvisioner | | | order from `progressCallback` = `DefaultHandlerSort`; `handlers` filter; `Parameters`/`Version` ignored; tokens equal site values | | D4 (0b) |
 
 ### Engine defects (D4)
 
 | Defect | Fix | Exposing test | Phase |
 |---|---|---|---|
-| Lists and ClientSidePages failures at Info | `log_error` for binding, list field add, view fields, root folder, folder, row, `addControl`; `log_warn` for a content type removal refused as in use; "field does not exist" stays Info | unit tests with throwing fakes asserting the level | 0b |
-| `ProvisioningError` reads `error.message` from any cause | readable message for non-`Error` and `undefined` causes, `.handler` kept, prototype restored (the ES5 build returns a plain `Error`, so `instanceof ProvisioningError` is false in `lib/`) | orchestration unit tests | 0b |
-| Files throws a string; PropertyBagEntries rejects with `undefined` and logs unprefixed | an `Error` naming the reason, logged through `log_error` | unit tests; `--handlers Files` | 0b |
-| `ConsoleListener` subscribed on every `applyTemplate` | once per process; the runner's `startRun()` then subscribes its collector once and clears it per run, since its `Logger.clearSubscribers()` would remove that listener before run 2 | `webprovisioner.test.ts`: `applyTemplate` twice (same and a new provisioner, `logging` set) leaves one `ConsoleListener`; then `provision --twice` printing each line once is also evidence | 0b |
-| `this.config.logging.prefix` read unguarded | optional chaining, as `logWarning` does | `setup({})` unit test | 0b |
-| Security: a group as `Owner` is not applied (found by the 0a tenant run, 2026-10-21): `SetUserAsOwner` answers success for a group id and changes nothing, and the handler logs success | CSOM `Group.Owner` over `_vti_bin/client.svc/ProcessQuery` when the principal is a group (`SetUserAsOwner` kept for users); read the owner back and `log_error` on a mismatch | unit test with a fake web that ignores the call (asserts the logged error); `provision --twice --strict` on `smoke.json` plus a read-back of `Owner` | 0b |
-| WebSettings updates the web only with `WelcomePage` | update whenever other keys are set; no empty update | `tests/unit/websettings.test.ts` (fake web: `update` without `WelcomePage`, no empty update); `tests/integration/websettings.test.ts` | 1 |
-| Hooks hangs after 202 then 200 | resolve on a non-202 2xx | fake-`fetch` unit test, `hooks.test.ts` | 1 |
-| `src/util` reads `window`/`document` unconditionally | origin from `spfxContext.pageContext.web.absoluteUrl`, `_spPageContextInfo` only with `window`, `new URL` in `makeUrlRelative`, `Buffer` when `btoa` is missing; runner shims removed | `tests/unit/util.test.ts` without `window`, and with a fake `window` for browser precedence | 1 |
-| `{hosturl}` ends in `:` | the guard yields the origin; CHANGELOG calls it out under Changed as consumer-visible | `tests/unit/util.test.ts` pins the string | 1 |
+| Lists and ClientSidePages failures at Info | `log_error` for binding, list field add, view fields, root folder, folder, row, `addControl`; `log_warn` for a content type removal refused as in use; "field does not exist" stays Info | unit tests with throwing fakes asserting the level | 0b, done |
+| `ProvisioningError` reads `error.message` from any cause | readable message for non-`Error` and `undefined` causes, `.handler` kept, prototype restored (the ES5 build returns a plain `Error`, so `instanceof ProvisioningError` is false in `lib/`) | orchestration unit tests | 0b, done |
+| Files throws a string; PropertyBagEntries rejects with `undefined` and logs unprefixed | an `Error` naming the reason, logged through `log_error` | unit tests; `--handlers Files` | 0b, done |
+| `ConsoleListener` subscribed on every `applyTemplate` | once per process; the runner's `startRun()` then subscribes its collector once and clears it per run, since its `Logger.clearSubscribers()` would remove that listener before run 2 | `webprovisioner.test.ts`: `applyTemplate` twice (same and a new provisioner, `logging` set) leaves one `ConsoleListener`; then `provision --twice` printing each line once is also evidence | 0b, done |
+| `this.config.logging.prefix` read unguarded | optional chaining, as `logWarning` does | `setup({})` unit test | 0b, done |
+| Security: a group as `Owner` is not applied (found by the 0a tenant run, 2026-10-21): `SetUserAsOwner` answers success for a group id and changes nothing, and the handler logs success | CSOM `Group.Owner` over `_vti_bin/client.svc/ProcessQuery` when the principal is a group (`SetUserAsOwner` kept for users); read the owner back and `log_error` on a mismatch | unit test with a fake web that ignores the call (asserts the logged error); `provision --twice --strict` on `smoke.json` plus a read-back of `Owner` | 0b, done |
+| WebSettings updates the web only with `WelcomePage` | update whenever other keys are set; no empty update | `tests/unit/websettings.test.ts` (fake web: `update` without `WelcomePage`, no empty update); `tests/integration/websettings.test.ts` | 1, done |
+| Hooks hangs after 202 then 200 | resolve on a non-202 2xx | fake-`fetch` unit test, `hooks.test.ts` | 1, done |
+| `src/util` reads `window`/`document` unconditionally | origin from `spfxContext.pageContext.web.absoluteUrl`, `_spPageContextInfo` only with `window`, `new URL` in `makeUrlRelative`, `Buffer` when `btoa` is missing; runner shims removed | `tests/unit/util.test.ts` without `window`, and with a fake `window` for browser precedence | 1, done |
+| `{hosturl}` ends in `:` | the guard yields the origin; CHANGELOG calls it out under Changed as consumer-visible | `tests/unit/util.test.ts` pins the string | 1, done |
+| Each handler and `applyTemplate` ran on the caller's web instance; PnPjs 4's `select()` mutates it, so a `$select` left by a handler (ClientSidePages and Files read `ServerRelativeUrl`, web `Security` `HasUniqueRoleAssignments`) made the next run load only that property: `{sitename}`, `{webid}`, `{siteid}` unresolved (found by the Security suite: groups named "{sitename} Readers") | `onSetup` reads `Web(this.web)()`; each handler gets `Web(this.web)` | `webprovisioner.test.ts`: a stale `$select` is not sent; no `$select` left after a handler read the web | 1, done |
+| `{associated...groupid}` on a web without that group (one that inherits) sent `principalid=undefined` | an error naming the missing group | `security.test.ts` (unit) | 1, done |
+| Features is not idempotent: `add` on an active feature answers 500, `remove` on an inactive one 400, so a second apply stopped the template | read the active features once; skip what is already in the requested state (Info); `force` still re-activates | `tests/unit/features.test.ts`; `features.test.ts` (second apply) | 1, done |
+| ComposedLook without `FontSchemeUrl` threw a `TypeError` in `replaceUrlTokens` | send `null`, as for the background image; both optional in `IComposedLook` | `tests/unit/composedlook.test.ts`; `composedlook.test.ts` | 1, done |
+| WebSettings with `WelcomePage` failed under Node: `import * as omit from 'object.omit'` is not callable as a namespace | object rest instead of `object.omit` | `tests/unit/websettings.test.ts` | 1, done |
+| Hooks: a failed poll request escaped as an unhandled rejection; a 202 without `Location` polled `null` (in a browser a GET to `<page folder>/null` with the hook's headers); a relative `Location` failed in Node and went to the SharePoint page in a browser | the poll rejects; no `Location` rejects naming the hook; the `Location` is resolved against the hook's URL | `tests/unit/hooks.test.ts` | 1, done |
+| Hooks: a request that could not be sent (network, CORS) failed as a bare "Failed to fetch", naming no hook; the poll `Location` was resolved against the hook's URL, which a relative hook URL (valid in a browser) made throw (found by the closing Phase 1 reviews) | the error names the hook, as an error status does; the `Location` is resolved against the URL that answered | `tests/unit/hooks.test.ts` | 1, done |
+| ClientSidePages: tokens were replaced in the JSON text of web part properties, so a `{sitename}` or `{parameter:}` value with a quote or a backslash made `JSON.parse` throw and the page lost the part (pre-existing; found by the final Phase 1 review) | replace in each string (`mapStrings`) | `tests/unit/clientsidepages.test.ts`, `util.test.ts` | 1, done |
 
 Phase 2's contract tests pin the same behaviour on the wire.
 
-Pinned only, for the Lists spec: field delete-and-recreate, unconditional list
-`breakRoleInheritance`, `RemoveExistingViews` scope, the raw `KeyColumn` match, silent unresolved
-lookups.
+Pinned only (`{ todo }` with the evidence), each for its own change:
+
+- Lists, for the Lists spec: field delete-and-recreate (a value in a list `Fields` column is lost
+  on every re-apply; the hosting packages' Fasesjekkliste lists use `Fields` with `Skip`),
+  unconditional list `breakRoleInheritance` (SharePoint ignores it today), `RemoveExistingViews`
+  (it deletes every view on every run, the template's own included, and adds them again with new
+  ids), the raw `KeyColumn` match (a token in a key value adds the row on every run), silent
+  unresolved lookups (a single Lookup is dropped; a LookupMulti entry fails the whole row with 400
+  and a message that does not name it), and a URL value's default `Description` keeping the raw
+  token.
+- SiteFields: `{listid:}` for a list from the same template stays literal on the first run, and
+  SharePoint accepts it without an error or warning (SiteFields runs before Lists).
+- Navigation: the handler deletes every node before adding the template's; a node SharePoint
+  refuses stops the run and leaves the menu with only the nodes added before it.
+- Not defects, recorded: classic custom actions (ScriptLink, EditControlBlock, StandardMenu) are
+  refused under NoScript, only `ClientSideExtension.*` actions get through; `{site}` on a subweb is
+  the site collection's URL (documented); PnPjs's `loadClientsidePage().commentsDisabled` reads
+  `false` for a page whose comments are disabled (the reader uses the file's item).
 
 ### Fixtures and hosting packages
 
@@ -403,7 +450,8 @@ lookups.
   68.02 / 77.65 / 77.48 and 73.94 / 76.91 / 79.89 were such figures). The floors start at the
   source-mapped measurement when they were first enforced, at the end of 0b (2026-10-21):
   61.03 / 72.18 / 59.18 (lines, branches, functions; `src/**`), set one point below as 60/71/58
-  so small differences between machines do not fail the check. They only rise.
+  so small differences between machines do not fail the check. They only rise: raised at the end
+  of Phase 1 to 66/74/65 (measured 67.09 / 75.05 / 65.91).
 - Phase 2: `tests/contract/` turns the recording web of `webprovisioner.test.ts` into a fake
   transport (`on.send.replace`, canned `Response` bodies, recorded `{ url, method, body }`, an
   SPFx-style relative mode) pinning wire shapes (`createfieldasxml`, `$top=5000`, OData escaping,
@@ -437,8 +485,9 @@ lookups.
   "Typical task", dated "Pitfalls", "Verification checklist", "Do not".
 - Phase 1: `spjs-testing` (layers, commands, fixture rules, matrix, failure triage) and
   `spjs-provision` (sign-in, flags, `hub`/`cloud`/`project` versus PackageInstaller, reading logs,
-  what `--strict`/`--twice`/`--verify` prove). Phase 2: `spjs-handlers` (adding a handler, token
-  reach, throw versus log, required tests) and `spjs-release` (`postversion` publishes; PP365 pin).
+  what `--strict`/`--twice` prove; `--verify` in Phase 2). Phase 2: `spjs-handlers` (adding a
+  handler, token reach, throw versus log, required tests) and `spjs-release` (`postversion`
+  publishes; PP365 pin).
   Every "Do not" includes: never run `provision` or `cleanup` against a site the user did not
   name; tenant suites only with the user's go-ahead; never print a secret or commit `.env`; never
   lower a floor or delete an assertion to go green.
@@ -459,7 +508,7 @@ spike re-tests it.
 |---|---|---|---|
 | 0a. A runner you can trust | As above | S | Done 2026-10-21: first tenant run green twice, recorded in the Security spec; it found the group-owner defect (D4) |
 | 0b. Offline CI and log levels | `ci.yml`, lint fix, `test:ci` (mkdir), coverage floors, `npm pack` check; D4's log-level and `ProvisioningError` fixes (Lists/ClientSidePages levels, non-`Error` and `undefined` causes, Files/PropertyBagEntries `Error`s) plus two small logging guards (`ConsoleListener` once, `logging.prefix`); `tests/fixtures/templates/failures.json` (a list whose `Fields` holds a well-formed Lookup to a missing list, a `Files` entry, a `PropertyBagEntries` entry) | S-M | Done 2026-10-21: the CI sequence green locally (77 unit tests; source-mapped coverage 61.03/72.18/59.18, floors 60/71/58); the three `failures.json` runs exit 1 with the handler and a readable message; `smoke.json --twice --strict` green with each line printed once and both group owners read back as set (also the Security owner defect). Pending: the first `ci.yml` run on GitHub and branch protection. |
-| 1. Every Node-capable handler against a site | Site guard; scratch webs with associated groups; reachability with the NoScript probe; `apply`, readers, `verify`, `inspect`, `cleanup`; suites and fixtures for the ten Node-capable handlers, skipping suites for the four JSOM ones; D4's Phase 1 fixes; `AGENTS.md`, `docs/TESTING.md`, two skills, `check-skills` (in `ci.yml`); the gulp-era `.vscode/launch.json`, `.vscode/tasks.json` and `settings.example.js` removed; the Security spec's Verification Plan amended for D2 and Security Verified | M-L | |
+| 1. Every Node-capable handler against a site | Site guard; scratch webs with associated groups; reachability with the NoScript probe; `apply`, readers, `verify`, `inspect`, `cleanup`; suites and fixtures for the ten Node-capable handlers, skipping suites for the four JSOM ones; D4's Phase 1 fixes; `AGENTS.md`, `docs/TESTING.md`, two skills, `check-skills` (in `ci.yml`); the gulp-era `.vscode/launch.json`, `.vscode/tasks.json` and `settings.example.js` removed; the Security spec's Verification Plan amended for D2 and Security Verified | M-L | Done 2026-10-21 (`verify` and `inspect` moved to Phase 2): `check:tenant` green; `npm run test:integration` 45 tests, 34 pass, 10 `todo`, 1 skipped, 0 fail, in about 9 minutes, nothing left behind (green on the final code and twice in a row before its last transport change; one run in between was throttled and green again on rerun); 15 suites (10 Node handlers in 11 suites, plus the JSOM four skipping) and reachability; the Security spec Verified. D4's four Phase 1 fixes done; the suites also found 10 engine defects the plan did not list, 6 fixed with tests and 4 pinned (D4); the closing reviews found 2 more, fixed with unit tests. The runs also found two harness defects, fixed: `node --test` sorts its files (reachability ran in alphabetical place), and a request that hung for 3 x 300 s left a scratch web behind. |
 | 2. Depth, packages, schema | DataRows value matrix (DateTime under `TZ` Europe/Oslo, UTC, Asia/Tokyo); `all.node.json`; contract tests; `--mode project`; `packages.test.ts`; `schema.json`; floors raised; two skills | M | |
 | 3. Tenant CI | `integration.yml`, the `tenant` environment | S | |
 | 4. JSOM exit | Own spec (D3) | S + L | |
@@ -488,9 +537,9 @@ spike re-tests it.
   Node-capable fixture twice on scratch webs, reads back, asserts stability and zero logged
   errors, deletes the webs and their groups, and passes twice in a row; without `.env` every
   suite skips naming the variable, and with `INTEGRATION_STRICT=true` it fails.
-  `npm run test:integration -- Lists --keep` plus `npm run verify` on the kept web reports zero
-  findings; `npm run cleanup -- --webs` deletes nothing and `npm run cleanup -- --webs --apply`
-  does. `provision`, `cleanup` and the suites refuse a site outside `INTEGRATION_SITE_URL`. The
+  `npm run test:integration -- Lists --keep` plus `npm run verify` (Phase 2) on the kept web
+  reports zero findings; `npm run cleanup -- --webs --older-than 0m` (no other run active) lists
+  the kept web and deletes nothing, and the same with `--apply` deletes it and its groups. `provision`, `cleanup` and the suites refuse a site outside `INTEGRATION_SITE_URL`. The
   Security spec's Verification Plan reads "a scratch subweb with unique permissions and its own
   associated groups (D2)" in place of "fresh group-connected site" (the second-run and
   group-owner scenarios stay; the 0a smoke run is its first tenant evidence), and the spec is
@@ -513,7 +562,8 @@ spike re-tests it.
 - 1: `npm run check:tenant` in cookie mode (certificate mode once the app is granted);
   `npm run test:integration` twice; `npm run test:integration -- Lists --keep`, then
   `npm run inspect` and `npm run verify -- --package tests/fixtures/templates/lists.json` on the
-  kept web; `npm run cleanup -- --webs`, then `npm run cleanup -- --webs --apply`;
+  kept web (Phase 2); `npm run cleanup -- --webs --older-than 0m`, then the same with `--apply`
+  (webs younger than 2 h are otherwise left for a run that may be active);
   `INTEGRATION_STRICT=true npm run test:integration` without `INTEGRATION_SITE_URL` exits 1;
   `npm run provision -- --site <other site> --package tests/fixtures/templates/smoke.json` is
   refused; an agent given "test the Lists handler against my site" reaches

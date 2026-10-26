@@ -3,7 +3,15 @@ import { spfi, SPFI } from '@pnp/sp'
 import '@pnp/sp/presets/all'
 import { IWeb } from '@pnp/sp/presets/all'
 import { signedIn } from './auth'
-import { AuthMode, authMode, env, IEnv } from './env'
+import { UsageError } from './cli'
+import {
+  AuthMode,
+  authMode,
+  env,
+  IEnv,
+  isWithinSite,
+  normaliseSiteUrl
+} from './env'
 
 /**
  * What `_api/site` says about the site collection.
@@ -98,7 +106,11 @@ export async function connect(
   return {
     url: siteUrl,
     sp,
-    web: sp.web,
+    // A fresh queryable on every use: PnPjs 4's `select()` sets the query on the instance, so a
+    // shared one would carry a reader's `$select` into the next request.
+    get web() {
+      return sp.web
+    },
     siteInfo,
     webInfo,
     context: spfxContext(siteInfo, webInfo),
@@ -125,7 +137,53 @@ export function accessDenied(
     mode === 'certificate'
       ? 'The app (CI_CLIENT_ID) needs Sites.FullControl.All, or Sites.Selected with a grant on the site.'
       : "The cookie session is PP365's e2e user (E2E_USERNAME in prosjektportalen365/e2e/.env): " +
-        'make that account an owner (or site collection administrator) of the site. If it already ' +
-        'is, renew the session with `npx playwright test --project=setup` in prosjektportalen365/e2e.'
+        'make that account a site collection administrator of the site (the tests need it; ' +
+        '`provision` alone needs an owner). If it already is, renew the session with ' +
+        '`npx playwright test --project=setup` in prosjektportalen365/e2e.'
   return `SharePoint refused the ${mode} sign-in to ${site} (${status}).\n${account}`
+}
+
+/**
+ * Refuses a write target that is not the reserved site (`INTEGRATION_SITE_URL`) or a web below
+ * it, unless the caller names that exact target with `--allow-site`. A template run cannot be
+ * undone, so nothing writes to a site by accident (a customer hub, PP365's test sites).
+ *
+ * @param target - The site a command is about to write to
+ * @param allowSite - `--allow-site`: the target, repeated to confirm it
+ * @param configuration - The configuration
+ */
+export function assertWritable(
+  target: string,
+  allowSite?: string,
+  configuration: IEnv = env
+): void {
+  const normalised = normaliseSiteUrl(target)
+  if (!normalised)
+    throw new UsageError(
+      `Refusing to write to ${target}: not a plain http(s) URL (no encoded dots or slashes)`
+    )
+  if (allowSite && normaliseSiteUrl(allowSite) === normalised) return
+  if (configuration.siteUrl && isWithinSite(target, configuration.siteUrl))
+    return
+  throw new UsageError(
+    `Refusing to write to ${target}: it is not INTEGRATION_SITE_URL (${
+      configuration.siteUrl ?? 'not set'
+    }) or a web below it. Pass --allow-site ${target} to write there anyway.`
+  )
+}
+
+/**
+ * After connecting: refuses a web SharePoint reports outside the reserved site, whatever the URL
+ * given looked like (the last line of the site guard).
+ *
+ * @param conn - The connection
+ * @param allowSite - `--allow-site`, as given
+ * @param configuration - The configuration
+ */
+export function assertConnectedWritable(
+  conn: ISiteConnection,
+  allowSite?: string,
+  configuration: IEnv = env
+): void {
+  assertWritable(conn.webInfo.Url, allowSite, configuration)
 }

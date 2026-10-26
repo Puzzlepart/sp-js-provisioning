@@ -55,6 +55,9 @@ jobs:
       - name: No tenant URLs, cookies, tokens or certificates committed
         run: npm run check:secrets
 
+      - name: Agent skills are valid and in one place
+        run: npm run check-skills
+
       - uses: actions/upload-artifact@v7
         if: always()
         with:
