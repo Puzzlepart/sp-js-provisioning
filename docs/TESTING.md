@@ -131,18 +131,18 @@ Never delete an assertion or lower a coverage floor to make a run green.
 
 ## Per-handler status
 
-Measured on 2026-10-21 with `npm run test:integration` against the reserved site: 45 tests (6
-reachability, 39 in the suites), 34 pass, 10 `todo` (pinned defects), 1 skipped (custom script
-blocked), 0 fail; about 9 minutes; nothing left behind. Green on the final code and on the two runs
-before its last transport change; one run between them was throttled (see When a test fails).
+Measured on 2026-10-27 with `npm run test:integration` against the reserved site, after the
+[Lists re-apply spec](./specs/lists-re-apply.md): 51 tests (6 reachability, 45 in the suites), 48
+pass, 2 `todo` (pinned defects), 1 skipped (custom script blocked), 0 fail; about 9 minutes; nothing
+left behind. (Phase 1, 2026-10-21: 45 tests, 34 pass, 10 `todo`.)
 
 | Handler | Suite | Fixture | Status | Pinned (`todo`) |
 | --- | --- | --- | --- | --- |
 | SiteFields | `sitefields.test.ts` | `sitefields.json`, `.b.json` | green | `{listid:}` for a list of the same template stays literal on the first run, silently |
 | Features | `features.test.ts` | `features.json`, `.b.json` | green | — (re-apply fixed in Phase 1) |
 | Security | `security.test.ts` | `security.json` | green (also a list granted to a group of the same template, and `ClearExistingMembers` removing a member added since) | — |
-| Lists | `lists.test.ts` | `lists.json` | green; the tests after the first build on its lists, so run the file whole | list `Fields` columns are deleted and recreated (values lost); `breakRoleInheritance` on every run; `RemoveExistingViews` deletes and re-adds every view on every run |
-| Lists (DataRows) | `lists-datarows.test.ts` | `lists-datarows.json`, `.b.json` | green; the tests after the first build on its lists, so run the file whole | values lost with `Skip`; a token in a key adds the row each run; URL `Description` keeps the raw token; an unresolved Lookup is dropped silently; an unresolved LookupMulti entry fails the row |
+| Lists | `lists.test.ts` | `lists.json`, `.b.json` | green; the tests after the first build on its lists, so run the file whole | — (re-apply without data loss, [spec](./specs/lists-re-apply.md)) |
+| Lists (DataRows) | `lists-datarows.test.ts` | `lists-datarows.json`, `.b.json` | green; the tests after the first build on its lists, so run the file whole | — (key, URL and lookup defects fixed by the same spec) |
 | CustomActions | `customactions.test.ts` | `customactions.json`, `.b.json`, `customactions-script.json` | green; classic actions skip under NoScript | — (add-only behaviour asserted) |
 | ComposedLook | `composedlook.test.ts` | `composedlook.json` | green | — (palette-only look fixed in Phase 1) |
 | ClientSidePages | `clientsidepages.test.ts` | `clientsidepages.json`, `.b.json` | green | — |

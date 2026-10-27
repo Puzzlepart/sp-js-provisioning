@@ -61,10 +61,15 @@ function recording(conn: ISiteConnection, requests: string[]): ISiteConnection {
       get: () => {
         const web = conn.sp.web
         web.on.pre(function (url: string, init: any, result: any) {
+          // PnPjs sends MERGE and DELETE as a POST with X-HTTP-Method.
+          const tunnelled =
+            init &&
+            init.headers &&
+            new Headers(init.headers).get('X-HTTP-Method')
           requests.push(
-            `${(init && init.method) || 'GET'} ${decodeURIComponent(
-              url.slice(conn.url.length)
-            )}`
+            `${
+              tunnelled || (init && init.method) || 'GET'
+            } ${decodeURIComponent(url.slice(conn.url.length))}`
           )
           return Promise.resolve<[string, any, any]>([url, init, result])
         })
@@ -79,8 +84,9 @@ function recording(conn: ISiteConnection, requests: string[]): ISiteConnection {
  * properties, content type bindings, list fields (a LookupMulti to the other list through
  * `{listid:}` and `{siteid}`), field refs to site columns from the same template, views, a folder
  * tree and list permissions granted to the scratch web's associated groups. DataRows have their
- * own suite. Known defects (field recreation, unconditional `breakRoleInheritance`,
- * `RemoveExistingViews` on every run) are pinned as `todo` (docs/specs/integration-testing.md, D4).
+ * own suite. A re-apply changes no data (docs/specs/lists-re-apply.md): list fields are updated in
+ * place, `RemoveExistingViews` and `RemoveExistingContentTypes` act on lists made in this setup,
+ * and inheritance is broken only on a list that still inherits.
  *
  * The tests share one scratch web and run in order: the ones after the first build on the lists it
  * provisioned, so run the file whole (a name pattern that skips the first one fails them).
@@ -269,71 +275,64 @@ describe('Lists', { skip: skipReason() }, () => {
       )
   })
 
-  it(
-    'keeps the values in list Fields columns on a second apply',
-    {
-      todo:
-        'D4, pinned: processField deletes and recreates every list field on every run, so ' +
-        'the column values of existing items are lost (Text emptied, LookupMulti cleared)'
-    },
-    async () => {
-      const { conn } = scratch()
-      const item = await conn.web.lists.getByTitle(TASKS).items.add({
-        Title: 'SPJS Itest oppgave',
-        SPJSItestCode: 'K-1',
-        SPJSItestCategory: 'Plan'
+  it('keeps the values in list Fields columns on a second apply', async () => {
+    const { conn } = scratch()
+    const item = await conn.web.lists.getByTitle(TASKS).items.add({
+      Title: 'SPJS Itest oppgave',
+      SPJSItestCode: 'K-1',
+      SPJSItestCategory: 'Plan'
+    })
+    const root: {
+      ServerRelativeUrl: string
+    } = await conn.web.lists
+      .getByTitle(DOCS)
+      .rootFolder.select('ServerRelativeUrl')()
+    const added = await conn.web
+      .getFolderByServerRelativePath(root.ServerRelativeUrl)
+      .files.addUsingPath('spjs-itest.txt', 'SPJS Itest', {
+        Overwrite: true
       })
-      const root: {
-        ServerRelativeUrl: string
-      } = await conn.web.lists
-        .getByTitle(DOCS)
-        .rootFolder.select('ServerRelativeUrl')()
-      const added = await conn.web
-        .getFolderByServerRelativePath(root.ServerRelativeUrl)
-        .files.addUsingPath('spjs-itest.txt', 'SPJS Itest', {
-          Overwrite: true
-        })
-      const file = () =>
-        conn.web.getFileByServerRelativePath(added.ServerRelativeUrl)
-      await (await file().getItem()).update({
-        SPJSItestRelatedId: [item.Id],
-        SPJSItestCategory: 'Plan'
-      })
-      const values = async () => ({
-        item: await conn.web.lists
-          .getByTitle(TASKS)
-          .items.getById(item.Id)
-          .select('SPJSItestCode', 'SPJSItestCategory')<any>(),
-        file: await file().listItemAllFields.select(
-          'SPJSItestRelatedId',
-          'SPJSItestCategory'
-        )<any>()
-      })
-      const stored = await values()
-      assert.equal(stored.item.SPJSItestCode, 'K-1')
-      assert.deepEqual(stored.file.SPJSItestRelatedId, [item.Id])
+    const file = () =>
+      conn.web.getFileByServerRelativePath(added.ServerRelativeUrl)
+    await (await file().getItem()).update({
+      SPJSItestRelatedId: [item.Id],
+      SPJSItestCategory: 'Plan'
+    })
+    const values = async () => ({
+      item: await conn.web.lists
+        .getByTitle(TASKS)
+        .items.getById(item.Id)
+        .select('SPJSItestCode', 'SPJSItestCategory')<any>(),
+      file: await file().listItemAllFields.select(
+        'SPJSItestRelatedId',
+        'SPJSItestCategory'
+      )<any>()
+    })
+    const stored = await values()
+    assert.equal(stored.item.SPJSItestCode, 'K-1')
+    assert.deepEqual(stored.file.SPJSItestRelatedId, [item.Id])
 
-      assertClean(await apply(conn, loadFixture('lists')), 'the run')
+    assertClean(await apply(conn, loadFixture('lists')), 'the run')
 
-      const kept = await values()
-      // Field refs are updated in place: their values survive.
-      assert.equal(kept.item.SPJSItestCategory, 'Plan')
-      assert.equal(kept.file.SPJSItestCategory, 'Plan')
-      // List Fields are recreated: these do not (today null and []).
-      assert.deepEqual(
-        {
-          text: kept.item.SPJSItestCode,
-          lookupMulti: kept.file.SPJSItestRelatedId
-        },
-        { text: 'K-1', lookupMulti: [item.Id] },
-        'the values in the list Fields columns'
-      )
-    }
-  )
+    const kept = await values()
+    // Field refs are updated in place: their values survive.
+    assert.equal(kept.item.SPJSItestCategory, 'Plan')
+    assert.equal(kept.file.SPJSItestCategory, 'Plan')
+    // List Fields are updated in place, never deleted: these survive too (they used to be
+    // emptied on every run).
+    assert.deepEqual(
+      {
+        text: kept.item.SPJSItestCode,
+        lookupMulti: kept.file.SPJSItestRelatedId
+      },
+      { text: 'K-1', lookupMulti: [item.Id] },
+      'the values in the list Fields columns'
+    )
+  })
 
   it('keeps role assignments made on a list after the first apply', async () => {
-    // SharePoint ignores breakRoleInheritance on a list that already has unique permissions (even
-    // with clearSubscopes), so the unconditional call (pinned below) loses nothing today.
+    // The handler breaks inheritance only on a list that still inherits (below); SharePoint also
+    // ignores the call on one with unique permissions, even with clearSubscopes (probe 2026-10-26).
     const { conn } = scratch()
     const visitors = await conn.web.associatedVisitorGroup.select('Id')<{
       Id: number
@@ -355,83 +354,381 @@ describe('Lists', { skip: skipReason() }, () => {
     )
   })
 
-  it(
-    'does not break role inheritance again on a list that already has unique permissions',
-    {
-      todo:
-        'D4, pinned: processListSecurity calls breakRoleInheritance on every run, whether ' +
-        'or not the list already has unique permissions'
-    },
-    async () => {
-      const { conn } = scratch()
-      for (const title of [TASKS, DOCS])
-        assert.equal(
-          (await readList(conn, title)).HasUniqueRoleAssignments,
-          true
-        )
-      const requests: string[] = []
-      assertClean(
-        await apply(recording(conn, requests), loadFixture('lists')),
-        'the run'
-      )
-      assert.ok(
-        requests.some((request) => /addroleassignment/i.test(request)),
-        'the requests were recorded'
-      )
-      assert.deepEqual(
-        requests.filter((request) => /breakroleinheritance/i.test(request)),
-        []
-      )
-    }
-  )
+  it('does not break role inheritance again on a list that already has unique permissions', async () => {
+    const { conn } = scratch()
+    for (const title of [TASKS, DOCS])
+      assert.equal((await readList(conn, title)).HasUniqueRoleAssignments, true)
+    const requests: string[] = []
+    assertClean(
+      await apply(recording(conn, requests), loadFixture('lists')),
+      'the run'
+    )
+    assert.ok(
+      requests.some((request) => /addroleassignment/i.test(request)),
+      'the requests were recorded'
+    )
+    assert.deepEqual(
+      requests.filter((request) => /breakroleinheritance/i.test(request)),
+      []
+    )
+  })
 
-  it(
-    'replaces the existing views with the template views once, and keeps them on a second apply',
-    {
-      todo:
-        "D4, pinned: RemoveExistingViews deletes every view on every run, the template's own " +
-        'included, and adds them again: each re-apply gives the views new ids (links to them ' +
-        'break) and removes views users made since'
-    },
-    async () => {
-      const { conn } = scratch()
-      const title = 'SPJS Itest Visninger'
-      const template = () => ({
-        Lists: [
-          {
-            Title: title,
-            Description: 'RemoveExistingViews',
-            Template: 100,
-            ContentTypesEnabled: false,
-            RemoveExistingViews: true,
-            Views: [
-              {
-                Title: 'SPJS Itest Alle',
-                ViewFields: ['LinkTitle'],
-                AdditionalSettings: { DefaultView: true, RowLimit: 30 }
-              }
-            ]
-          }
-        ]
-      })
-      const views = async () =>
-        (
+  it('replaces the existing views with the template views once, and keeps them on a second apply', async () => {
+    const { conn } = scratch()
+    const title = 'SPJS Itest Visninger'
+    const template = () => ({
+      Lists: [
+        {
+          Title: title,
+          Description: 'RemoveExistingViews',
+          Template: 100,
+          ContentTypesEnabled: false,
+          RemoveExistingViews: true,
+          Views: [
+            {
+              Title: 'SPJS Itest Alle',
+              ViewFields: ['LinkTitle'],
+              AdditionalSettings: { DefaultView: true, RowLimit: 30 }
+            }
+          ]
+        }
+      ]
+    })
+    const views = async () =>
+      (
+        await conn.web.lists
+          .getByTitle(title)
+          .views.select('Id', 'Title', 'DefaultView')<
+          Array<{ Id: string; Title: string; DefaultView: boolean }>
+        >()
+      ).map(({ Id, Title, DefaultView }) => ({ Id, Title, DefaultView }))
+
+    // On the run that creates the list, only the template's views remain.
+    assertClean(await apply(conn, template()), 'the first run')
+    const first = await views()
+    assert.deepEqual(
+      first.map((view) => [view.Title, view.DefaultView]),
+      [['SPJS Itest Alle', true]]
+    )
+    // A view a user adds since survives the next apply, and the template's keeps its id.
+    await conn.web.lists
+      .getByTitle(title)
+      .views.add('SPJS Itest Brukerens', false, { RowLimit: 10 })
+    assertClean(await apply(conn, template()), 'the second run')
+    const second = await views()
+    assert.deepEqual(
+      second.filter((view) => view.Title === 'SPJS Itest Alle'),
+      first
+    )
+    assert.ok(
+      second.some((view) => view.Title === 'SPJS Itest Brukerens'),
+      'the view the user added'
+    )
+  })
+
+  it("keeps the OOTB view's URL when a template view has its title", async () => {
+    // Recreated, the view would get a URL from its title and links to AllItems.aspx would break.
+    const { conn } = scratch()
+    const title = 'SPJS Itest Standardvisning'
+    const ootb = conn.webInfo.Language === 1044 ? 'Alle elementer' : 'All Items'
+    const template = {
+      Lists: [
+        {
+          Title: title,
+          Description: 'RemoveExistingViews with the OOTB title',
+          Template: 100,
+          ContentTypesEnabled: false,
+          RemoveExistingViews: true,
+          Views: [
+            { Title: 'SPJS Itest Andre', ViewFields: ['LinkTitle'] },
+            { Title: ootb, ViewFields: ['LinkTitle', 'Modified'] }
+          ]
+        }
+      ]
+    }
+
+    assertClean(await apply(conn, template), 'the run')
+
+    const views = await conn.web.lists
+      .getByTitle(title)
+      .views.select('Title', 'DefaultView', 'ServerRelativeUrl')<
+      Array<{ Title: string; DefaultView: boolean; ServerRelativeUrl: string }>
+    >()
+    const kept = views.find((view) => view.Title === ootb)
+    assert.ok(kept, 'the OOTB view')
+    assert.match(kept.ServerRelativeUrl, /\/AllItems\.aspx$/)
+    assert.equal(kept.DefaultView, true)
+    assert.deepEqual(
+      views.map((view) => view.Title).sort(),
+      ['SPJS Itest Andre', ootb].sort()
+    )
+  })
+
+  it('sends no delete on a re-apply', async () => {
+    const { conn } = scratch()
+    const requests: string[] = []
+
+    assertClean(
+      await apply(recording(conn, requests), loadFixture('lists')),
+      'the run'
+    )
+
+    assert.ok(requests.length > 0, 'the requests were recorded')
+    assert.deepEqual(
+      requests.filter((request) => request.startsWith('DELETE')),
+      []
+    )
+  })
+
+  it('applies changed list Fields in place (B variant): same ids, values kept, and back', async () => {
+    const { conn } = scratch()
+    const item = await conn.web.lists
+      .getByTitle(TASKS)
+      .items.add({ Title: 'SPJS Itest B', SPJSItestCode: 'B-1' })
+    const read = async () => {
+      const field = (list: string, name: string) =>
+        conn.web.lists
+          .getByTitle(list)
+          .fields.getByInternalNameOrTitle(name)
+          .select('Id', 'Title', 'SchemaXml')<{
+          Id: string
+          Title: string
+          SchemaXml: string
+        }>()
+      const [code, related] = await Promise.all([
+        field(TASKS, 'SPJSItestCode'),
+        field(DOCS, 'SPJSItestRelated')
+      ])
+      const attributes = attributesOf(code.SchemaXml)
+      return {
+        code: {
+          Id: code.Id,
+          Title: code.Title,
+          MaxLength: attributes.MaxLength,
+          Description: attributes.Description
+        },
+        related: { Id: related.Id, Title: related.Title },
+        value: (
           await conn.web.lists
-            .getByTitle(title)
-            .views.select('Id', 'Title', 'DefaultView')<
-            Array<{ Id: string; Title: string; DefaultView: boolean }>
-          >()
-        ).map(({ Id, Title, DefaultView }) => ({ Id, Title, DefaultView }))
-
-      assertClean(await apply(conn, template()), 'the first run')
-      const first = await views()
-      assert.deepEqual(
-        first.map((view) => [view.Title, view.DefaultView]),
-        [['SPJS Itest Alle', true]]
-      )
-      assertClean(await apply(conn, template()), 'the second run')
-      // The template's own view is kept (same id), not deleted and recreated.
-      assert.deepEqual(await views(), first)
+            .getByTitle(TASKS)
+            .items.getById(item.Id)
+            .select('SPJSItestCode')<{ SPJSItestCode: string }>()
+        ).SPJSItestCode
+      }
     }
-  )
+    const before = await read()
+
+    assertClean(await apply(conn, loadFixture('lists.b')), 'the B run')
+    const b = await read()
+    assert.deepEqual(b, {
+      code: {
+        Id: before.code.Id,
+        Title: 'SPJS Itest Kode B',
+        MaxLength: '40',
+        Description: 'Endret i B'
+      },
+      related: { Id: before.related.Id, Title: 'SPJS Itest Relaterte B' },
+      value: 'B-1'
+    })
+
+    assertClean(await apply(conn, loadFixture('lists')), 'A again')
+    // A restores what it declares; the description B added stays, as A does not mention one (the
+    // merge keeps what the template leaves out).
+    assert.deepEqual(await read(), {
+      ...before,
+      code: { ...before.code, Description: 'Endret i B' }
+    })
+  })
+
+  it('applies a widening type change in place, and warns about a narrowing one and a new lookup target', async () => {
+    const { conn } = scratch()
+    const title = 'SPJS Itest Typer'
+    const field = (id: string, name: string, attributes: string) =>
+      `<Field ID="{${id}}" Name="${name}" StaticName="${name}" DisplayName="${name}" ${attributes} />`
+    const template = (changed: boolean) => ({
+      Lists: [
+        {
+          Title: title,
+          Description: 'Type changes',
+          Template: 100,
+          ContentTypesEnabled: false,
+          Fields: [
+            field(
+              'e0e0e0e0-0000-4000-8000-000000000001',
+              'SPJSItestTyText',
+              changed ? 'Type="Note"' : 'Type="Text"'
+            ),
+            field(
+              'e0e0e0e0-0000-4000-8000-000000000002',
+              'SPJSItestTyMulti',
+              `${
+                changed ? 'Type="Lookup"' : 'Type="LookupMulti" Mult="TRUE"'
+              } List="{listid:${TASKS}}" ShowField="Title"`
+            ),
+            field(
+              'e0e0e0e0-0000-4000-8000-000000000003',
+              'SPJSItestTyLookup',
+              `Type="Lookup" List="{listid:${
+                changed ? DOCS : TASKS
+              }}" ShowField="Title"`
+            )
+          ]
+        }
+      ]
+    })
+    assertClean(await apply(conn, template(false)), 'the first run')
+    const [a, b] = await Promise.all(
+      ['SPJS Itest Type A', 'SPJS Itest Type B'].map((Title) =>
+        conn.web.lists.getByTitle(TASKS).items.add({ Title })
+      )
+    )
+    const item = await conn.web.lists.getByTitle(title).items.add({
+      Title: 'SPJS Itest verdier',
+      SPJSItestTyText: 'kort tekst',
+      SPJSItestTyMultiId: [a.Id, b.Id],
+      SPJSItestTyLookupId: a.Id
+    })
+    const read = async () => ({
+      types: (
+        await conn.web.lists
+          .getByTitle(title)
+          .fields.filter("startswith(InternalName,'SPJSItestTy')")
+          .select('InternalName', 'TypeAsString', 'LookupList')<
+          Array<{
+            InternalName: string
+            TypeAsString: string
+            LookupList?: string
+          }>
+        >()
+      ).reduce((all, f) => {
+        all[f.InternalName] = f.LookupList
+          ? `${f.TypeAsString} ${bare(f.LookupList)}`
+          : f.TypeAsString
+        return all
+      }, {} as Record<string, string>),
+      values: await conn.web.lists
+        .getByTitle(title)
+        .items.getById(item.Id)
+        .select(
+          'SPJSItestTyText',
+          'SPJSItestTyMultiId',
+          'SPJSItestTyLookupId'
+        )<any>()
+    })
+    const before = await read()
+
+    const run = await apply(conn, template(true))
+    const after = await read()
+
+    assert.deepEqual(
+      run.errors.map((entry) => entry.message),
+      [],
+      'the run logged errors'
+    )
+    assert.deepEqual(
+      run.warnings.map((entry) =>
+        /SPJSItestTyMulti .* is LookupMulti, the template says Lookup/.test(
+          entry.message
+        )
+          ? 'narrowing'
+          : /SPJSItestTyLookup .* points at another list or term set/.test(
+              entry.message
+            )
+          ? 'target'
+          : entry.message
+      ),
+      ['narrowing', 'target']
+    )
+    assert.deepEqual(after.types, {
+      ...before.types,
+      SPJSItestTyText: 'Note'
+    })
+    assert.deepEqual(
+      [
+        after.values.SPJSItestTyText,
+        after.values.SPJSItestTyMultiId,
+        after.values.SPJSItestTyLookupId
+      ],
+      ['kort tekst', [a.Id, b.Id], a.Id]
+    )
+  })
+
+  it("keeps an existing list's settings the template leaves out, and content types a customer added", async () => {
+    const { conn } = scratch()
+    const title = 'SPJS Itest Innstillinger'
+    const template = (first: boolean) => ({
+      Lists: [
+        {
+          Title: title,
+          ...(first ? { Description: 'Fra malen' } : {}),
+          Template: 100,
+          ContentTypesEnabled: true,
+          RemoveExistingContentTypes: true,
+          ContentTypeBindings: [{ ContentTypeID: '0x0104' }]
+        }
+      ]
+    })
+    const contentTypes = async () =>
+      (
+        await conn.web.lists.getByTitle(title).contentTypes.select('Id')<
+          Array<{ Id: { StringValue: string } }>
+        >()
+      )
+        .map((ct) => parentOf(ct.Id.StringValue))
+        .sort()
+
+    // Made in this setup: the content types not bound are removed.
+    assertClean(await apply(conn, template(true)), 'the first run')
+    assert.deepEqual(await contentTypes(), ['0X0104', '0X0120'])
+    // A customer adds the Contact content type; the next apply leaves it.
+    await conn.web.lists
+      .getByTitle(title)
+      .contentTypes.addAvailableContentType('0x0106')
+    assertClean(await apply(conn, template(false)), 'the second run')
+
+    assert.deepEqual(await contentTypes(), ['0X0104', '0X0106', '0X0120'])
+    assert.equal(
+      (
+        await conn.web.lists.getByTitle(title).select('Description')<{
+          Description: string
+        }>()
+      ).Description,
+      'Fra malen'
+    )
+  })
+
+  it("applies a field ref's AdditionalProperties without changing the column's title", async () => {
+    // It used to send DisplayName = the internal name, so the column was titled SPJSItestCategory.
+    const { conn } = scratch()
+    const template = {
+      Lists: [
+        {
+          ...loadFixture('lists').Lists[0],
+          FieldRefs: [
+            {
+              ID: '84f1ac72-f179-4a17-a07f-159e004c7a91',
+              Name: 'SPJSItestCategory',
+              DisplayName: 'SPJS Itest Kategori',
+              Required: true,
+              AdditionalProperties: { ShowInNewForm: 'FALSE' }
+            }
+          ]
+        }
+      ]
+    }
+
+    assertClean(await apply(conn, template), 'the run')
+
+    const field = await conn.web.lists
+      .getByTitle(TASKS)
+      .fields.getByInternalNameOrTitle('SPJSItestCategory')
+      .select('Title', 'Required', 'SchemaXml')<{
+      Title: string
+      Required: boolean
+      SchemaXml: string
+    }>()
+    assert.equal(field.Title, 'SPJS Itest Kategori')
+    assert.equal(field.Required, true)
+    assert.equal(attributesOf(field.SchemaXml).ShowInNewForm, 'FALSE')
+  })
 })

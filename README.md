@@ -110,9 +110,32 @@ the token system and the error model.
 
 Lists can be seeded with items. Rows are upserted by `KeyColumn`: when a row with the same
 key value exists, it is updated (`UpdateBehavior: "Overwrite"`, the default) or left alone
-(`"Skip"`), so re-applying a template does not duplicate content. Field values are mapped by
-the field's type — lookup and user values resolve to item/user ids, taxonomy values
-(`{ termId, label }`) write the hidden note field, and string values get token replacement.
+(`"Skip"`), so re-applying a template does not duplicate content. The key is matched with its
+tokens replaced, as the item holds it. Field values are mapped by the field's type — lookup and
+user values resolve to item/user ids, taxonomy values (`{ termId, label }`) write the hidden note
+field, and string values (a URL's `Url` and `Description` too) get token replacement. A lookup or
+user value that matches nothing is logged as an error and left out: a new item gets the values
+that resolved, an existing one keeps what it holds in that column.
+
+### Re-applying lists
+
+A template can be applied again to a site that holds data (PP365 re-runs project setup and
+re-imports packages), and that changes no data ([spec](./docs/specs/lists-re-apply.md)):
+
+- A list field in `Fields` that exists is updated in place, never deleted: the template merged onto
+  what SharePoint stores (what the template declares wins; what it leaves out keeps its value). A widening type change (`Text` to `Note`, `Lookup` to `LookupMulti`,
+  `User` to `UserMulti`) is applied; another type change is a warning and leaves the field as it
+  is. A lookup pointed at another list, or a taxonomy field at another term set, follows the
+  template on a list made in this setup; elsewhere it is a warning and keeps its target, because
+  the stored values belong to it.
+- `RemoveExistingViews` and `RemoveExistingContentTypes` act on lists made in this setup: created
+  by this provisioner, across its `applyTemplate` calls (a template and then its extensions). On a
+  list that existed they do nothing. Neither removes a view the template names, a personal view,
+  the default view or the view behind a page's list web part. (PnP Framework removes on every run.)
+- An existing list gets only the settings the template defines; one it leaves out keeps its value.
+- The views the template names are the template's: set when they differ from it.
+- List `Security` breaks inheritance only on a list that still inherits; role assignments are
+  added, never removed.
 
 ### Site groups and web permissions (`Security`)
 

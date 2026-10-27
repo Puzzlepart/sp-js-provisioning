@@ -17,8 +17,8 @@ families (`<name>.json` and its `<name>.b.json` variant), except tenant-invarian
 | `security.json` | `security.test.ts` | Site groups (owners, join/leave settings, `ClearExistingMembers`), web role assignments, a list granted to one of the groups |
 | `sitefields.json`, `.b.json` | `sitefields.test.ts` | Eleven column types; B renames one and makes it required |
 | `features.json`, `.b.json` | `features.test.ts` | Activate / deactivate the FollowingContent web feature |
-| `lists.json` | `lists.test.ts` | A list and a library: bindings, list fields, field refs, views, folders, list security |
-| `lists-datarows.json`, `.b.json` | `lists-datarows.test.ts` | Every DataRows value shape, `KeyColumn`, `Skip` / `Overwrite`; B: one list per pinned defect |
+| `lists.json`, `.b.json` | `lists.test.ts` | A list and a library: bindings, list fields, field refs, views, folders, list security; B changes two list fields' display names, a description and a `MaxLength` |
+| `lists-datarows.json`, `.b.json` | `lists-datarows.test.ts` | Every DataRows value shape, `KeyColumn`, `Skip` / `Overwrite`; B: one list per case the Lists re-apply spec fixed |
 | `customactions.json`, `.b.json`, `customactions-script.json` | `customactions.test.ts` | SPFx extension actions; B changes a `Sequence`; classic actions (need custom script) |
 | `composedlook.json` | `composedlook.test.ts` | An OOTB look (palette, font scheme, background image) |
 | `clientsidepages.json`, `.b.json` | `clientsidepages.test.ts` | Pages with sections, a text control, OOTB web parts, `Overwrite` on and off |

@@ -62,7 +62,7 @@
     "prepack": "npm run build",
     "test": "tsx --tsconfig tests/tsconfig.json --test \"tests/unit/*.test.ts\"",
     "test:ci": "node -e \"require('node:fs').mkdirSync('test-results',{recursive:true})\" && tsx --tsconfig tests/tsconfig.json --test --test-reporter=spec --test-reporter-destination=stdout --test-reporter=junit --test-reporter-destination=test-results/unit.xml \"tests/unit/*.test.ts\"",
-    "test:coverage": "tsx --enable-source-maps --tsconfig tests/tsconfig.json --test --experimental-test-coverage --test-coverage-include=\"src/**\" --test-coverage-lines=66 --test-coverage-branches=74 --test-coverage-functions=65 \"tests/unit/*.test.ts\"",
+    "test:coverage": "tsx --enable-source-maps --tsconfig tests/tsconfig.json --test --experimental-test-coverage --test-coverage-include=\"src/**\" --test-coverage-lines=73 --test-coverage-branches=78 --test-coverage-functions=74 \"tests/unit/*.test.ts\"",
     "check:tenant": "tsx --tsconfig tests/tsconfig.json tests/integration/run.ts reachability --strict",
     "test:integration": "tsx --tsconfig tests/tsconfig.json tests/integration/run.ts",
     "test:integration:ci": "tsx --tsconfig tests/tsconfig.json tests/integration/run.ts --ci",

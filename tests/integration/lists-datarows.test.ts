@@ -72,9 +72,9 @@ function byTitle(list: IDataRowsList, title: string): IDataRowItem {
  * The Lists handler's DataRows on a scratch web: every value shape the handler writes (Text,
  * Number, Boolean, a date-only DateTime, Choice, MultiChoice, URL, User, Lookup and LookupMulti
  * by value and by id), tokens in text and URL values, and the upsert by a Title and by a Number
- * `KeyColumn` with `Overwrite` and `Skip`. The columns the rows must keep across runs are site
- * columns added through `FieldRefs`: a column from the list's `Fields` is deleted and recreated on
- * every run (pinned below), so only the `Overwrite` list has its lookups there.
+ * `KeyColumn` with `Overwrite` and `Skip`. The defect group below (lists-datarows.b.json) holds
+ * one list per case docs/specs/lists-re-apply.md fixed: values in list `Fields` columns, a key
+ * with a token, a URL without a Description, and lookup values that match no item.
  */
 describe('Lists (DataRows)', { skip: skipReason() }, () => {
   const scratch = withScratchWeb('lists-datarows')
@@ -313,125 +313,117 @@ describe('Lists (DataRows)', { skip: skipReason() }, () => {
           return { first, second, afterFirst, afterSecond }
         })())
 
-    it(
-      'keeps a Skip row value in a column from the list Fields on a second apply',
-      {
-        todo:
-          'processField deletes and recreates every list Fields column on each run, so a Skip ' +
-          'row loses the value (D4 Lists spec)'
-      },
-      async () => {
-        const { afterFirst, afterSecond } = await twice()
-        assert.deepEqual(
-          afterFirst[RECREATED].items.map(valuesOf),
-          [{ Title: 'SPJS Itest Kept', SPJSItestDrNote: 'Written once' }],
-          'the first run wrote the row'
-        )
-        assert.deepEqual(
-          afterSecond[RECREATED].items.map(valuesOf),
-          afterFirst[RECREATED].items.map(valuesOf)
-        )
-      }
-    )
+    it('keeps a Skip row value in a column from the list Fields on a second apply', async () => {
+      const { afterFirst, afterSecond } = await twice()
+      assert.deepEqual(
+        afterFirst[RECREATED].items.map(valuesOf),
+        [{ Title: 'SPJS Itest Kept', SPJSItestDrNote: 'Written once' }],
+        'the first run wrote the row'
+      )
+      assert.deepEqual(
+        afterSecond[RECREATED].items.map(valuesOf),
+        afterFirst[RECREATED].items.map(valuesOf)
+      )
+    })
 
-    it(
-      'matches a row whose KeyColumn value holds a token',
-      {
-        todo:
-          'the KeyColumn filter uses the raw value ({sitename} row) while the item holds the ' +
-          'resolved one, so every run adds the row again (D4 Lists spec)'
-      },
-      async () => {
-        const { afterSecond } = await twice()
-        const { conn } = scratch()
-        assert.deepEqual(
-          afterSecond[TOKENISED].items.map((item) => item.values.Title),
-          [`${conn.webInfo.Title} row`]
-        )
-      }
-    )
+    it('matches a row whose KeyColumn value holds a token', async () => {
+      const { afterSecond } = await twice()
+      const { conn } = scratch()
+      assert.deepEqual(
+        afterSecond[TOKENISED].items.map((item) => item.values.Title),
+        [`${conn.webInfo.Title} row`]
+      )
+    })
 
-    it(
-      'describes a URL without a Description by its resolved Url',
-      {
-        todo:
-          'a { Url } value without Description gets Description = the raw Url, tokens unresolved'
-      },
-      async () => {
-        const { afterFirst } = await twice()
-        const url = `https://contoso.com/spjs-itest/${parameters.SPJSItestSlug}`
-        assert.deepEqual(
-          valuesOf(afterFirst[LINK].items[0]).SPJSItestDrLinkOnly,
-          { Url: url, Description: url }
-        )
-      }
-    )
+    it('describes a URL without a Description by its resolved Url', async () => {
+      const { afterFirst } = await twice()
+      const url = `https://contoso.com/spjs-itest/${parameters.SPJSItestSlug}`
+      assert.deepEqual(
+        valuesOf(afterFirst[LINK].items[0]).SPJSItestDrLinkOnly,
+        { Url: url, Description: url }
+      )
+    })
 
     /**
-     * The messages of the errors and warnings a run logged.
+     * The messages of the errors a run logged: a value the template asked for and the engine could
+     * not write is an error.
      *
      * @param run - The run
      */
     const logged = (run: IApplyResult) =>
-      [...run.errors, ...run.warnings].map((entry) => entry.message)
+      run.errors.map((entry) => entry.message)
 
-    it(
-      'logs a Lookup value that matches no item',
-      {
-        todo:
-          'an unresolved Lookup value is dropped from the payload without a log line: the ' +
-          'column stays empty (D4 Lists spec)'
-      },
-      async () => {
-        const { first, afterFirst } = await twice()
-        assert.deepEqual(
-          valuesOf(
-            byTitle(afterFirst[UNRESOLVED], 'SPJS Itest Unresolved single')
-          ).SPJSItestDrMissing,
-          null,
-          'the row is written without the value'
-        )
-        assert.ok(
-          logged(first).some((message) =>
-            message.includes('SPJS Itest missing single')
-          ),
-          `nothing logged names the unresolved value: ${JSON.stringify(
-            logged(first)
-          )}`
-        )
-      }
-    )
+    it('logs a Lookup value that matches no item', async () => {
+      const { first, afterFirst } = await twice()
+      assert.deepEqual(
+        valuesOf(
+          byTitle(afterFirst[UNRESOLVED], 'SPJS Itest Unresolved single')
+        ).SPJSItestDrMissing,
+        null,
+        'the row is written without the value'
+      )
+      assert.ok(
+        logged(first).some((message) =>
+          message.includes('SPJS Itest missing single')
+        ),
+        `nothing logged names the unresolved value: ${JSON.stringify(
+          logged(first)
+        )}`
+      )
+    })
 
-    it(
-      'writes the resolved values of a LookupMulti and logs the one that matches no item',
-      {
-        todo:
-          'an unresolved LookupMulti value is sent as null: SharePoint refuses the whole row ' +
-          '(400 "A null value was found with the expected type \'Edm.Int32[Nullable=False]\'"), ' +
-          'and the logged error does not name the value (D4 Lists spec)'
-      },
-      async () => {
-        const { first, afterFirst } = await twice()
-        const sourceA = (
-          await scratch()
-            .conn.web.lists.getByTitle(SOURCE)
-            .items.filter("Title eq 'SPJS Itest Source A'")
-            .select('Id')<Array<{ Id: number }>>()
-        )[0].Id
-        const multi = afterFirst[UNRESOLVED].items.find(
-          (item) => item.values.Title === 'SPJS Itest Unresolved multi'
-        )
-        assert.ok(multi, 'the row is written')
-        assert.deepEqual(valuesOf(multi).SPJSItestDrLookups, [sourceA])
-        assert.ok(
-          logged(first).some((message) =>
-            message.includes('SPJS Itest missing multi')
-          ),
-          `nothing logged names the unresolved value: ${JSON.stringify(
-            logged(first)
-          )}`
-        )
-      }
-    )
+    it('writes the resolved values of a LookupMulti and logs the one that matches no item', async () => {
+      const { first, afterFirst } = await twice()
+      const sourceA = (
+        await scratch()
+          .conn.web.lists.getByTitle(SOURCE)
+          .items.filter("Title eq 'SPJS Itest Source A'")
+          .select('Id')<Array<{ Id: number }>>()
+      )[0].Id
+      const multi = afterFirst[UNRESOLVED].items.find(
+        (item) => item.values.Title === 'SPJS Itest Unresolved multi'
+      )
+      assert.ok(multi, 'the row is written')
+      assert.deepEqual(valuesOf(multi).SPJSItestDrLookups, [sourceA])
+      // An existing item keeps what it holds in a column with an unresolved value: given another
+      // source item since, a third run leaves it (writing what resolved would drop it).
+      const { conn } = scratch()
+      const sourceB = (
+        await conn.web.lists
+          .getByTitle(SOURCE)
+          .items.filter("Title eq 'SPJS Itest Source B'")
+          .select('Id')<Array<{ Id: number }>>()
+      )[0].Id
+      await conn.web.lists
+        .getByTitle(UNRESOLVED)
+        .items.getById(multi.Id)
+        .update({ SPJSItestDrLookupsId: [sourceA, sourceB] })
+      const third = await apply(conn, loadFixture('lists-datarows.b'), {
+        parameters
+      })
+      const afterThird = await readDefects(conn)
+      assert.ok(
+        logged(third).some((message) =>
+          message.includes('the stored value is kept')
+        ),
+        'the third run says it kept the stored value'
+      )
+      assert.deepEqual(
+        valuesOf(
+          afterThird[UNRESOLVED].items.find(
+            (item) => item.values.Title === 'SPJS Itest Unresolved multi'
+          )
+        ).SPJSItestDrLookups,
+        [sourceA, sourceB]
+      )
+      assert.ok(
+        logged(first).some((message) =>
+          message.includes('SPJS Itest missing multi')
+        ),
+        `nothing logged names the unresolved value: ${JSON.stringify(
+          logged(first)
+        )}`
+      )
+    })
   })
 })

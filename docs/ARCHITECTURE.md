@@ -163,7 +163,7 @@ Important limitations:
 
 - The regex only matches lowercase token keys (`[a-z]+`); the value part may contain anything but braces. Unknown keys and JSON-like text such as `{"a":1}` or `{Title}` are left untouched.
 - It replaces a match only when the token resolves; an unresolved token is left in place. A resolved empty value does replace the token, so an empty `{parameter:Name}` yields an empty string.
-- Where tokens are applied: field XML (site and list fields), list `DataRows` values (every string value whose field type is not handled specially, plus `URL.Url`), file sources and web part XML, client-side page properties and server-processed content, site group titles, string properties, owners and members, and role assignment principals (web and list `Security`). Not view queries and not custom action properties.
+- Where tokens are applied: field XML (site and list fields), list `DataRows` values (every string value whose field type is not handled specially, the `KeyColumn` value when matching, and a URL's `Url` and `Description`), file sources and web part XML, client-side page properties and server-processed content, site group titles, string properties, owners and members, and role assignment principals (web and list `Security`). Not view queries and not custom action properties.
 
 ### URL Tokens
 
@@ -274,15 +274,15 @@ Responsibilities:
 
 - Initializes JSOM for list operations that need it.
 - Loads existing lists into `context.lists`.
-- Ensures or creates lists.
+- Creates lists (recording them in `context.createdLists`, the lists made in this setup) or updates an existing list with only the settings the template defines.
 - Adds content type bindings.
-- Optionally removes existing content type bindings.
-- Deletes and recreates list fields from field XML.
+- On a list made in this setup, optionally removes the content types not bound (`RemoveExistingContentTypes`).
+- Creates list fields from field XML, or updates them in place (`src/util/fieldxml.ts`): never deletes one.
 - Adds or updates list field refs from web fields.
-- Adds, updates, removes, and reorders view fields.
+- Sets the template's views and their fields when they differ; on a list made in this setup, optionally removes the other views (`RemoveExistingViews`).
 - Creates folder hierarchies (`Folders`).
-- Seeds items from `DataRows` (upsert by `KeyColumn`; string values get token replacement).
-- Applies list `Security` (break role inheritance, add role assignments).
+- Seeds items from `DataRows` (upsert by the token-resolved `KeyColumn`; string values get token replacement).
+- Applies list `Security` (breaks role inheritance only on a list that still inherits, adds role assignments).
 - Updates `context.listViews`.
 
 Processing phases inside `ProvisionObjects`:
@@ -300,14 +300,16 @@ Processing phases inside `ProvisionObjects`:
 Key contracts:
 
 - List identity is title-based in context.
-- Content type binding uses `ContentTypeID`.
-- `RemoveExistingContentTypes` keeps folder content types containing `0x0120`.
+- Content type binding uses `ContentTypeID`; a list content type belongs to a binding when its id is the binding's or a child of it.
+- `RemoveExistingContentTypes` keeps folder content types (`0x0120`).
+- "Made in this setup" is `context.createdLists`, which lives on the `WebProvisioner` instance across its `applyTemplate` calls.
 - List field refs match fields by field ID, not name.
 - `SourceID` for copied web fields is set to the list ID from context.
 
 Important behavior:
 
-- `processField` deletes a list field by ID before recreating it. This is intentional for fields that cannot be updated cleanly, but it is destructive for list-local field state.
+- `processField` never deletes a list field (until 1.5.0 it deleted and recreated every one on every run, losing its values; `docs/specs/lists-re-apply.md`). An existing field gets the template merged onto its stored schema XML (`mergeFieldXml`: template attributes win, identity and storage attributes stay, `Version` dropped, child elements replaced, `Customization` merged by property), sent only when it differs (`sameFieldXml`). A widening type change is applied in place; another one is a warning, and so is a new target (a lookup's list, a taxonomy field's term set) on a list not made in this setup, because SharePoint accepts them and loses or misdirects the stored values (probe 2026-10-26). Primary lookups are made before their dependents.
+- `DataRows` decides add, update or skip from the key before building a row: a skipped row queries no lookup list and ensures no user. An unresolved lookup or user value is an error naming it; an existing item keeps its stored value.
 - `Security` principals accept the PnP tokens `{associatedownergroupid}`, `{associatedmembergroupid}` and `{associatedvisitorgroupid}`, a principal ID, a site group name or a user login name; other tokens in a principal are replaced first. Role definitions are resolved by localized name with a fallback to the well-known role type for the English names. The resolution lives in `src/util/security.ts`, shared with the `Security` handler. Failures are logged per assignment and never abort the template.
 - Several list operations catch errors and log failures without throwing. Agents should inspect logs and behavior, not just promise success.
 
@@ -590,7 +592,6 @@ When adding or modifying behavior:
 - Content type creation and update semantics are sensitive to SharePoint ID rules and JSOM/PnP differences.
 - Handler order is a contract. Changing sort values can break token resolution, content type bindings, or page/list references.
 - Token replacement is partial and regex-limited. Do not assume arbitrary token values are supported. Data row string values are now token-replaced, so a literal `{lowercasekey}` in seeded content is only safe if the key is unknown to `TokenHelper`.
-- List field deletion/recreation can lose list-specific state.
 - Some errors are swallowed after logging, especially inside list, file, and content type sub-operations.
 - Browser globals are used in utility and handler code, so Node compatibility is uneven.
 - `.npmignore` and `.gitignore` affect whether docs and generated files are visible to consumers. The repository tracks docs; `lib/` remains generated and ignored by git.

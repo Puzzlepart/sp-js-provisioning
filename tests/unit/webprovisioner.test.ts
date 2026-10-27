@@ -5,6 +5,7 @@ import { describe, it } from 'node:test'
 import { Web } from '@pnp/sp/presets/all'
 import { RejectOnError, ResolveOnData } from '@pnp/queryable'
 import { WebProvisioner } from '../../src/webprovisioner'
+import { Lists } from '../../src/handlers/lists'
 import { ProvisioningError } from '../../src/provisioningerror'
 import { Logger, LogLevel } from '@pnp/logging'
 
@@ -211,5 +212,31 @@ describe("WebProvisioner: the caller's web", () => {
       web.toRequestUrl(),
       'https://contoso.sharepoint.com/sites/demo/_api/web'
     )
+  })
+})
+
+describe('WebProvisioner: lists made in this setup', () => {
+  it('keeps them across applyTemplate calls, as PP365 applies a template and then its extensions', async () => {
+    // Forskningsmal and Veimal remove Fasesjekkliste's standard content type, a list the main
+    // template creates through the same provisioner a call earlier.
+    const seen: any[] = []
+    const original = Lists.prototype.ProvisionObjects
+    Lists.prototype.ProvisionObjects = async function (
+      _web: any,
+      _lists: any,
+      context: any
+    ) {
+      seen.push({ ...context.createdLists })
+      context.createdLists['Fasesjekkliste'] = true
+    }
+    try {
+      const provisioner = new WebProvisioner(createRecordingWeb([])).setup({})
+      await provisioner.applyTemplate({ Lists: [] })
+      await provisioner.applyTemplate({ Lists: [] })
+    } finally {
+      Lists.prototype.ProvisionObjects = original
+    }
+
+    assert.deepEqual(seen, [{}, { Fasesjekkliste: true }])
   })
 })

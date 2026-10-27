@@ -200,7 +200,7 @@ Result.
 
 ```json
 "test:ci": "node -e \"require('node:fs').mkdirSync('test-results',{recursive:true})\" && tsx --tsconfig tests/tsconfig.json --test --test-reporter=spec --test-reporter-destination=stdout --test-reporter=junit --test-reporter-destination=test-results/unit.xml \"tests/unit/*.test.ts\"",
-"test:coverage": "tsx --enable-source-maps --tsconfig tests/tsconfig.json --test --experimental-test-coverage --test-coverage-include=\"src/**\" --test-coverage-lines=66 --test-coverage-branches=74 --test-coverage-functions=65 \"tests/unit/*.test.ts\"",
+"test:coverage": "tsx --enable-source-maps --tsconfig tests/tsconfig.json --test --experimental-test-coverage --test-coverage-include=\"src/**\" --test-coverage-lines=73 --test-coverage-branches=78 --test-coverage-functions=74 \"tests/unit/*.test.ts\"",
 "lint:check": "eslint --ext .ts ./src && prettier \"**/*.ts*\" --check",
 "check:tenant": "tsx --tsconfig tests/tsconfig.json tests/integration/run.ts reachability --strict",
 "test:integration": "tsx --tsconfig tests/tsconfig.json tests/integration/run.ts",
@@ -397,7 +397,8 @@ Pinned only (`{ todo }` with the evidence), each for its own change:
   ids), the raw `KeyColumn` match (a token in a key value adds the row on every run), silent
   unresolved lookups (a single Lookup is dropped; a LookupMulti entry fails the whole row with 400
   and a message that does not name it), and a URL value's default `Description` keeping the raw
-  token.
+  token. All fixed by [the Lists re-apply spec](./lists-re-apply.md) (2026-10-27); the pins are
+  plain tests.
 - SiteFields: `{listid:}` for a list from the same template stays literal on the first run, and
   SharePoint accepts it without an error or warning (SiteFields runs before Lists).
 - Navigation: the handler deletes every node before adding the template's; a node SharePoint
@@ -451,7 +452,8 @@ Pinned only (`{ todo }` with the evidence), each for its own change:
   source-mapped measurement when they were first enforced, at the end of 0b (2026-10-21):
   61.03 / 72.18 / 59.18 (lines, branches, functions; `src/**`), set one point below as 60/71/58
   so small differences between machines do not fail the check. They only rise: raised at the end
-  of Phase 1 to 66/74/65 (measured 67.09 / 75.05 / 65.91).
+  of Phase 1 to 66/74/65 (measured 67.09 / 75.05 / 65.91), and with the Lists re-apply spec to
+  73/78/74 (measured 74.35 / 79.68 / 75.61).
 - Phase 2: `tests/contract/` turns the recording web of `webprovisioner.test.ts` into a fake
   transport (`on.send.replace`, canned `Response` bodies, recorded `{ url, method, body }`, an
   SPFx-style relative mode) pinning wire shapes (`createfieldasxml`, `$top=5000`, OData escaping,

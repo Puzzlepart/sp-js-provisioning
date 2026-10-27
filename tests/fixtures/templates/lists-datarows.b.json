@@ -17,7 +17,7 @@
     },
     {
       "Title": "SPJS Itest DataRows Recreated",
-      "Description": "Skip rows in a column the list's Fields declare (recreated on every run)",
+      "Description": "Skip rows in a column the list's Fields declare (kept across runs)",
       "Template": 100,
       "ContentTypesEnabled": false,
       "Fields": [

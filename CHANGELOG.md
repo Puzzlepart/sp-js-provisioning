@@ -23,6 +23,33 @@ For releases older than 1.3.6, see the git history.
 
 ### Changed
 
+- Re-applying a template to a site that holds data changes no data
+  ([spec](./docs/specs/lists-re-apply.md)):
+  - A list field in `Fields` that exists is updated in place instead of deleted and recreated, so
+    its values, its place in views and content types and what an admin set that the template does
+    not mention survive (a re-run of PP365 project setup emptied the lookup columns of the standard
+    templates). A widening type
+    change is applied; another type change is a warning and leaves the field as it is. A lookup
+    pointed at another list, or a taxonomy field at another term set, follows the template on a
+    list made in this setup and is otherwise a warning that keeps the stored target.
+  - `RemoveExistingViews` and `RemoveExistingContentTypes` act on lists made in this setup (created
+    by this provisioner, across its `applyTemplate` calls, so a template's extensions still count)
+    and do nothing on a list that existed. They never remove a view the template names, a personal
+    view, the default view or the view behind a page's list web part; template views keep their
+    ids. PnP Framework removes on every run.
+  - An existing list is updated with only the settings the template defines: `lists.ensure` sent an
+    empty `Description` and `ContentTypesEnabled: false` for what it left out.
+  - A template view's fields are set only when they differ; one field that cannot be added no
+    longer leaves the view without the rest.
+  - List `Security` breaks inheritance only on a list that still inherits, as web `Security` does.
+- `DataRows`: an unresolved Lookup or User value (and each unresolved entry of a LookupMulti or
+  UserMulti) is logged as an error naming the column and the value; a new item gets the values
+  that resolved and an existing one keeps what it holds in that column. A lookup or user request
+  that may succeed later (throttled, unavailable) still fails the row, so the next run writes it
+  whole; a taxonomy term without `termId` or `label` is logged instead of skipped silently. A LookupMulti entry that
+  matched nothing used to make SharePoint refuse the whole row, and a single Lookup was dropped
+  without a word. More than one item with the same key, and a row without a key value, are
+  warnings.
 - Tokens such as `{sitename}` and `{parameter:Name}` are now replaced in list `Security` role
   assignment principals before they are resolved.
 - Principal and role definition resolution moved from the `Lists` handler to
@@ -63,6 +90,17 @@ Phases 0b and 1; each fix has the test that exposed it.
   escaping as an unhandled rejection. A relative `Location` is resolved against the URL that
   answered (in a browser it was resolved against the SharePoint page), and a `202` without a
   `Location`, or with one that is not a URL, fails the hook, naming it, instead of polling `null`.
+- `DataRows` matches a `KeyColumn` value with its tokens replaced, as the item holds it: a key such
+  as `{sitename} Styringsgruppe` added the row again on every run. A skipped row no longer queries
+  lookup lists or ensures users (nor fails when they throw), and a URL `{ Url }` without
+  `Description` is described by its resolved Url instead of the raw one; a given `Description`
+  gets token replacement.
+- A template view without `AdditionalSettings` that already exists on the list (an OOTB view
+  named in the template) is no longer sent an empty update, which SharePoint refused (400), so its
+  fields were not set either.
+- `FieldRefs` `AdditionalProperties` no longer set the column's title to its internal name, drop
+  attributes, or send a stale schema version; field ref ids are matched whatever their braces and
+  case.
 - `Hooks`: a request that cannot be sent (a network or CORS failure) fails the hook with its name,
   as an error status does, instead of a bare "Failed to fetch".
 - `ClientSidePages` replaces tokens in each string of a web part's properties and server-processed
@@ -102,7 +140,7 @@ Tooling only; nothing here ships in the package. Plan:
 
 - Offline CI (`.github/workflows/ci.yml`, job `Build and offline tests`) on every pull request and
   push to `main`: `lint:check`, build, `typecheck:tests`, `test:ci` (spec + JUnit to
-  `test-results/unit.xml`), `test:coverage` (source-mapped, floors 66/74/65 for lines, branches
+  `test-results/unit.xml`), `test:coverage` (source-mapped, floors 73/78/74 for lines, branches
   and functions, which only rise), `check:pack` (the package holds `lib/index.js` and every handler) and
   `check:secrets` (no tenant URL, cookie, token or certificate in any committed or new text
   file, docs and specs included). eslint's `quotes` rule allows `"''"` (it conflicted with prettier), and
