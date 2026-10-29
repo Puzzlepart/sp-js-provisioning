@@ -143,8 +143,10 @@ export interface IWebPartContents {
 
 export interface IComposedLook {
   ColorPaletteUrl: string
-  FontSchemeUrl: string
-  BackgroundImageUrl: string
+  /** Without it, the theme has no font scheme of its own. */
+  FontSchemeUrl?: string
+  /** Without it, the theme has no background image (one set before is removed). */
+  BackgroundImageUrl?: string
 }
 
 export interface ICustomAction {
@@ -294,11 +296,27 @@ export interface IListInstance {
   Description: string
   Template: number
   ContentTypesEnabled: boolean
+  /**
+   * Remove the content types not bound, on a list made in this setup (created by this provisioner,
+   * across its `applyTemplate` calls). On a list that existed it does nothing.
+   */
   RemoveExistingContentTypes?: boolean
   ContentTypeBindings?: IContentTypeBinding[]
+  /**
+   * List fields as schema XML. A missing one is created; one that exists is updated in place, never
+   * deleted: a widening type change (Text to Note, Lookup or User single to multi) is applied, another type change
+   * is a warning and leaves it as it is. A new target (a lookup's list, a taxonomy field's term
+   * set) is applied on a list made in this setup, otherwise a warning that keeps the stored one.
+   */
   Fields?: string[]
   FieldRefs?: IListInstanceFieldReference[]
   Views?: IListView[]
+  /**
+   * Remove the views the template does not name, on a list made in this setup (created by this
+   * provisioner, across its `applyTemplate` calls), after the template's own exist. Never a
+   * personal view, the default view or the view behind a page's list web part. On a list that
+   * existed it does nothing (PnP Framework removes on every run).
+   */
   RemoveExistingViews?: boolean
   DataRows?: IDataRows
   Folders?: IFolder[]

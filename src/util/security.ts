@@ -22,6 +22,15 @@ const wellKnownRoleTypes: { [name: string]: RoleTypeKind } = {
 }
 
 /**
+ * A resolved principal: its id, and whether it is a site group (`undefined` when the template gave
+ * a bare id, which can be either).
+ */
+export interface IResolvedPrincipal {
+  id: number
+  isGroup?: boolean
+}
+
+/**
  * Resolves a role assignment principal to a principal id: associated group
  * tokens (`{associatedownergroupid}`, `{associatedmembergroupid}`,
  * `{associatedvisitorgroupid}`), a numeric id, a site group name, or a user
@@ -37,9 +46,25 @@ export async function resolvePrincipalId(
   principal: string | number,
   log?: (message: string) => void
 ): Promise<number> {
-  if (typeof principal === 'number') return principal
+  return (await resolvePrincipal(web, principal, log)).id
+}
+
+/**
+ * Resolves a principal like {@link resolvePrincipalId}, and says whether it is a site group.
+ *
+ * @param web - The web
+ * @param principal - The principal
+ * @param log - Called with a message when a name is not a site group and is
+ * resolved as a user instead
+ */
+export async function resolvePrincipal(
+  web: IWeb,
+  principal: string | number,
+  log?: (message: string) => void
+): Promise<IResolvedPrincipal> {
+  if (typeof principal === 'number') return { id: principal }
   const value = String(principal).trim()
-  if (/^\d+$/.test(value)) return Number(value)
+  if (/^\d+$/.test(value)) return { id: Number(value) }
   const token = value.replace(/[{}]/g, '').toLowerCase()
   const associatedGroups: { [key: string]: () => ISiteGroup } = {
     associatedownergroupid: () => web.associatedOwnerGroup,
@@ -48,15 +73,23 @@ export async function resolvePrincipalId(
   }
   if (associatedGroups[token]) {
     const group = await associatedGroups[token]().select('Id')<{
-      Id: number
+      Id?: number
     }>()
-    return group.Id
+    // A web that inherits permissions has no associated groups of its own.
+    if (typeof group.Id !== 'number')
+      throw new Error(
+        `The web has no ${token.replace(
+          /^associated|groupid$/g,
+          ''
+        )} group of its own (${value}); a web that inherits permissions has none`
+      )
+    return { id: group.Id, isGroup: true }
   }
   try {
     const group = await web.siteGroups
       .getByName(value.replace(/'/g, "''"))
       .select('Id')<{ Id: number }>()
-    return group.Id
+    return { id: group.Id, isGroup: true }
   } catch (groupError) {
     if (log)
       log(
@@ -66,7 +99,7 @@ export async function resolvePrincipalId(
       )
     try {
       const user = await web.ensureUser(value)
-      return user.Id
+      return { id: user.Id, isGroup: false }
     } catch (userError) {
       throw new Error(
         `Could not resolve principal '${value}' as a site group (${

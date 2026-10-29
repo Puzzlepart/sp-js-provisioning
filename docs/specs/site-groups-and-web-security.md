@@ -1,6 +1,6 @@
 # Spec: Site Groups And Web Security
 
-Status: Implemented (unit tested; tenant verification pending)
+Status: Verified (2026-10-21, `tests/integration/security.test.ts`, including a list granted to a group of the same template, and the list `Security` of `tests/integration/lists.test.ts`)
 
 Owner: Remi Blom-Ohlsen
 
@@ -140,24 +140,62 @@ so list `Security` also accepts `{sitename}` and `{parameter:...}` in principals
   webs: create versus update, owner, members, `ClearExistingMembers`, web role assignments,
   inheritance check, per-item failure isolation, handler order and `{sitename}`.
 - `npm run build`, `npm test`, `npm run typecheck:tests`.
-- Manual, on a test tenant with `npm run provision` (see `debug/README.md`):
-  - fresh group-connected site: groups created, owner set, members added, list permissions for
-    the new groups applied;
-  - second run on the same site: no duplicates, no errors;
-  - group owner set to another group (`{associatedownergroupid}`) and to the group itself.
+- On a test tenant, `npm run test:integration -- Security Lists`
+  ([integration testing](./integration-testing.md)): a scratch subweb with unique permissions and
+  its own associated groups (D2 there), in place of a fresh group-connected site:
+  - groups created, owner set, members added, list permissions for the new groups applied;
+  - second run on the same web: no duplicates, no errors, the read-back unchanged;
+  - group owner set to another group (`{associatedownergroupid}`) and to the group itself;
+  - a nested web that inherits permissions: inheritance broken once, assignments copied.
+- The 0a smoke run (`npm run provision -- --package tests/fixtures/templates/smoke.json --twice
+  --strict`) is its first tenant evidence.
 
 ## Verification Result
 
 - 2026-10-14: `npm run build`, `npm test` (30/30, of which 13 new) and `npm run typecheck:tests`
   pass. Prettier is clean; eslint reports only the `"''"` OData escape, the same pattern
   as the existing `_escapeOData` in `lists.ts`, where prettier and eslint `quotes` disagree.
-- Tenant verification with `npm run provision` is still pending.
+- 2026-10-21, first tenant run (integration testing spec, Phase 0a): `npm run provision --
+  --package tests/fixtures/templates/smoke.json --twice --strict` against a reserved team site,
+  signed in with cookies as PP365's e2e user. Both runs exited 0 with 0 errors and 0 warnings
+  logged. Read back through REST afterwards:
+  - Site groups `SPJS Itest Readers` (12) and `SPJS Itest Owners` (13) created once; the second
+    run updated them (same ids, no duplicates). `{sitename}` resolved in the description;
+    `AllowMembersEditMembership: false` applied.
+  - Web role assignment `SPJS Itest Readers` -> `Lese` (the English `Read` resolved by role
+    type on a Norwegian site).
+  - The list got unique permissions with the inherited assignments copied, plus
+    `SPJS Itest Owners` -> `Full kontroll` and `SPJS Itest Readers` -> `Lese`.
+  - **Defect: the group owner is not applied.** Both groups are still owned by the signed-in
+    user (principal 7, `PrincipalType` 1), although the log says "Owner of site group ... set to
+    {associatedownergroupid} (3)" and "... set to SPJS Itest Owners (13)". `SetUserAsOwner`
+    answers success for a group id and changes nothing. A user owner was not tested.
+- 2026-10-21, after the integration testing spec's Phase 0b fix (a group owner through CSOM
+  `Group.Owner` over `ProcessQuery`, then read back): the same run, twice, exit 0, no errors or
+  warnings, each line printed once. Read back: `SPJS Itest Readers` (12) is owned by the
+  associated owner group (3, `PrincipalType` 8) and `SPJS Itest Owners` (13) by itself. The unit
+  tests cover a user owner (`SetUserAsOwner`), a bare id that is a group, and an owner SharePoint
+  ignores (logged as an error).
+- 2026-10-21, Verified by `tests/integration/security.test.ts` on a scratch subweb, twice in a
+  row in the full run of the integration suites: three site groups named through `{sitename}`
+  (owners: the associated owner group, and a group that owns itself), the join/leave settings,
+  `ClearExistingMembers` leaving exactly the template's member, web role assignments with `Read` /
+  `Contribute` resolved by role type on a Norwegian site, the "already unique" branch, and on a
+  nested web that inherits: inheritance broken once with the assignments copied. A second apply
+  changes nothing. List `Security` (break, copy, assignments to the scratch web's groups) is in
+  `tests/integration/lists.test.ts`; that `breakRoleInheritance` is sent on every run is pinned
+  there (SharePoint ignores it today). The suite also found that a `$select` left on the shared
+  web made a later run lose `{sitename}`, fixed in the integration testing spec (D4).
 
 ## Open Questions
 
-- `SetUserAsOwner` with a group id (a group owning a group) is expected to work through REST but
-  has to be confirmed on a tenant. Until then a failure is logged and the group keeps the
-  provisioning user as owner.
+- Answered and fixed 2026-10-21: `SetUserAsOwner` with a group id does **not** make the group the owner; it
+  returns success and leaves the owner unchanged, so the handler logs a success that did not
+  happen. A group owner needs CSOM (`Group.Owner = <group>` over `_vti_bin/client.svc/
+  ProcessQuery`), as PnP PowerShell's `Set-PnPGroup -Owner` does. Tracked as an engine defect in
+  [integration testing](./integration-testing.md) (D4, Phase 0b): set the owner through
+  ProcessQuery when the principal is a group, read the owner back, and log an error when it
+  differs.
 
 ## Rollout Notes
 

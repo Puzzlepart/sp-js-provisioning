@@ -1,0 +1,127 @@
+{
+  "$schema": "../../../schema.json",
+  "SiteFields": [
+    "<Field ID=\"{84f1ac72-f179-4a17-a07f-159e004c7a91}\" Name=\"SPJSItestCategory\" StaticName=\"SPJSItestCategory\" DisplayName=\"SPJS Itest Category\" Type=\"Choice\" Format=\"Dropdown\" Group=\"SPJS Itest\"><CHOICES><CHOICE>Plan</CHOICE><CHOICE>Gjennomføring</CHOICE><CHOICE>Avsluttet</CHOICE></CHOICES></Field>",
+    "<Field ID=\"{79692f62-6723-4c5e-a1eb-f2de7adc15e9}\" Name=\"SPJSItestSecret\" StaticName=\"SPJSItestSecret\" DisplayName=\"SPJS Itest Secret\" Type=\"Text\" CanToggleHidden=\"TRUE\" Group=\"SPJS Itest\" />"
+  ],
+  "Lists": [
+    {
+      "Title": "SPJS Itest Oppgaver",
+      "Description": "A generic list from sp-js-provisioning's lists fixture",
+      "Template": 100,
+      "ContentTypesEnabled": true,
+      "RemoveExistingContentTypes": false,
+      "ContentTypeBindings": [
+        { "ContentTypeID": "0x01" },
+        { "ContentTypeID": "0x0104" }
+      ],
+      "AdditionalSettings": {
+        "EnableVersioning": true,
+        "Hidden": false
+      },
+      "Fields": [
+        "<Field ID=\"{d8d7c828-6085-486b-8f59-454fc7838be7}\" Name=\"SPJSItestCode\" StaticName=\"SPJSItestCode\" DisplayName=\"SPJS Itest Kode B\" Description=\"Endret i B\" Type=\"Text\" MaxLength=\"40\" />"
+      ],
+      "FieldRefs": [
+        {
+          "ID": "84f1ac72-f179-4a17-a07f-159e004c7a91",
+          "Name": "SPJSItestCategory",
+          "DisplayName": "SPJS Itest Kategori",
+          "Required": true
+        },
+        {
+          "ID": "79692f62-6723-4c5e-a1eb-f2de7adc15e9",
+          "Name": "SPJSItestSecret",
+          "DisplayName": "SPJS Itest Skjult",
+          "Hidden": true
+        }
+      ],
+      "Views": [
+        {
+          "Title": "SPJS Itest Aktive",
+          "ViewFields": ["LinkTitle", "SPJSItestCode", "SPJSItestCategory"],
+          "AdditionalSettings": {
+            "ViewQuery": "<OrderBy><FieldRef Name=\"SPJSItestCode\" /></OrderBy><Where><Eq><FieldRef Name=\"SPJSItestCategory\" /><Value Type=\"Choice\">Plan</Value></Eq></Where>",
+            "RowLimit": 50,
+            "Paged": true,
+            "DefaultView": false
+          }
+        }
+      ],
+      "Security": {
+        "BreakRoleInheritance": true,
+        "CopyRoleAssignments": true,
+        "RoleAssignments": [
+          {
+            "Principal": "{associatedvisitorgroupid}",
+            "RoleDefinition": "Contribute"
+          }
+        ]
+      }
+    },
+    {
+      "Title": "SPJS Itest Dokumenter",
+      "Description": "A library from sp-js-provisioning's lists fixture",
+      "Template": 101,
+      "ContentTypesEnabled": true,
+      "RemoveExistingContentTypes": false,
+      "ContentTypeBindings": [{ "ContentTypeID": "0x0101" }],
+      "AdditionalSettings": {
+        "EnableVersioning": true,
+        "EnableMinorVersions": true,
+        "Hidden": false
+      },
+      "Fields": [
+        "<Field ID=\"{9cacac4a-21b4-4e5e-b8f3-7aa782b686b2}\" Name=\"SPJSItestRelated\" StaticName=\"SPJSItestRelated\" DisplayName=\"SPJS Itest Relaterte B\" Type=\"LookupMulti\" Mult=\"TRUE\" List=\"{listid:SPJS Itest Oppgaver}\" WebId=\"{siteid}\" ShowField=\"Title\" />"
+      ],
+      "FieldRefs": [
+        {
+          "ID": "84f1ac72-f179-4a17-a07f-159e004c7a91",
+          "Name": "SPJSItestCategory",
+          "DisplayName": "SPJS Itest Dokumentkategori",
+          "Required": false
+        }
+      ],
+      "Views": [
+        {
+          "Title": "SPJS Itest Alle filer",
+          "ViewFields": [
+            "DocIcon",
+            "LinkFilename",
+            "SPJSItestCategory",
+            "SPJSItestRelated",
+            "Modified"
+          ],
+          "AdditionalSettings": {
+            "ViewQuery": "<OrderBy><FieldRef Name=\"FileLeafRef\" /></OrderBy>",
+            "RowLimit": 100,
+            "Paged": true,
+            "Scope": 1,
+            "DefaultView": true
+          }
+        }
+      ],
+      "Folders": [
+        {
+          "Name": "Økonomi",
+          "Folders": [{ "Name": "Fakturaer" }, { "Name": "Budsjett 2026" }]
+        },
+        { "Name": "Møtereferater" }
+      ],
+      "Security": {
+        "BreakRoleInheritance": true,
+        "CopyRoleAssignments": false,
+        "RoleAssignments": [
+          {
+            "Principal": "{associatedownergroupid}",
+            "RoleDefinition": "Full Control"
+          },
+          {
+            "Principal": "{associatedmembergroupid}",
+            "RoleDefinition": "Edit"
+          }
+        ]
+      }
+    }
+  ]
+}

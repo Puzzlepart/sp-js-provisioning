@@ -1,0 +1,8 @@
+{
+  "$schema": "../../../schema.json",
+  "ComposedLook": {
+    "ColorPaletteUrl": "{sitecollection}/_catalogs/theme/15/Palette005.spcolor",
+    "FontSchemeUrl": "{themegallery}/fontscheme003.spfont",
+    "BackgroundImageUrl": "{site}/_layouts/15/images/image_bg005.jpg"
+  }
+}

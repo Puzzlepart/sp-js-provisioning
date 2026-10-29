@@ -1,0 +1,36 @@
+{
+  "$schema": "../../../schema.json",
+  "Navigation": {
+    "QuickLaunch": [
+      {
+        "Title": "SPJS Itest Fabrikam",
+        "Url": "https://www.fabrikam.com/spjs-itest/b",
+        "IgnoreExisting": true
+      },
+      {
+        "Title": "SPJS Itest Home",
+        "Url": "{site}/_catalogs/masterpage"
+      },
+      {
+        "Title": "SPJS Itest Pages",
+        "Url": "https://www.contoso.com/spjs-itest/b",
+        "Children": [
+          {
+            "Title": "SPJS Itest Master pages",
+            "Url": "https://www.contoso.com/spjs-itest/b/child"
+          }
+        ]
+      },
+      {
+        "Title": "SPJS Itest New",
+        "Url": "{site}/_catalogs/wp"
+      }
+    ],
+    "TopNavigationBar": [
+      {
+        "Title": "SPJS Itest Top",
+        "Url": "https://www.contoso.com/spjs-itest/b/top"
+      }
+    ]
+  }
+}

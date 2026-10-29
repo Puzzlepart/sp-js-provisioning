@@ -1,0 +1,160 @@
+{
+  "$schema": "../../../schema.json",
+  "SiteFields": [
+    "<Field ID=\"{21bb9a2c-0de1-47ed-a7cc-f56b3effe467}\" Name=\"SPJSItestDrText\" StaticName=\"SPJSItestDrText\" DisplayName=\"SPJS Itest Text\" Type=\"Text\" MaxLength=\"255\" Group=\"SPJS Itest\" />",
+    "<Field ID=\"{34ddfd52-b89c-4435-910e-297d620d2306}\" Name=\"SPJSItestDrNumber\" StaticName=\"SPJSItestDrNumber\" DisplayName=\"SPJS Itest Number\" Type=\"Number\" Decimals=\"2\" Group=\"SPJS Itest\" />",
+    "<Field ID=\"{e79f8d78-f3ea-4b4b-b837-07549c951229}\" Name=\"SPJSItestDrFlag\" StaticName=\"SPJSItestDrFlag\" DisplayName=\"SPJS Itest Flag\" Type=\"Boolean\" Group=\"SPJS Itest\"><Default>0</Default></Field>",
+    "<Field ID=\"{bceedb32-28a8-4baa-8f14-8637bc1e1664}\" Name=\"SPJSItestDrDate\" StaticName=\"SPJSItestDrDate\" DisplayName=\"SPJS Itest Date\" Type=\"DateTime\" Format=\"DateOnly\" Group=\"SPJS Itest\" />",
+    "<Field ID=\"{f1b09d6a-ae0a-4fd3-8e5e-4f19961034d4}\" Name=\"SPJSItestDrChoice\" StaticName=\"SPJSItestDrChoice\" DisplayName=\"SPJS Itest Choice\" Type=\"Choice\" Format=\"Dropdown\" FillInChoice=\"FALSE\" Group=\"SPJS Itest\"><CHOICES><CHOICE>Alfa</CHOICE><CHOICE>Beta</CHOICE><CHOICE>Gamma</CHOICE></CHOICES></Field>",
+    "<Field ID=\"{1f26bfc0-761a-441f-81a1-9450a0a18521}\" Name=\"SPJSItestDrChoices\" StaticName=\"SPJSItestDrChoices\" DisplayName=\"SPJS Itest Choices\" Type=\"MultiChoice\" FillInChoice=\"FALSE\" Group=\"SPJS Itest\"><CHOICES><CHOICE>Alfa</CHOICE><CHOICE>Beta</CHOICE><CHOICE>Gamma</CHOICE></CHOICES></Field>",
+    "<Field ID=\"{94db5294-2817-43d9-8dfe-34a5a4b63bbc}\" Name=\"SPJSItestDrLink\" StaticName=\"SPJSItestDrLink\" DisplayName=\"SPJS Itest Link\" Type=\"URL\" Format=\"Hyperlink\" Group=\"SPJS Itest\" />",
+    "<Field ID=\"{15cb2353-8a4b-41cf-9f37-8cfd8c262e03}\" Name=\"SPJSItestDrPerson\" StaticName=\"SPJSItestDrPerson\" DisplayName=\"SPJS Itest Person\" Type=\"User\" UserSelectionMode=\"PeopleOnly\" ShowField=\"ImnName\" Group=\"SPJS Itest\" />"
+  ],
+  "Lists": [
+    {
+      "Title": "SPJS Itest DataRows Source",
+      "Description": "Lookup source for sp-js-provisioning's lists-datarows fixture",
+      "Template": 100,
+      "ContentTypesEnabled": false,
+      "DataRows": {
+        "KeyColumn": "Title",
+        "Rows": [
+          { "Title": "SPJS Itest Source A" },
+          { "Title": "SPJS Itest Source B" },
+          { "Title": "SPJS Itest Source C" }
+        ]
+      }
+    },
+    {
+      "Title": "SPJS Itest DataRows Overwrite",
+      "Description": "Every DataRows value shape, upserted by Title",
+      "Template": 100,
+      "ContentTypesEnabled": false,
+      "Fields": [
+        "<Field ID=\"{90d2bcf9-e988-4f6e-8cbb-a6aa51301d0c}\" Name=\"SPJSItestDrLookup\" StaticName=\"SPJSItestDrLookup\" DisplayName=\"SPJS Itest Lookup\" Type=\"Lookup\" List=\"{{listid:SPJS Itest DataRows Source}}\" ShowField=\"Title\" />",
+        "<Field ID=\"{651911d0-ae6e-4b2a-8efb-8bc345cff62b}\" Name=\"SPJSItestDrLookups\" StaticName=\"SPJSItestDrLookups\" DisplayName=\"SPJS Itest Lookups\" Type=\"LookupMulti\" Mult=\"TRUE\" List=\"{{listid:SPJS Itest DataRows Source}}\" ShowField=\"Title\" />"
+      ],
+      "FieldRefs": [
+        {
+          "ID": "21bb9a2c-0de1-47ed-a7cc-f56b3effe467",
+          "Name": "SPJSItestDrText",
+          "DisplayName": "SPJS Itest Text"
+        },
+        {
+          "ID": "34ddfd52-b89c-4435-910e-297d620d2306",
+          "Name": "SPJSItestDrNumber",
+          "DisplayName": "SPJS Itest Number"
+        },
+        {
+          "ID": "e79f8d78-f3ea-4b4b-b837-07549c951229",
+          "Name": "SPJSItestDrFlag",
+          "DisplayName": "SPJS Itest Flag"
+        },
+        {
+          "ID": "bceedb32-28a8-4baa-8f14-8637bc1e1664",
+          "Name": "SPJSItestDrDate",
+          "DisplayName": "SPJS Itest Date"
+        },
+        {
+          "ID": "f1b09d6a-ae0a-4fd3-8e5e-4f19961034d4",
+          "Name": "SPJSItestDrChoice",
+          "DisplayName": "SPJS Itest Choice"
+        },
+        {
+          "ID": "1f26bfc0-761a-441f-81a1-9450a0a18521",
+          "Name": "SPJSItestDrChoices",
+          "DisplayName": "SPJS Itest Choices"
+        },
+        {
+          "ID": "94db5294-2817-43d9-8dfe-34a5a4b63bbc",
+          "Name": "SPJSItestDrLink",
+          "DisplayName": "SPJS Itest Link"
+        },
+        {
+          "ID": "15cb2353-8a4b-41cf-9f37-8cfd8c262e03",
+          "Name": "SPJSItestDrPerson",
+          "DisplayName": "SPJS Itest Person"
+        }
+      ],
+      "DataRows": {
+        "KeyColumn": "Title",
+        "UpdateBehavior": "Overwrite",
+        "Rows": [
+          {
+            "Title": "SPJS Itest Row A",
+            "SPJSItestDrText": "{sitename} / {parameter:SPJSItestText}",
+            "SPJSItestDrNumber": 12.5,
+            "SPJSItestDrFlag": true,
+            "SPJSItestDrDate": "2026-05-17",
+            "SPJSItestDrChoice": "Beta",
+            "SPJSItestDrChoices": ["Alfa", "Gamma"],
+            "SPJSItestDrLink": {
+              "Url": "https://contoso.com/spjs-itest/{parameter:SPJSItestSlug}",
+              "Description": "SPJS Itest link"
+            },
+            "SPJSItestDrPerson": "@@user@@",
+            "SPJSItestDrLookup": { "lookupValue": "SPJS Itest Source A" },
+            "SPJSItestDrLookups": [{ "lookupValue": "SPJS Itest Source B" }, 3]
+          },
+          {
+            "Title": "SPJS Itest Row B",
+            "SPJSItestDrText": "Kept {Title} and {unknown:value}",
+            "SPJSItestDrNumber": 7,
+            "SPJSItestDrFlag": false,
+            "SPJSItestDrDate": "2026-12-31",
+            "SPJSItestDrChoice": "Gamma",
+            "SPJSItestDrChoices": "Beta",
+            "SPJSItestDrLink": "https://fabrikam.com/spjs-itest",
+            "SPJSItestDrPerson": { "login": "@@user@@" },
+            "SPJSItestDrLookup": 2,
+            "SPJSItestDrLookups": [{ "lookupId": 1 }]
+          },
+          {
+            "Title": "SPJS Itest Row C",
+            "SPJSItestDrFlag": 1,
+            "SPJSItestDrLookup": "SPJS Itest Source C"
+          }
+        ]
+      }
+    },
+    {
+      "Title": "SPJS Itest DataRows Skip",
+      "Description": "Rows upserted by a Number key, existing rows skipped",
+      "Template": 100,
+      "ContentTypesEnabled": false,
+      "FieldRefs": [
+        {
+          "ID": "34ddfd52-b89c-4435-910e-297d620d2306",
+          "Name": "SPJSItestDrNumber",
+          "DisplayName": "SPJS Itest Sort order"
+        },
+        {
+          "ID": "21bb9a2c-0de1-47ed-a7cc-f56b3effe467",
+          "Name": "SPJSItestDrText",
+          "DisplayName": "SPJS Itest Text"
+        }
+      ],
+      "DataRows": {
+        "KeyColumn": "SPJSItestDrNumber",
+        "UpdateBehavior": "Skip",
+        "Rows": [
+          {
+            "Title": "SPJS Itest Step 10",
+            "SPJSItestDrNumber": 10,
+            "SPJSItestDrText": "First step"
+          },
+          {
+            "Title": "SPJS Itest Step 20",
+            "SPJSItestDrNumber": 20,
+            "SPJSItestDrText": "Second step"
+          },
+          {
+            "Title": "SPJS Itest Step 30",
+            "SPJSItestDrNumber": 30,
+            "SPJSItestDrText": "Third step"
+          }
+        ]
+      }
+    }
+  ]
+}

@@ -1,0 +1,23 @@
+{
+  "$schema": "../../../schema.json",
+  "CustomActions": [
+    {
+      "Title": "SPJS Itest Classic Script Link",
+      "Name": "SPJSItestClassicScriptLink",
+      "Description": "A ScriptLink action; needs custom script (NoScript refuses it)",
+      "Location": "ScriptLink",
+      "ScriptBlock": "window.spjsItest = true;",
+      "Sequence": 100
+    },
+    {
+      "Title": "SPJS Itest Classic Edit Control Block",
+      "Name": "SPJSItestClassicEditControlBlock",
+      "Description": "A classic item menu entry on every document library; NoScript refuses it too",
+      "Location": "EditControlBlock",
+      "Url": "~site/_layouts/15/listedit.aspx?List={ListId}",
+      "RegistrationId": "101",
+      "RegistrationType": 1,
+      "Sequence": 110
+    }
+  ]
+}

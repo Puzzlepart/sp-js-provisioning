@@ -40,7 +40,11 @@ export class Files extends HandlerBase {
     this.tokenHelper = new TokenHelper(context, this.config)
     super.scope_started()
     if (this.config.spfxContext) {
-      throw 'Files Handler not supported in SPFx.'
+      const error = new Error(
+        'The Files handler is not supported with an SPFx context (config.spfxContext is set).'
+      )
+      super.scope_ended(error)
+      throw error
     }
     const { ServerRelativeUrl } = await web.select('ServerRelativeUrl')()
     try {

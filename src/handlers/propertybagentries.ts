@@ -1,9 +1,21 @@
-import { Logger, LogLevel } from '@pnp/logging'
 import { IWeb } from '@pnp/sp/presets/all'
 import { IProvisioningConfig } from '../provisioningconfig'
 import { IPropertyBagEntry } from '../schema'
 import * as Util from '../util'
 import { HandlerBase } from './handlerbase'
+
+/**
+ * The error of a failed JSOM request.
+ *
+ * @param args - The request's failure arguments
+ */
+function requestFailed(args: any): Error {
+  return new Error(
+    `Failed to write the property bag: ${
+      (args && args.get_message && args.get_message()) || 'unknown error'
+    }`
+  )
+}
 
 /**
  * Describes the PropertyBagEntries Object Handler
@@ -30,18 +42,20 @@ export class PropertyBagEntries extends HandlerBase {
   ): Promise<void> {
     super.scope_started()
     return new Promise<any>((resolve, reject) => {
+      const fail = (error: Error) => {
+        super.scope_ended(error)
+        reject(error)
+      }
       if (Util.isNode()) {
-        Logger.write(
-          'PropertyBagEntries Handler not supported in Node.',
-          LogLevel.Error
+        fail(
+          new Error('The PropertyBagEntries handler is not supported in Node.')
         )
-        reject()
       } else if (this.config.spfxContext) {
-        Logger.write(
-          'PropertyBagEntries Handler not supported in SPFx.',
-          LogLevel.Error
+        fail(
+          new Error(
+            'The PropertyBagEntries handler is not supported with an SPFx context (config.spfxContext is set).'
+          )
         )
-        reject()
       } else {
         web
           .select('ServerRelativeUrl')()
@@ -71,22 +85,17 @@ export class PropertyBagEntries extends HandlerBase {
                       super.scope_ended()
                       resolve(true)
                     },
-                    () => {
-                      super.scope_ended()
-                      reject()
-                    }
+                    (_sender: any, args: any) => fail(requestFailed(args))
                   )
                 } else {
                   super.scope_ended()
                   resolve(true)
                 }
               },
-              () => {
-                super.scope_ended()
-                reject()
-              }
+              (_sender: any, args: any) => fail(requestFailed(args))
             )
           })
+          .catch(fail)
       }
     })
   }

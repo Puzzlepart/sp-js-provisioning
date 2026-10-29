@@ -8,7 +8,7 @@ import {
 } from '@pnp/sp/presets/all'
 import { IProvisioningConfig } from '../provisioningconfig'
 import { ProvisioningContext } from '../provisioningcontext'
-import { replaceUrlTokens } from '../util'
+import { mapStrings, replaceUrlTokens } from '../util'
 import { TokenHelper } from '../util/tokenhelper'
 import { HandlerBase } from './handlerbase'
 import { IClientSideControl, IClientSidePage } from '../schema'
@@ -87,20 +87,48 @@ export class ClientSidePages extends HandlerBase {
         partDef: null
       }
     }
-    let properties = this.tokenHelper.replaceTokens(
-      JSON.stringify(control.Properties)
-    )
-    properties = replaceUrlTokens(properties, this.config)
+    // Tokens are replaced in each string: a value with a quote or a backslash
+    // broke the JSON text they used to be replaced in, and the part was lost.
     const part = ClientsideWebpart.fromComponentDef(partDef).setProperties<any>(
-      JSON.parse(properties)
+      mapStrings(control.Properties, (text) =>
+        replaceUrlTokens(this.tokenHelper.replaceTokens(text), this.config)
+      )
     )
     if (control.ServerProcessedContent) {
-      const serverProcessedContent = this.tokenHelper.replaceTokens(
-        JSON.stringify(control.ServerProcessedContent)
+      part.setServerProcessedContent(
+        mapStrings(control.ServerProcessedContent, (text) =>
+          this.tokenHelper.replaceTokens(text)
+        )
       )
-      part.setServerProcessedContent(JSON.parse(serverProcessedContent))
     }
     return { part, partDef } as const
+  }
+
+  /**
+   * Adds a part to a section or column of a page. A part that cannot be added is logged as an
+   * error and the page is saved without it.
+   *
+   * @param target - The vertical section or column
+   * @param part - The part
+   * @param partDef - The part's definition (for its name)
+   * @param pageName - The page (for logging)
+   */
+  private _addControl(
+    target: { addControl(part: any): any },
+    part: any,
+    partDef: { Name: string },
+    pageName: string
+  ): void {
+    try {
+      target.addControl(part)
+    } catch (error) {
+      super.log_error(
+        'processClientSidePage',
+        `Failed adding part ${partDef.Name} to client side page ${pageName}: ${
+          (error && error.message) || error
+        }`
+      )
+    }
   }
 
   /**
@@ -157,14 +185,7 @@ export class ClientSidePages extends HandlerBase {
           control
         )
         if (!part) continue
-        try {
-          verticalSection.addControl(part)
-        } catch {
-          super.log_info(
-            'processClientSidePage',
-            `Failed adding part ${partDef.Name} to client side page ${clientSidePage.Name}`
-          )
-        }
+        this._addControl(verticalSection, part, partDef, clientSidePage.Name)
       }
     }
     const sections = clientSidePage.Sections || []
@@ -178,14 +199,7 @@ export class ClientSidePages extends HandlerBase {
             control
           )
           if (!part) continue
-          try {
-            column.addControl(part)
-          } catch {
-            super.log_info(
-              'processClientSidePage',
-              `Failed adding part ${partDef.Name} to client side page ${clientSidePage.Name}`
-            )
-          }
+          this._addControl(column, part, partDef, clientSidePage.Name)
         }
       }
     }

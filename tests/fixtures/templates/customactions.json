@@ -1,0 +1,36 @@
+{
+  "$schema": "../../../schema.json",
+  "CustomActions": [
+    {
+      "Title": "SPJS Itest SPFx Application Customizer",
+      "Name": "SPJSItestSPFxApplicationCustomizer",
+      "Description": "An SPFx application customizer; SharePoint stores any component id",
+      "Location": "ClientSideExtension.ApplicationCustomizer",
+      "ClientSideComponentId": "caf4e769-7468-4144-ab1d-5141846b1e88",
+      "ClientSideComponentProperties": "{\"message\":\"SPJS Itest\",\"level\":2}",
+      "Sequence": 10
+    },
+    {
+      "Title": "SPJS Itest SPFx Command Set",
+      "Name": "SPJSItestSPFxCommandSet",
+      "Description": "An SPFx list view command set on every custom list",
+      "Location": "ClientSideExtension.ListViewCommandSet.CommandBar",
+      "ClientSideComponentId": "c3a3281c-7015-4e04-ad5f-3af8fdb8a4a3",
+      "ClientSideComponentProperties": "{\"commands\":{\"one\":{\"title\":\"SPJS Itest\"}}}",
+      "RegistrationId": "100",
+      "RegistrationType": 1,
+      "Sequence": 20
+    },
+    {
+      "Title": "SPJS Itest SPFx Context Menu",
+      "Name": "SPJSItestSPFxContextMenu",
+      "Description": "An SPFx command set in the item menu of every document library",
+      "Location": "ClientSideExtension.ListViewCommandSet.ContextMenu",
+      "ClientSideComponentId": "d5ffb638-ec52-43f9-a8ef-6794dc34f0d6",
+      "ClientSideComponentProperties": "{}",
+      "RegistrationId": "101",
+      "RegistrationType": 1,
+      "Sequence": 30
+    }
+  ]
+}

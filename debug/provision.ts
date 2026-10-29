@@ -1,400 +1,170 @@
 /* eslint-disable no-console */
 /**
- * Local provisioning runner — apply a Prosjektportalen template package to a real
- * SharePoint site straight from Node, without the SPFx build/deploy loop.
+ * Local provisioning runner: apply a template or a Prosjektportalen package to a real SharePoint
+ * site straight from Node, without the SPFx build/deploy loop.
  *
- * It reproduces what the catalog's `PackageInstaller` does in the browser
- * (`WebProvisioner(web).setup({ spfxContext, logging }).applyTemplate(schema)`),
- * but authenticates with `@pnp/nodejs` (MSAL app-only) so you can iterate on the
- * engine handlers (Lists, ContentTypes, SiteFields, Taxonomy, …) and see every
- * log line — including the SharePoint error payloads — in your terminal.
+ * It reproduces what PP365's PackageInstaller does in the browser
+ * (`WebProvisioner(web).setup({ spfxContext, logging }).applyTemplate(schema)`), signed in with
+ * the configuration in `.env` (see `.env.example`): the session cookies of a Playwright sign-in
+ * locally, or an app's certificate in CI. It runs the engine source (`src/`) through tsx, so a
+ * handler change takes effect on the next run without a build.
  *
  * Usage:
- *   npm run provision -- --site <url> --package <path> [options]
+ *   npm run provision -- --package <path> [--site <url>] [options]
+ *   npm run provision -- --help
+ */
+import {
+  describeSchema,
+  handlerOrder,
+  IArgs,
+  parseArgs,
+  planHandlers,
+  resolveTemplate,
+  transformSchema,
+  usage,
+  UsageError
+} from './lib/cli'
+import { DefaultHandlerSort } from '../src/handlers/exports'
+import { apply } from './lib/apply'
+import {
+  accessDenied,
+  assertConnectedWritable,
+  assertWritable,
+  connect,
+  ISiteConnection
+} from './lib/connect'
+import { authMode, env } from './lib/env'
+import { describeError } from './lib/redact'
+
+/**
+ * Prints the plan for a run.
  *
- *   --site <url>        Target site, e.g. https://contoso.sharepoint.com/sites/hub
- *   --package <path>    A package folder (with manifest.json), a .pppkg/.zip,
- *                       or a raw hub-template JSON file.
- *   --lang <locale>     Use the localized hub template, e.g. en-US (default: nb-NO).
- *   --mode <hub|cloud>  hub = full hub template (default, like a Mode A import).
- *                       cloud = only SiteFields + ContentTypes + binding lists
- *                       (like provisionCloudTemplateHubDependencies).
- *   --handlers <csv>    Only run these handlers, e.g. SiteFields,ContentTypes,Lists.
- *   --skip-taxonomy     Drop the Taxonomy section before applying.
- *   --dry-run           Print the resolved template (handlers + counts) and exit.
- *
- * Auth: copy debug/provision.settings.example.ts → debug/provision.settings.ts
- * (gitignored) and fill in your app registration. Run with Node 18+ (your system
- * default is fine — the Node 16 requirement only applies to the SPFx build).
+ * @param site - The target site
+ * @param label - What the template came from
+ * @param args - The arguments
+ * @param schema - The template to apply
+ * @param plan - The handlers to run and skip
  */
-import * as fs from 'fs'
-import * as os from 'os'
-import * as path from 'path'
-import { execFileSync } from 'child_process'
-
-const HANDLERS = [
-  'Taxonomy',
-  'SiteFields',
-  'ContentTypes',
-  'Features',
-  'Lists',
-  'Files',
-  'CustomActions',
-  'ComposedLook',
-  'ClientSidePages',
-  'PropertyBagEntries',
-  'Navigation',
-  'Hooks'
-]
-
-/**
- * Handlers the engine can't run outside the browser/SPFx:
- *  - Taxonomy and ContentTypes provision via JSOM (`spfx-jsom` → SP.ClientContext),
- *    which is browser-only — stubbed out in Node.
- *  - Files throws when an SPFx context is present.
- *  - PropertyBagEntries rejects in Node.
- * Auto-skipped unless the caller forces a handler set with --handlers. (Forcing
- * ContentTypes/Taxonomy will fail with a clear "JSOM not available" error.)
- *
- * What DOES run server-side: SiteFields and Lists (incl. folders, views, rows and
- * content-type bindings) — they use `@pnp/sp` REST.
- */
-const NODE_UNSUPPORTED = [
-  'Taxonomy',
-  'ContentTypes',
-  'Files',
-  'PropertyBagEntries'
-]
-
-interface IArgs {
-  site: string
-  package: string
-  lang?: string
-  mode: 'hub' | 'cloud'
-  handlers?: string[]
-  skipTaxonomy: boolean
-  dryRun: boolean
-}
-
-function parseArgs(argv: string[]): IArgs {
-  const out: any = { mode: 'hub', skipTaxonomy: false, dryRun: false }
-  for (let i = 0; i < argv.length; i++) {
-    const a = argv[i]
-    const next = () => argv[++i]
-    switch (a) {
-      case '--site':
-        out.site = next()
-        break
-      case '--package':
-      case '--pkg':
-        out.package = next()
-        break
-      case '--lang':
-        out.lang = next()
-        break
-      case '--mode':
-        out.mode = next()
-        break
-      case '--handlers':
-        out.handlers = next()
-          .split(',')
-          .map((s) => s.trim())
-          .filter(Boolean)
-        break
-      case '--skip-taxonomy':
-        out.skipTaxonomy = true
-        break
-      case '--dry-run':
-        out.dryRun = true
-        break
-      case '--help':
-      case '-h':
-        printUsageAndExit(0)
-        break
-      default:
-        console.error(`Unknown argument: ${a}`)
-        printUsageAndExit(1)
-    }
-  }
-  if (!out.site || !out.package) {
-    console.error('Missing required --site and/or --package.')
-    printUsageAndExit(1)
-  }
-  if (out.mode !== 'hub' && out.mode !== 'cloud') {
-    console.error(`Invalid --mode "${out.mode}" (expected hub or cloud).`)
-    printUsageAndExit(1)
-  }
-  return out as IArgs
-}
-
-function printUsageAndExit(code: number): never {
-  console.log(
-    [
-      'Usage: npm run provision -- --site <url> --package <path> [options]',
-      '',
-      '  --site <url>        Target SharePoint site',
-      '  --package <path>    Package folder, .pppkg/.zip, or hub-template JSON',
-      '  --lang <locale>     Localized hub template (e.g. en-US). Default nb-NO.',
-      '  --mode <hub|cloud>  hub (full, default) or cloud (hub dependencies only)',
-      '  --handlers <csv>    Only run these handlers',
-      '  --skip-taxonomy     Drop the Taxonomy section',
-      '  --dry-run           Print the resolved template and exit',
-      '',
-      `  Handlers: ${HANDLERS.join(', ')}`
-    ].join('\n')
-  )
-  process.exit(code)
-}
-
-/**
- * The engine's `util` references `window`/`document` unconditionally (it is a
- * browser-first library). Provide just enough of a DOM so the non-browser code
- * paths run. Must be called before importing the engine.
- */
-function installBrowserShims(site: string): void {
-  const url = new URL(site)
-  const g = globalThis as any
-  if (!g.window) {
-    g.window = {
-      location: {
-        protocol: url.protocol,
-        host: url.host,
-        hostname: url.hostname,
-        port: url.port,
-        href: site
-      },
-      btoa: (s: string) => Buffer.from(s, 'binary').toString('base64')
-    }
-  }
-  if (!g.document) {
-    g.document = {
-      location: { protocol: url.protocol, hostname: url.hostname }
-    }
-  }
-}
-
-/**
- * A minimal SPFx-context stand-in. The engine only reads
- * `pageContext.site.{absoluteUrl,serverRelativeUrl}` (for `{site}` token
- * replacement), which is all we supply.
- */
-function buildSpfxContext(site: string): any {
-  const url = new URL(site)
-  const serverRelativeUrl = url.pathname || '/'
-  const page = {
-    site: { absoluteUrl: site, serverRelativeUrl },
-    web: { absoluteUrl: site, serverRelativeUrl }
-  }
-  return { pageContext: page }
-}
-
-async function loadSettings(): Promise<any> {
-  try {
-    const mod = await import('./provision.settings')
-    return (mod as any).default ?? mod
-  } catch (error) {
-    console.error(
-      [
-        'Could not load debug/provision.settings.ts.',
-        'Copy the example and fill in your app registration:',
-        '',
-        '  cp debug/provision.settings.example.ts debug/provision.settings.ts',
-        ''
-      ].join('\n')
-    )
-    throw error
-  }
-}
-
-function buildMsalConfig(settings: any): any {
-  const auth: any = {
-    clientId: settings.clientId,
-    authority: `https://login.microsoftonline.com/${settings.tenantId}`
-  }
-  if (settings.clientSecret) {
-    auth.clientSecret = settings.clientSecret
-  } else if (settings.certificate?.privateKeyPath) {
-    auth.clientCertificate = {
-      thumbprint: settings.certificate.thumbprint,
-      privateKey: fs.readFileSync(settings.certificate.privateKeyPath, 'utf8')
-    }
-  } else {
-    throw new Error(
-      'provision.settings.ts must define either clientSecret or certificate.{thumbprint,privateKeyPath}.'
-    )
-  }
-  return { auth }
-}
-
-/**
- * Resolve the sp-js-provisioning `Schema` to apply from the --package argument,
- * mirroring how PackageInstaller picks `manifest.provisioning.hubTemplate`.
- */
-function resolveTemplate(args: IArgs): { schema: any; label: string } {
-  let dir = args.package
-  let label = args.package
-
-  const stat = fs.statSync(args.package)
-
-  // A .pppkg/.zip — extract to a temp dir first.
-  if (stat.isFile() && /\.(pppkg|zip)$/i.test(args.package)) {
-    const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'pp-provision-'))
-    execFileSync('unzip', ['-o', '-q', args.package, '-d', tmp])
-    dir = tmp
-    label = `${args.package} (extracted)`
-  } else if (stat.isFile()) {
-    // A raw template JSON.
-    return { schema: JSON.parse(fs.readFileSync(args.package, 'utf8')), label }
-  }
-
-  // A package folder (or extracted .pppkg): read the manifest, pick the template.
-  const manifestPath = path.join(dir, 'manifest.json')
-  if (!fs.existsSync(manifestPath)) {
-    throw new Error(`No manifest.json found in ${dir}`)
-  }
-  const manifest = JSON.parse(fs.readFileSync(manifestPath, 'utf8'))
-  const localized =
-    args.lang && manifest.provisioning?.localized?.[args.lang]?.hubTemplate
-  const hubTemplate = localized || manifest.provisioning?.hubTemplate
-  if (!hubTemplate) {
-    throw new Error(
-      `manifest.provisioning.hubTemplate missing in ${manifestPath}`
-    )
-  }
-  const templatePath = path.join(dir, hubTemplate)
-  label = `${manifest.name ?? manifest.id} → ${hubTemplate}`
-  return { schema: JSON.parse(fs.readFileSync(templatePath, 'utf8')), label }
-}
-
-/** Apply the hub/cloud/taxonomy transforms PackageInstaller applies. */
-function transformSchema(schema: any, args: IArgs): any {
-  if (args.mode === 'cloud') {
-    const filtered: any = {}
-    if (schema.SiteFields?.length) filtered.SiteFields = schema.SiteFields
-    if (schema.ContentTypes?.length) filtered.ContentTypes = schema.ContentTypes
-    const bindingLists = (schema.Lists ?? []).filter(
-      (list: any) =>
-        Array.isArray(list.ContentTypeBindings) &&
-        list.ContentTypeBindings.length > 0 &&
-        !list.DataRows
-    )
-    if (bindingLists.length) filtered.Lists = bindingLists
-    return filtered
-  }
-  if (args.skipTaxonomy && schema.Taxonomy) {
-    const { Taxonomy, ...rest } = schema
-    return rest
-  }
-  return schema
-}
-
-function describe(schema: any): string {
-  return Object.keys(schema)
-    .map((key) => {
-      const value = schema[key]
-      const count = Array.isArray(value) ? `[${value.length}]` : ''
-      return `  • ${key}${count}`
-    })
-    .join('\n')
-}
-
-/**
- * Decide which handlers to run. An explicit --handlers wins as-is; otherwise run
- * every handler present in the template except the ones that can't run in Node.
- */
-function planHandlers(
-  schema: any,
-  args: IArgs
-): { run: string[]; skipped: string[] } {
-  if (args.handlers) return { run: args.handlers, skipped: [] }
-  const present = Object.keys(schema).filter((key) => HANDLERS.includes(key))
-  return {
-    run: present.filter((key) => !NODE_UNSUPPORTED.includes(key)),
-    skipped: present.filter((key) => NODE_UNSUPPORTED.includes(key))
-  }
-}
-
-async function main(): Promise<void> {
-  const args = parseArgs(process.argv.slice(2))
-
-  // Shims first — before any engine code is imported.
-  installBrowserShims(args.site)
-
-  const { schema: rawSchema, label } = resolveTemplate(args)
-  const schema = transformSchema(rawSchema, args)
-  const plan = planHandlers(schema, args)
-
-  console.log(`\nSite:     ${args.site}`)
+function printPlan(
+  site: string,
+  label: string,
+  args: IArgs,
+  schema: Record<string, any>,
+  plan: { run: string[]; skipped: string[] }
+): void {
+  console.log(`\nSite:     ${site || '(not set)'}`)
   console.log(`Package:  ${label}`)
   console.log(
-    `Mode:     ${args.mode}${args.skipTaxonomy ? ' (skip taxonomy)' : ''}`
+    `Mode:     ${args.mode}${args.skipTaxonomy ? ' (skip taxonomy)' : ''}${
+      args.twice ? ', twice' : ''
+    }${args.strict ? ', strict' : ''}`
   )
-  console.log(`Template handlers:\n${describe(schema)}`)
+  console.log(`Template sections:\n${describeSchema(schema)}`)
   console.log(`\nWill run: ${plan.run.join(', ') || '(none)'}`)
-  if (plan.skipped.length) {
+  if (plan.skipped.length)
     console.log(
       `Skipped:  ${plan.skipped.join(
         ', '
-      )} (browser/SPFx-only — pass --handlers to force)`
+      )} (browser/SPFx-only in Node; pass --handlers to force)`
     )
-  }
   console.log('')
-
-  if (args.dryRun) {
-    console.log('Dry run — not applying.')
-    return
-  }
-
-  const settings = await loadSettings()
-
-  // Imported after the shims are in place.
-  const { spfi } = await import('@pnp/sp')
-  await import('@pnp/sp/presets/all')
-  const { SPDefault } = await import('@pnp/nodejs')
-  const { FunctionListener, Logger, LogLevel } = await import('@pnp/logging')
-  const { WebProvisioner } = await import('../src/index')
-
-  const url = new URL(args.site)
-  const sp = spfi(args.site).using(
-    SPDefault({
-      msal: {
-        config: buildMsalConfig(settings),
-        scopes: [`${url.protocol}//${url.host}/.default`]
-      }
-    })
-  )
-
-  // Surface the data payload of warnings/errors (e.g. the SharePoint 500 body),
-  // which the default ConsoleListener doesn't print.
-  Logger.subscribe(
-    FunctionListener((entry) => {
-      if (entry.level >= LogLevel.Warning && entry.data) {
-        console.log('   ↳ data:', JSON.stringify(entry.data, null, 2))
-      }
-    })
-  )
-
-  const provisioner = new WebProvisioner((sp as any).web).setup({
-    spfxContext: buildSpfxContext(args.site),
-    logging: { prefix: '(provision-debug)', activeLogLevel: LogLevel.Info }
-  } as any)
-
-  console.log('Applying template…\n')
-  try {
-    await provisioner.applyTemplate(schema, plan.run, (handler) => {
-      console.log(`\n▶ ${handler}`)
-    })
-    console.log('\n✅ Done — template applied without a terminal error.')
-  } catch (error: any) {
-    console.error('\n❌ Provisioning failed.')
-    if (error?.handler) console.error(`   Failing handler: ${error.handler}`)
-    console.error(`   Message: ${error?.message ?? error}`)
-    if (error?.stack) console.error(error.stack)
-    process.exitCode = 1
-  }
 }
 
-main().catch((error) => {
-  console.error(error)
-  process.exitCode = 1
-})
+async function main(): Promise<number> {
+  const args = parseArgs(process.argv.slice(2))
+  const site = (args.site ?? env.siteUrl ?? '').replace(/\/+$/, '')
+  const handlers = handlerOrder(DefaultHandlerSort)
+  if (args.help) {
+    console.log(usage(handlers))
+    return 0
+  }
+  const { schema: rawSchema, label, manifest } = resolveTemplate(args)
+  const schema = transformSchema(rawSchema, args, manifest)
+  const plan = planHandlers(schema, handlers, args.handlers)
+  printPlan(site, label, args, schema, plan)
+  if (args.dryRun) {
+    console.log('Dry run: not signing in, not applying.')
+    return 0
+  }
+  if (!site)
+    throw new UsageError('Missing --site (or INTEGRATION_SITE_URL in .env)')
+  assertWritable(site, args.allowSite)
+
+  let connection: ISiteConnection
+  try {
+    connection = await connect(site)
+  } catch (error) {
+    const message = accessDenied(error, site, authMode())
+    if (!message) throw error
+    console.error(`\n${message}`)
+    return 1
+  }
+  // The web SharePoint reports, not the URL given, decides (a `..` in --site is resolved there).
+  assertConnectedWritable(connection, args.allowSite)
+  console.log(
+    `Signed in with ${connection.mode} to "${connection.webInfo.Title}" (${connection.webInfo.Url})\n`
+  )
+
+  /**
+   * One run, printing the engine's log lines (with their data, e.g. the SharePoint error body).
+   */
+  const run = (attempt: number) =>
+    apply(connection, schema, {
+      handlers: plan.run,
+      parameters: args.parameters,
+      prefix: `(provision${args.twice ? ` #${attempt}` : ''})`,
+      onHandler: (handler) => console.log(`\n> ${handler}`)
+    })
+
+  const results = []
+  for (let attempt = 1; attempt <= (args.twice ? 2 : 1); attempt++) {
+    if (args.twice) console.log(`\n=== Run ${attempt} of 2 ===`)
+    results.push(await run(attempt))
+    if (results[results.length - 1].error) break
+  }
+
+  let failed = false
+  results.forEach((result, index) => {
+    const name = args.twice ? `Run ${index + 1}` : 'Run'
+    if (result.error) {
+      failed = true
+      console.error(`\nFAILED ${name}: provisioning stopped.`)
+      if (result.error.handler)
+        console.error(`   Failing handler: ${result.error.handler}`)
+      console.error(`   Message: ${describeError(result.error)}`)
+      return
+    }
+    const logged = `${result.errors.length} error(s), ${result.warnings.length} warning(s) logged`
+    if (result.errors.length) {
+      if (args.strict) failed = true
+      console.log(
+        `\n${args.strict ? 'FAILED' : 'DONE with errors'} ${name}: ${logged}:`
+      )
+      for (const entry of result.errors)
+        console.log(`   [${entry.source ?? '?'}] ${entry.message}`)
+    } else {
+      console.log(`\nOK ${name}: ${logged}.`)
+    }
+  })
+  if (args.strict && !failed)
+    console.log(
+      '\nNote: --strict sees what the handlers log as errors; it does not read the result ' +
+        'back from the site (docs/specs/integration-testing.md, Phase 1).'
+    )
+  return failed ? 1 : 0
+}
+
+main()
+  .then((code) => {
+    process.exitCode = code
+  })
+  .catch((error) => {
+    if (error instanceof UsageError) {
+      console.error(`${error.message}\n\nRun with --help for usage.`)
+      process.exitCode = error.exitCode
+      return
+    }
+    // The message only: the error object's response holds the response headers (`Set-Cookie`).
+    console.error(describeError(error))
+    process.exitCode = 1
+  })

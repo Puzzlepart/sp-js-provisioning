@@ -18,6 +18,12 @@ export class ProvisioningContext {
    */
   public termStoreId?: string
   public lists: { [key: string]: string } = {}
+  /**
+   * Titles of the lists made in this setup: created by this provisioner, across its
+   * `applyTemplate` calls (PP365 applies a template and then each extension through one). Only
+   * these get `RemoveExistingViews` and `RemoveExistingContentTypes`.
+   */
+  public createdLists: { [title: string]: boolean } = {}
   public listViews: { [key: string]: string } = {}
   public siteFields: { [key: string]: string } = {}
   public contentTypes: { [key: string]: IContentType } = {}

@@ -44,7 +44,7 @@ Important responsibilities:
 - Holds the target `IWeb`.
 - Stores `IProvisioningConfig`.
 - Creates `DefaultHandlerMap(config)` during setup.
-- Loads `context.web` with `await this.web()`.
+- Loads `context.web` from a fresh copy of the web (`Web(this.web)`), and hands every handler a fresh copy too. PnPjs 4's `select()` sets the query on the queryable itself, so a `$select` a handler left on a shared web made the next `applyTemplate` load only that property (`{sitename}` stayed literal).
 - Sorts top-level template keys with `DefaultHandlerSort`.
 - Filters to requested handlers if `handlers` is supplied.
 - Executes handlers sequentially.
@@ -163,7 +163,7 @@ Important limitations:
 
 - The regex only matches lowercase token keys (`[a-z]+`); the value part may contain anything but braces. Unknown keys and JSON-like text such as `{"a":1}` or `{Title}` are left untouched.
 - It replaces a match only when the token resolves; an unresolved token is left in place. A resolved empty value does replace the token, so an empty `{parameter:Name}` yields an empty string.
-- Where tokens are applied: field XML (site and list fields), list `DataRows` values (every string value whose field type is not handled specially, plus `URL.Url`), file sources and web part XML, client-side page properties and server-processed content, site group titles, string properties, owners and members, and role assignment principals (web and list `Security`). Not view queries and not custom action properties.
+- Where tokens are applied: field XML (site and list fields), list `DataRows` values (every string value whose field type is not handled specially, the `KeyColumn` value when matching, and a URL's `Url` and `Description`), file sources and web part XML, client-side page properties and server-processed content, site group titles, string properties, owners and members, and role assignment principals (web and list `Security`). Not view queries and not custom action properties.
 
 ### URL Tokens
 
@@ -174,10 +174,10 @@ Supports:
 - `{site}` -> site server-relative URL
 - `{sitecollection}` -> site absolute URL
 - `{wpgallery}` -> site absolute URL plus `/_catalogs/wp`
-- `{hosturl}` -> current browser protocol, host, and port
+- `{hosturl}` -> the origin (`https://contoso.sharepoint.com`, no trailing colon): from the SPFx context's web, else `window.location`; left in place when there is neither
 - `{themegallery}` -> site absolute URL plus `/_catalogs/theme/15`
 
-URL token replacement uses `config.spfxContext` when available. Otherwise it falls back to browser globals such as `_spPageContextInfo` and `window`.
+URL token replacement uses `config.spfxContext` when available. Otherwise it falls back to `window._spPageContextInfo`; without either (Node with no SPFx context) the site tokens become `null`. `window` and `document` are reached through `browserWindow()`, so the URL tokens, `makeUrlRelative` and the property bag key encoding also work in Node.
 
 ## Handler Architecture
 
@@ -250,7 +250,7 @@ Responsibilities:
 
 - Creates site groups (`SiteGroups`), or updates the configured properties of a group that already exists with the same title.
 - Adds group members (each login name is ensured on the web first) and, with `ClearExistingMembers`, removes members that are not in the template.
-- Sets the group owner after the members are added, so the provisioning user still owns a new group while it is being filled.
+- Sets the group owner after the members are added, so the provisioning user still owns a new group while it is being filled. A group owner goes through CSOM (`Group.Owner` over `_vti_bin/client.svc/ProcessQuery`, `src/util/csom.ts`), a user owner through REST's `SetUserAsOwner`, which answers success for a group id and changes nothing. The owner is read back; a mismatch is logged as an error.
 - Breaks role inheritance on the web when `BreakRoleInheritance` is set and the web still inherits.
 - Adds role assignments on the web.
 
@@ -274,15 +274,15 @@ Responsibilities:
 
 - Initializes JSOM for list operations that need it.
 - Loads existing lists into `context.lists`.
-- Ensures or creates lists.
+- Creates lists (recording them in `context.createdLists`, the lists made in this setup) or updates an existing list with only the settings the template defines.
 - Adds content type bindings.
-- Optionally removes existing content type bindings.
-- Deletes and recreates list fields from field XML.
+- On a list made in this setup, optionally removes the content types not bound (`RemoveExistingContentTypes`).
+- Creates list fields from field XML, or updates them in place (`src/util/fieldxml.ts`): never deletes one.
 - Adds or updates list field refs from web fields.
-- Adds, updates, removes, and reorders view fields.
+- Sets the template's views and their fields when they differ; on a list made in this setup, optionally removes the other views (`RemoveExistingViews`).
 - Creates folder hierarchies (`Folders`).
-- Seeds items from `DataRows` (upsert by `KeyColumn`; string values get token replacement).
-- Applies list `Security` (break role inheritance, add role assignments).
+- Seeds items from `DataRows` (upsert by the token-resolved `KeyColumn`; string values get token replacement).
+- Applies list `Security` (breaks role inheritance only on a list that still inherits, adds role assignments).
 - Updates `context.listViews`.
 
 Processing phases inside `ProvisionObjects`:
@@ -300,14 +300,16 @@ Processing phases inside `ProvisionObjects`:
 Key contracts:
 
 - List identity is title-based in context.
-- Content type binding uses `ContentTypeID`.
-- `RemoveExistingContentTypes` keeps folder content types containing `0x0120`.
+- Content type binding uses `ContentTypeID`; a list content type belongs to a binding when its id is the binding's or a child of it.
+- `RemoveExistingContentTypes` keeps folder content types (`0x0120`).
+- "Made in this setup" is `context.createdLists`, which lives on the `WebProvisioner` instance across its `applyTemplate` calls.
 - List field refs match fields by field ID, not name.
 - `SourceID` for copied web fields is set to the list ID from context.
 
 Important behavior:
 
-- `processField` deletes a list field by ID before recreating it. This is intentional for fields that cannot be updated cleanly, but it is destructive for list-local field state.
+- `processField` never deletes a list field (until 1.5.0 it deleted and recreated every one on every run, losing its values; `docs/specs/lists-re-apply.md`). An existing field gets the template merged onto its stored schema XML (`mergeFieldXml`: template attributes win, identity and storage attributes stay, `Version` dropped, child elements replaced, `Customization` merged by property), sent only when it differs (`sameFieldXml`). A widening type change is applied in place; another one is a warning, and so is a new target (a lookup's list, a taxonomy field's term set) on a list not made in this setup, because SharePoint accepts them and loses or misdirects the stored values (probe 2026-10-26). Primary lookups are made before their dependents.
+- `DataRows` decides add, update or skip from the key before building a row: a skipped row queries no lookup list and ensures no user. An unresolved lookup or user value is an error naming it; an existing item keeps its stored value.
 - `Security` principals accept the PnP tokens `{associatedownergroupid}`, `{associatedmembergroupid}` and `{associatedvisitorgroupid}`, a principal ID, a site group name or a user login name; other tokens in a principal are replaced first. Role definitions are resolved by localized name with a fallback to the well-known role type for the English names. The resolution lives in `src/util/security.ts`, shared with the `Security` handler. Failures are logged per assignment and never abort the template.
 - Several list operations catch errors and log failures without throwing. Agents should inspect logs and behavior, not just promise success.
 
@@ -343,7 +345,7 @@ Responsibilities:
 - Creates or overwrites modern pages.
 - Adds vertical section controls.
 - Adds section, column, text, and web part controls.
-- Replaces config/context tokens in web part properties and server-processed content.
+- Replaces config/context tokens in web part properties and server-processed content, in each string value (and key) with `mapStrings` (`src/util/index.ts`), not in their JSON text: a token value with a quote or a backslash used to break `JSON.parse` and lose the part.
 - Saves the page.
 - Enables or disables comments.
 
@@ -378,6 +380,7 @@ Responsibilities:
 
 - Activates or deactivates web features.
 - Processes features sequentially.
+- Reads the active web features once and leaves a feature that is already in the requested state alone (logged at Info): SharePoint refuses to activate an active feature (500) and to deactivate an inactive one (400). `force` still re-activates an active feature; a feature listed twice follows each entry in order.
 
 Template contract:
 
@@ -394,6 +397,7 @@ Responsibilities:
 - Applies SharePoint theme URLs using `web.applyTheme`.
 - Replaces URL tokens.
 - Converts absolute URLs to relative URLs before applying theme assets.
+- `FontSchemeUrl` and `BackgroundImageUrl` are optional; a missing one is sent as `null` (no font scheme of its own, no background image).
 
 ### `PropertyBagEntries`
 
@@ -444,7 +448,8 @@ Responsibilities:
 
 Important behavior:
 
-- If `WelcomePage` is absent, the current implementation does not call `web.update(settings)`. Be careful if changing this behavior, because it may expose settings that were previously ignored.
+- `web.update(settings)` runs whether or not `WelcomePage` is set (up to 1.4.0 it ran only together with a welcome page, so settings without one were ignored). Nothing is sent when there is nothing to set.
+- The welcome page is split off with object rest (not `object.omit`, which failed as a namespace import in Node).
 
 ### `Hooks`
 
@@ -455,7 +460,7 @@ Responsibilities:
 - Runs external HTTP hooks after provisioning.
 - Supports `GET` and `POST`.
 - For `POST`, merges `hook.Body` with `web.allProperties()`.
-- Supports long-running `202 Accepted` responses by polling the `location` header every 5 seconds until a non-202 response.
+- Supports long-running `202 Accepted` responses by polling the `Location` header (resolved against the URL that answered, after any redirect) every 5 seconds until a non-202 response. A `202` without `Location`, or any request that fails or cannot be sent (network, CORS), fails the hook with its name.
 
 Important behavior:
 
@@ -485,7 +490,7 @@ JSOM is used where PnPjs does not cover the needed behavior cleanly or where cla
 - classic web parts on files/pages
 - property bag indexing
 
-Several modules assume browser globals:
+Several modules assume browser globals (`src/util/index.ts` no longer does: it reaches them through `browserWindow()`):
 
 - `window`
 - `document`
@@ -530,7 +535,7 @@ Do not hand-edit `lib/`. Change `src/` and rebuild.
 
 Logging uses `@pnp/logging`.
 
-`WebProvisioner.onSetup()` subscribes `ConsoleListener()` and sets `Logger.activeLogLevel` when `config.logging` is present.
+`WebProvisioner.onSetup()` subscribes `ConsoleListener()` once per process (a module-level flag; every `applyTemplate` used to add one) and sets `Logger.activeLogLevel` when `config.logging` is present.
 
 Handlers use `HandlerBase` logging helpers for consistent messages:
 
@@ -542,11 +547,11 @@ Errors:
 
 - Handler-level errors should be thrown.
 - `WebProvisioner.applyTemplate` catches handler errors and throws `ProvisioningError`.
-- `ProvisioningError.handler` records the handler name active at failure.
+- `ProvisioningError.handler` records the handler name active at failure, `cause` what it threw or rejected with; the message is readable for an `Error`, a string or nothing (`undefined`).
 
 Important caveat:
 
-- Some handler internals catch errors and only log them. This means `applyTemplate` success does not always prove every sub-operation succeeded.
+- Some handler internals catch errors and only log them. They log them with `log_error` (a refused in-use content type removal with `log_warn`), so a listener that collects errors sees them, but `applyTemplate` success still does not prove every sub-operation succeeded: SharePoint can also accept a request and change nothing (REST's `SetUserAsOwner` with a group id). Reading the result back is the proof (`docs/specs/integration-testing.md`).
 
 ## Extension Guidelines For Agents
 
@@ -573,10 +578,10 @@ When adding or modifying behavior:
    - Browser-only handlers should fail early with clear errors.
    - SPFx restrictions should be documented in code and specs.
 
-6. Verify with build and targeted SharePoint smoke tests.
-   - `npm run build`
-   - relevant handler scenario on a fresh site
-   - relevant handler scenario on an existing site
+6. Verify with the tests ([`docs/TESTING.md`](./TESTING.md)).
+   - `npm run build`, `npm test`, `npm run typecheck:tests`
+   - the handler's integration suite, which applies its fixture twice to a fresh scratch web and reads the result back: `npm run test:integration -- <Handler>`
+   - a template by hand on the reserved site: `npm run provision -- --package <path> --twice --strict` (`debug/README.md`)
 
 7. Keep docs close to architectural decisions.
    - Use `docs/specs/` for behavior and implementation plans.
@@ -587,7 +592,6 @@ When adding or modifying behavior:
 - Content type creation and update semantics are sensitive to SharePoint ID rules and JSOM/PnP differences.
 - Handler order is a contract. Changing sort values can break token resolution, content type bindings, or page/list references.
 - Token replacement is partial and regex-limited. Do not assume arbitrary token values are supported. Data row string values are now token-replaced, so a literal `{lowercasekey}` in seeded content is only safe if the key is unknown to `TokenHelper`.
-- List field deletion/recreation can lose list-specific state.
 - Some errors are swallowed after logging, especially inside list, file, and content type sub-operations.
 - Browser globals are used in utility and handler code, so Node compatibility is uneven.
 - `.npmignore` and `.gitignore` affect whether docs and generated files are visible to consumers. The repository tracks docs; `lib/` remains generated and ignored by git.
