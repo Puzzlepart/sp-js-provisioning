@@ -5,7 +5,10 @@ import { ISiteConnection } from '../connect'
  * A navigation node as SharePoint stores it, with its children, in display order.
  */
 export interface INavigationNodeState<TId = never> {
-  /** Only in {@link readNavigationTree}: the Navigation handler re-adds every node on each run. */
+  /**
+   * Only in {@link readNavigationTree}: the Navigation handler keeps the nodes it matches, so a test
+   * can prove a re-apply kept them by their ids.
+   */
   Id?: TId
   Title: string
   Url: string
@@ -74,7 +77,7 @@ export function navigationIds(state: INavigationState<number>): number[] {
 }
 
 /**
- * A read-back without node ids, which change on every run.
+ * A read-back without node ids, which SharePoint assigns: a node added again gets a new one.
  *
  * @param state - A read-back with ids
  */

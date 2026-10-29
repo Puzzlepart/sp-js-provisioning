@@ -18,6 +18,11 @@
           {
             "Title": "SPJS Itest Master pages",
             "Url": "https://www.contoso.com/spjs-itest/b/child"
+          },
+          {
+            "Title": "SPJS Itest Contoso",
+            "Url": "https://www.contoso.com/spjs-itest/b/contoso",
+            "IgnoreExisting": true
           }
         ]
       },

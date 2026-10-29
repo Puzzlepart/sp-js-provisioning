@@ -13,16 +13,16 @@ families (`<name>.json` and its `<name>.b.json` variant), except tenant-invarian
 | Fixture | Suite | Covers |
 | --- | --- | --- |
 | `smoke.json` | the 0a runner check (`npm run provision -- --package tests/fixtures/templates/smoke.json --twice --strict`) | A site column, two site groups (one owns itself), a list granted to them |
-| `failures.json` | the 0b runner check (`--handlers Lists\|Files\|PropertyBagEntries --strict`) | A list field SharePoint refuses, a `Files` and a `PropertyBagEntries` entry: each run must exit 1 |
+| `failures.json` | the 0b runner check (`--handlers Lists\|Files\|PropertyBagEntries --strict`); `sitefields.test.ts` (`SiteFields` only) | A list field SharePoint refuses, a `Files` and a `PropertyBagEntries` entry: each run must exit 1. A site column SharePoint refuses (a formula naming a missing column) followed by a valid one: one error, and the valid column is still created |
 | `security.json` | `security.test.ts` | Site groups (owners, join/leave settings, `ClearExistingMembers`), web role assignments, a list granted to one of the groups |
-| `sitefields.json`, `.b.json` | `sitefields.test.ts` | Eleven column types; B renames one and makes it required |
+| `sitefields.json`, `.b.json` | `sitefields.test.ts` | Eleven column types; B renames one and makes it required. The suite also applies inline templates: a narrowing type change, a taxonomy column, a lookup to a list of the same template with a FieldRef copy |
 | `features.json`, `.b.json` | `features.test.ts` | Activate / deactivate the FollowingContent web feature |
 | `lists.json`, `.b.json` | `lists.test.ts` | A list and a library: bindings, list fields, field refs, views, folders, list security; B changes two list fields' display names, a description and a `MaxLength` |
 | `lists-datarows.json`, `.b.json` | `lists-datarows.test.ts` | Every DataRows value shape, `KeyColumn`, `Skip` / `Overwrite`; B: one list per case the Lists re-apply spec fixed |
 | `customactions.json`, `.b.json`, `customactions-script.json` | `customactions.test.ts` | SPFx extension actions; B changes a `Sequence`; classic actions (need custom script) |
 | `composedlook.json` | `composedlook.test.ts` | An OOTB look (palette, font scheme, background image) |
 | `clientsidepages.json`, `.b.json` | `clientsidepages.test.ts` | Pages with sections, a text control, OOTB web parts, `Overwrite` on and off |
-| `navigation.json`, `.b.json` | `navigation.test.ts` | Quick Launch with children and the top bar; B: `IgnoreExisting` |
+| `navigation.json`, `.b.json` | `navigation.test.ts` | Quick Launch three levels deep and the top bar; B: `IgnoreExisting` at the top level and on a child, a kept node without its children |
 | `websettings.json`, `.b.json` | `websettings.test.ts` | Welcome page and web properties; B without a welcome page |
 | `hooks.json` | `hooks.test.ts` | GET and POST hooks to a local listener, a 202 that is polled |
 

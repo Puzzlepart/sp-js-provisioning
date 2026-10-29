@@ -149,7 +149,19 @@ export class Lists extends HandlerBase {
   private async processList(web: IWeb, lc: IListInstance): Promise<void> {
     super.log_info('processList', `Processing list ${lc.Title}`)
     let list: IList
-    if (this.context.lists[lc.Title]) {
+    if (
+      this.context.preCreatedLists[lc.Title] &&
+      this.context.lists[lc.Title]
+    ) {
+      // Created with its settings a moment ago, before SiteFields, because a site column's
+      // {listid:} names it (WebProvisioner): nothing to send again.
+      list = web.lists.getById(this.context.lists[lc.Title])
+      delete this.context.preCreatedLists[lc.Title]
+      super.log_info(
+        'processList',
+        `List ${lc.Title} was created before SiteFields, with its settings.`
+      )
+    } else if (this.context.lists[lc.Title]) {
       list = web.lists.getById(this.context.lists[lc.Title])
       // Only what the template defines: `lists.ensure` sent PnPjs' defaults for what it leaves out
       // (an empty Description, content types off) on every apply.
@@ -181,20 +193,7 @@ export class Lists extends HandlerBase {
         }
       }
     } else {
-      super.log_info(
-        'processList',
-        `List ${lc.Title} doesn't exist. Creating...`
-      )
-      const listInfo = await web.lists.add(
-        lc.Title,
-        lc.Description,
-        lc.Template,
-        lc.ContentTypesEnabled,
-        lc.AdditionalSettings
-      )
-      list = web.lists.getById(listInfo.Id)
-      this.context.lists[listInfo.Title] = listInfo.Id
-      this.context.createdLists[lc.Title] = true
+      list = await this.createList(web, lc, this.context)
     }
     if (lc.ContentTypeBindings) {
       const removeExisting =
@@ -211,6 +210,35 @@ export class Lists extends HandlerBase {
         removeExisting
       )
     }
+  }
+
+  /**
+   * Creates a list with the template's creation settings (`Description`, `Template`,
+   * `ContentTypesEnabled`, `AdditionalSettings`) and records its id and that it was made in this
+   * setup. `WebProvisioner` also calls it before `SiteFields`, for a list of the template that a site
+   * column's `{listid:}` names (docs/specs/sitefields-re-apply.md); content type bindings and the rest
+   * stay with `processList`.
+   *
+   * @param web - The web
+   * @param lc - The list
+   * @param context - Provisioning context, where the list is recorded
+   */
+  public async createList(
+    web: IWeb,
+    lc: IListInstance,
+    context: ProvisioningContext
+  ): Promise<IList> {
+    super.log_info('createList', `List ${lc.Title} doesn't exist. Creating...`)
+    const listInfo = await web.lists.add(
+      lc.Title,
+      lc.Description,
+      lc.Template,
+      lc.ContentTypesEnabled,
+      lc.AdditionalSettings
+    )
+    context.lists[listInfo.Title] = listInfo.Id
+    context.createdLists[lc.Title] = true
+    return web.lists.getById(listInfo.Id)
   }
 
   /**
@@ -452,13 +480,8 @@ export class Lists extends HandlerBase {
           keep.push(...TARGET)
         }
       }
-      // The type as SharePoint writes it: `Type="Lookup" Mult="TRUE"` is a LookupMulti column, and
-      // merged as written it would set Type="Lookup" on one.
-      const merged = mergeFieldXml(
-        stored.SchemaXml,
-        setFieldAttributes(template, { Type: declaredType(attributes) }),
-        keep
-      )
+      // The type is merged as SharePoint writes it: `Type="Lookup" Mult="TRUE"` is a LookupMulti.
+      const merged = mergeFieldXml(stored.SchemaXml, template, keep)
       if (sameFieldXml(merged, stored.SchemaXml)) {
         super.log_info('processField', `Field ${label} is unchanged.`)
         return
@@ -608,6 +631,12 @@ export class Lists extends HandlerBase {
       super.log_info(
         'processFieldRef',
         `Field '${fieldReference.ID}' added from web.`
+      )
+    } else {
+      // Nothing to add it from: a site column that failed or was skipped, or one in a parent web.
+      super.log_error(
+        'processFieldRef',
+        `Field ref '${fieldReference.ID}' (${fieldReference.Name}) for list ${lc.Title}: no column with that id on the list or the web, so it is not added.`
       )
     }
   }

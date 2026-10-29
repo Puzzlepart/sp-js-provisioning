@@ -3,6 +3,8 @@ import { describe, it } from 'node:test'
 import {
   declaredType,
   fieldAttributes,
+  fieldTarget,
+  guidOf,
   mergeFieldXml,
   sameFieldXml,
   setFieldAttributes,
@@ -266,5 +268,64 @@ describe('fieldxml: setting attributes', () => {
     assert.equal(set.Indexed, 'TRUE')
     assert.equal(set.DisplayName, 'Kode')
     assert.equal(set.Version, undefined)
+  })
+})
+
+describe('fieldxml: site columns', () => {
+  // A site column as SharePoint stores it: SourceID is the web, no ColName or RowOrdinal.
+  const storedColumn =
+    '<Field ID="{a1a1a1a1-0000-4000-8000-000000000005}" Name="GtStatus" StaticName="GtStatus" DisplayName="Status" Type="Choice" Format="Dropdown" Group="Prosjekt" SourceID="{583398dc-780a-4a9c-9156-ad5273c8c65e}" Version="5"><Default>A</Default><CHOICES><CHOICE>A</CHOICE><CHOICE>B</CHOICE></CHOICES></Field>'
+
+  it('sees one merged with its own template as the same, so a re-import writes nothing', () => {
+    const template =
+      '<Field ID="{A1A1A1A1-0000-4000-8000-000000000005}" Name="GtStatus" StaticName="GtStatus" DisplayName="Status" Type="Choice" Format="Dropdown" Group="Prosjekt"><Default>A</Default><CHOICES><CHOICE>A</CHOICE><CHOICE>B</CHOICE></CHOICES></Field>'
+    assert.equal(
+      sameFieldXml(mergeFieldXml(storedColumn, template), storedColumn),
+      true
+    )
+  })
+
+  it('keeps a stored child element keep names, whatever the template says', () => {
+    // A taxonomy column's Customization: a SchemaXml MERGE ignores it (probe SF3).
+    const taxonomy = (value: string) =>
+      `<Field Type="TaxonomyFieldType" Name="GtPhase" ID="{325543a5-815d-485d-a9a5-e0773ad762e9}"><Customization><ArrayOfProperty><Property><Name>TermSetId</Name><Value>${value}</Value></Property></ArrayOfProperty></Customization></Field>`
+    const merged = mergeFieldXml(taxonomy('stored-set'), taxonomy('new-set'), [
+      'Customization'
+    ])
+    assert.match(merged, /stored-set/)
+    assert.doesNotMatch(merged, /new-set/)
+  })
+})
+
+describe('fieldxml: the type a merge writes', () => {
+  it('writes Type="Lookup" Mult="TRUE" as the LookupMulti SharePoint stores', () => {
+    const stored =
+      '<Field Type="LookupMulti" Mult="TRUE" Name="GtLinks" ID="{a1a1a1a1-0000-4000-8000-000000000006}" List="{11111111-1111-4111-8111-111111111111}" />'
+    const merged = mergeFieldXml(
+      stored,
+      stored.replace('Type="LookupMulti"', 'Type="Lookup"')
+    )
+    assert.equal(fieldAttributes(merged).Type, 'LookupMulti')
+    assert.equal(sameFieldXml(merged, stored), true)
+  })
+})
+
+describe('fieldxml: targets and GUIDs', () => {
+  it('reads a GUID in lower case without braces, and nothing else as one', () => {
+    assert.equal(
+      guidOf('{A1A1A1A1-0000-4000-8000-000000000001}'),
+      'a1a1a1a1-0000-4000-8000-000000000001'
+    )
+    assert.equal(guidOf('{listid:Kilder}'), undefined)
+    assert.equal(guidOf('UserInfo'), undefined)
+    assert.equal(guidOf(undefined), undefined)
+  })
+
+  it('reads a target from an attribute or from the Customization', () => {
+    const xml =
+      '<Field Type="TaxonomyFieldType" Name="GtPhase" List="{x}"><Customization><ArrayOfProperty><Property><Name>SspId</Name><Value>store</Value></Property></ArrayOfProperty></Customization></Field>'
+    assert.equal(fieldTarget(xml, 'List'), '{x}')
+    assert.equal(fieldTarget(xml, 'SspId'), 'store')
+    assert.equal(fieldTarget(xml, 'TermSetId'), undefined)
   })
 })

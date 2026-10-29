@@ -47,6 +47,7 @@ Important responsibilities:
 - Loads `context.web` from a fresh copy of the web (`Web(this.web)`), and hands every handler a fresh copy too. PnPjs 4's `select()` sets the query on the queryable itself, so a `$select` a handler left on a shared web made the next `applyTemplate` load only that property (`{sitename}` stayed literal).
 - Sorts top-level template keys with `DefaultHandlerSort`.
 - Filters to requested handlers if `handlers` is supplied.
+- Creates, right before `SiteFields` runs, the lists that an unresolved `{listid:}` in a site column names and that the template's `Lists` declares (`createListsForSiteFields`, through `Lists.createList`; only when `SiteFields` and `Lists` both run, `SiteFields` first, and `loadContext` read the web's lists, else a warning). Records them in `context.preCreatedLists` (reset per `applyTemplate`); a list it cannot create is logged as an error and the run goes on; a title declared twice is created once. When the run fails before `Lists` reaches such a list, a warning names it.
 - Executes handlers sequentially.
 - Wraps failures in `ProvisioningError(currentHandler, error)`.
 
@@ -75,9 +76,11 @@ Current order:
 | 6 | `ComposedLook` | Applies theme assets, usually after files are available. |
 | 7 | `ClientSidePages` | Creates modern pages and page controls. |
 | 8 | `PropertyBagEntries` | Sets web property bag values after core structures exist. |
-| 9 | `Navigation` | Rebuilds navigation after pages/lists may exist. |
+| 9 | `Navigation` | Reconciles navigation after pages and lists exist. |
 | 10 | `WebSettings` | Applies final web/root folder settings. |
 | 11 | `Hooks` | Calls external endpoints after provisioning has completed. |
+
+Exception: right before `SiteFields` runs, `WebProvisioner` creates the lists of the template that a site column's `{listid:}` names (`createListsForSiteFields`, through `Lists.createList`), when `SiteFields` and `Lists` both run and `SiteFields` comes first. A list's id cannot be chosen, so the list must exist before the column's XML can name it (`docs/specs/sitefields-re-apply.md`).
 
 When adding a handler, update:
 
@@ -132,9 +135,12 @@ Shared mutable context passed to every handler:
 - `webUrl` - absolute URL of the web (derived from the pnp web instance).
 - `siteId` - site collection ID, backing the `{sitecollectionid}` token.
 - `termStoreId` - default site collection term store ID, backing the `{sitecollectiontermstoreid}` token.
-- `lists: { [title: string]: string }` - list title to list ID. Pre-populated in `WebProvisioner.onSetup` so `{listid:...}` resolves in handlers that run before `Lists`; the `Lists` handler reloads it.
+- `lists: { [title: string]: string }` - list title to list ID. Pre-populated in `WebProvisioner.onSetup` so `{listid:...}` resolves in handlers that run before `Lists`; the `Lists` handler reloads it, and `WebProvisioner` adds the lists it creates before `SiteFields`.
+- `createdLists: { [title: string]: boolean }` - lists made in this setup (created by this provisioner, across its `applyTemplate` calls); only these get `RemoveExistingViews` and `RemoveExistingContentTypes`.
+- `preCreatedLists: { [title: string]: boolean }` - lists `WebProvisioner` created before `SiteFields` in the current `applyTemplate`; `Lists` does not send their settings again.
 - `listViews: { [listAndView: string]: string }` - key format is `${listTitle}|${viewTitle}`.
 - `siteFields: { [internalName: string]: string }` - site field internal name to field ID.
+- `createdSiteFields: { [internalName: string]: boolean }` - site columns made in this setup (by this provisioner, across its `applyTemplate` calls); a target the template changes on one of them follows the template.
 - `contentTypes: { [nameOrId: string]: IContentType }` - content type entries keyed by both name and ID.
 
 Context is the main dependency bridge between handlers. Be careful when changing key formats or timing. If context loading is async, it must be awaited before dependent decisions are made.
@@ -159,11 +165,14 @@ Supports context/config tokens with the patterns `{token}` and `{token:value}`:
 
 The IDs are loaded once in `WebProvisioner.onSetup` (`loadContext`); each lookup fails soft with a logged warning, leaving the token unresolved.
 
+`unresolvedTokens(text)` returns the known tokens a string holds that do not resolve now, each once, as written; `SiteFields` logs them as an error naming the column, and `WebProvisioner` uses the `{listid:}` ones to create lists before `SiteFields`.
+
 Important limitations:
 
+- `{listviewid:}` does not resolve before `Lists`: `loadContext` loads no views, so it resolves there only for views an earlier `applyTemplate` through the same provisioner processed.
 - The regex only matches lowercase token keys (`[a-z]+`); the value part may contain anything but braces. Unknown keys and JSON-like text such as `{"a":1}` or `{Title}` are left untouched.
 - It replaces a match only when the token resolves; an unresolved token is left in place. A resolved empty value does replace the token, so an empty `{parameter:Name}` yields an empty string.
-- Where tokens are applied: field XML (site and list fields), list `DataRows` values (every string value whose field type is not handled specially, the `KeyColumn` value when matching, and a URL's `Url` and `Description`), file sources and web part XML, client-side page properties and server-processed content, site group titles, string properties, owners and members, and role assignment principals (web and list `Security`). Not view queries and not custom action properties.
+- Where tokens are applied: field XML (site and list fields), list `DataRows` values (every string value whose field type is not handled specially, the `KeyColumn` value when matching, and a URL's `Url` and `Description`), file sources and web part XML, client-side page properties and server-processed content, site group titles, string properties, owners and members, and role assignment principals (web and list `Security`). Not view queries, not custom action properties and not navigation nodes (their `Url` gets the URL tokens only, `replaceUrlTokens`; `Title` none).
 
 ### URL Tokens
 
@@ -195,24 +204,25 @@ Handler convention:
 - Public method is named `ProvisionObjects`.
 - Inputs are the PnP `IWeb`, the template section, and sometimes `ProvisioningContext`.
 - Most handlers process items sequentially with promise `reduce`.
-- Handler errors should be thrown so `WebProvisioner` can wrap them in `ProvisioningError`.
+- Handler errors should be thrown so `WebProvisioner` can wrap them in `ProvisioningError`. SiteFields, Lists and Security log a failing item with `log_error` and carry on instead; only failures that leave nothing to do are thrown.
 
 ### `SiteFields`
 
-File: `src/handlers/sitefields.ts`
+File: `src/handlers/sitefields.ts`; the merge and comparison rules in `src/util/fieldxml.ts`, shared with `Lists`
 
 Responsibilities:
 
-- Loads existing web fields into `context.siteFields`.
-- Processes field XML strings.
-- Replaces context/config tokens in field XML.
-- Parses XML using `xml-js`.
-- Updates existing fields by `Name`.
-- Creates missing fields with `web.fields.createFieldAsXml`.
+- Reads the web's own columns once (`Id`, `InternalName`, `TypeAsString`, `SchemaXml`) and the columns available to it (`web.availablefields`: on a subweb also its parents'), through fresh queryables and without `top()` (the collection is not paged; `$top` truncates it). Fills `context.siteFields`.
+- Replaces context/config tokens in each field XML; a known token that does not resolve is an error naming the column and the token, and the column is still created with it as written.
+- Creates a missing column with `web.fields.createFieldAsXml` and records it in `context.createdSiteFields`.
+- Updates an existing column in place with the list-field rules: the template merged onto the stored `SchemaXml` (`mergeFieldXml`), written only when `sameFieldXml` says it changed (`update({ SchemaXml }, 'SP.Field')`); a widening type change is applied, another is a warning and the column is left as it is; a stored GUID target (a lookup's `List`/`WebId`, a taxonomy column's `SspId`/`TermSetId`) the template changes is a warning and kept, unless the column was made in this setup; a stored non-GUID target (an old literal token), or the empty GUID as `SspId`/`TermSetId`, follows the template; a template target still holding an unresolved token never overwrites the stored one.
+- Taxonomy columns: the merge keeps the stored `Customization` and `List`, `WebId`, `ShowField` (SharePoint manages them and ignores the `Customization` in a SchemaXml MERGE); an `SspId` or `TermSetId` that follows the template is set with one `update({ SspId, TermSetId }, 'SP.Taxonomy.TaxonomyField')` (only the ones that follow).
+- Never pushes to list copies: a SchemaXml MERGE does not reach them, and neither does a content type update.
 
-Key contract:
+Key contracts:
 
-- Site field identity is keyed by internal name.
+- Site column identity is keyed by internal name. Same name with another id: a warning, the stored id stays. Same id under another name (on the web or a parent web): an error, not created. A column only a parent web has (subweb): a warning, neither created nor changed.
+- Each column is processed in its own try/catch: a failure is logged with `log_error` naming the column and the operation (reading its XML, create, update), and the handler resolves. When the web's columns cannot be read, one error names the template's columns and nothing is created or changed.
 - Field XML must have a top-level field element with `Name` and usually `DisplayName`.
 
 ### `ContentTypes`
@@ -308,7 +318,9 @@ Key contracts:
 
 Important behavior:
 
-- `processField` never deletes a list field (until 1.5.0 it deleted and recreated every one on every run, losing its values; `docs/specs/lists-re-apply.md`). An existing field gets the template merged onto its stored schema XML (`mergeFieldXml`: template attributes win, identity and storage attributes stay, `Version` dropped, child elements replaced, `Customization` merged by property), sent only when it differs (`sameFieldXml`). A widening type change is applied in place; another one is a warning, and so is a new target (a lookup's list, a taxonomy field's term set) on a list not made in this setup, because SharePoint accepts them and loses or misdirects the stored values (probe 2026-10-26). Primary lookups are made before their dependents.
+- `processField` never deletes a list field (until 1.5.0 it deleted and recreated every one on every run, losing its values; `docs/specs/lists-re-apply.md`). An existing field gets the template merged onto its stored schema XML (`mergeFieldXml`: template attributes win, the type as SharePoint stores it (`Type="Lookup" Mult="TRUE"` is `LookupMulti`), identity and storage attributes stay, `Version` dropped, child elements replaced unless `keep` names them, `Customization` merged by property), sent only when it differs (`sameFieldXml`). A widening type change is applied in place; another one is a warning, and so is a new target (a lookup's list, a taxonomy field's term set) on a list not made in this setup, because SharePoint accepts them and loses or misdirects the stored values (probe 2026-10-26). Primary lookups are made before their dependents.
+- `processFieldRef` logs an error when a FieldRef names a column found neither on the list nor on the web (`web.fields`: on a subweb, a parent web's column is not found).
+- `createList` is the create path, shared with `WebProvisioner`'s creation of lists before `SiteFields`; a list created there (`context.preCreatedLists`) is not sent its settings again.
 - `DataRows` decides add, update or skip from the key before building a row: a skipped row queries no lookup list and ensures no user. An unresolved lookup or user value is an error naming it; an existing item keeps its stored value.
 - `Security` principals accept the PnP tokens `{associatedownergroupid}`, `{associatedmembergroupid}` and `{associatedvisitorgroupid}`, a principal ID, a site group name or a user login name; other tokens in a principal are replaced first. Role definitions are resolved by localized name with a fallback to the well-known role type for the English names. The resolution lives in `src/util/security.ts`, shared with the `Security` handler. Failures are logged per assignment and never abort the template.
 - Several list operations catch errors and log failures without throwing. Agents should inspect logs and behavior, not just promise success.
@@ -421,20 +433,20 @@ Important behavior:
 
 ### `Navigation`
 
-File: `src/handlers/navigation.ts`
+File: `src/handlers/navigation.ts`; URL comparison in `src/util/navigationurl.ts`
 
 Responsibilities:
 
-- Rebuilds Quick Launch and Top Navigation Bar trees.
-- Deletes existing nodes in the target collection.
-- Adds configured nodes recursively.
-- Replaces URL tokens.
+- Reconciles the Quick Launch and the top navigation bar with the template, in place: the template owns each collection it names (replace mode); a collection it leaves out is not touched.
+- Replaces URL tokens in `Url` (`replaceUrlTokens`); `Title` gets no tokens.
 
 Important behavior:
 
-- Existing nodes are deleted before adding configured nodes.
-- If a configured node title matches one existing node and `IgnoreExisting` is not true, the existing URL is reused.
-- Children are processed recursively by calling the same tree processor on the child collection.
+- Each collection is read once, through a fresh queryable, with its children expanded one level below the template's depth (`select('Id', 'Title', 'Url', 'Children/Id', ...)`, `expand('Children', ...)`). The web (`Url`, `ServerRelativeUrl`) is read once, only when a URL has to be compared.
+- At each level a template node is matched to the first unmatched stored node with exactly the same title. A matched node is kept (id, audiences, URL) and nothing is written for it; its children are reconciled against the template node's `Children` (none: its children are deleted). A missing node is added with its children; a stored node without a match is deleted with its subtree. Then `MoveAfter` puts each node after the one before it in the template.
+- URL rule, at every level: a kept node keeps its stored URL unless `IgnoreExisting` is true; then the template's URL is set (only `Url` is sent) where it differs once both are normalised (`normaliseNavigationUrl`: web-relative and same-host absolute to server-relative, `%20`, a trailing slash, the case of the path; external URLs verbatim). A title stored more than once: the first is kept with the template's URL, the others deleted. The template object is not changed.
+- Write order: the Quick Launch's adds and URL updates, then the top navigation bar's; then each collection's deletes and moves. The adds and URL updates are journaled; when one fails (SharePoint refuses a URL that names no file or folder: `-2130247147`), or a collection cannot be read, the journal is undone, the last write first (added nodes deleted, URLs set back), the touched collections are read back (SharePoint reports success for writes to missing nodes), anything left is logged as an error naming the node, and the handler throws `Navigation node '<Title>' (<URL>) was refused by SharePoint: <message>` (or `Failed to read <collection>: ...`). A failed delete or move is logged and thrown; there is no rollback once the deletes start. A level where nodes moved is read back and must be in the template's order.
+- An unchanged re-apply sends no write.
 
 ### `WebSettings`
 
@@ -592,6 +604,6 @@ When adding or modifying behavior:
 - Content type creation and update semantics are sensitive to SharePoint ID rules and JSOM/PnP differences.
 - Handler order is a contract. Changing sort values can break token resolution, content type bindings, or page/list references.
 - Token replacement is partial and regex-limited. Do not assume arbitrary token values are supported. Data row string values are now token-replaced, so a literal `{lowercasekey}` in seeded content is only safe if the key is unknown to `TokenHelper`.
-- Some errors are swallowed after logging, especially inside list, file, and content type sub-operations.
+- Some errors are swallowed after logging, especially inside site column, list, file, and content type sub-operations.
 - Browser globals are used in utility and handler code, so Node compatibility is uneven.
 - `.npmignore` and `.gitignore` affect whether docs and generated files are visible to consumers. The repository tracks docs; `lib/` remains generated and ignored by git.

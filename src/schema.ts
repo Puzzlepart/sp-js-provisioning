@@ -186,15 +186,51 @@ export interface IHooks {
   Body?: Body
 }
 
+/**
+ * The web's navigation. The template owns each collection it names: on every
+ * run the collection ends with exactly the template's nodes, in its order. A
+ * node whose title is already there at the same level is kept as it is (id,
+ * URL, audiences); a missing one is added; a node the template does not
+ * declare is deleted, children and nodes a site owner added included. A
+ * collection the template leaves out is not touched. A node SharePoint refuses
+ * (its URL names no existing file or folder) fails the run and leaves both
+ * collections as they were.
+ */
 export interface INavigation {
   QuickLaunch?: INavigationNode[]
   TopNavigationBar?: INavigationNode[]
 }
 
+/**
+ * A navigation node, matched to a stored node at the same level by its exact
+ * title (case included).
+ */
 export interface INavigationNode {
+  /**
+   * Title, no tokens. SharePoint returns its own nodes' titles in the signed-in
+   * account's language (`Hjem` or `Home`), so such a node matches only for an
+   * account with the template's language; otherwise it is added and the
+   * stored one deleted.
+   */
   Title: string
+  /**
+   * Server-relative, web-relative (resolved against the web) or absolute.
+   * Takes the URL tokens only (`{site}` is the site collection). Used when the
+   * node is added, or with `IgnoreExisting`.
+   */
   Url: string
+  /**
+   * Set the template's `Url` on a node that exists (where it differs). Without
+   * it an existing node keeps its stored URL, at every level: SharePoint
+   * updates a node's URL when its target is renamed, and an owner may have
+   * changed it. A title stored more than once gets the template's URL either
+   * way.
+   */
   IgnoreExisting?: boolean
+  /**
+   * The node's children, owned like the collection: without `Children`, a
+   * kept node loses the children it has.
+   */
   Children?: INavigationNode[]
 }
 

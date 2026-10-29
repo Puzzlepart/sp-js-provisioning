@@ -1,6 +1,19 @@
 import { ProvisioningContext } from '../provisioningcontext'
 import { IProvisioningConfig } from '../provisioningconfig'
 
+/** The keys `resolveToken` knows: `{key}` with another key is not a token (`{Title}`, JSON). */
+const KNOWN_KEYS = new Set([
+  'listid',
+  'listviewid',
+  'webid',
+  'siteid',
+  'sitename',
+  'sitecollectionid',
+  'sitecollectiontermstoreid',
+  'termstoreid',
+  'parameter'
+])
+
 /**
  * Describes the Token Helper
  *
@@ -18,6 +31,9 @@ import { IProvisioningConfig } from '../provisioningconfig'
  * - `{sitecollectionid}` - id of the site collection (falls back to the web id)
  * - `{sitecollectiontermstoreid}` / `{termstoreid}` - id of the default term store
  * - `{parameter:Name}` - value from `config.parameters`
+ *
+ * `unresolvedTokens` names the known tokens a string still holds, so a handler can say which value
+ * is missing instead of writing the token silently.
  */
 export class TokenHelper {
   /**
@@ -52,6 +68,28 @@ export class TokenHelper {
           : replacement
       }
     )
+  }
+
+  /**
+   * The tokens in the string that `replaceTokens` knows but cannot resolve now (no list with that
+   * title yet, no term store id, no such parameter, ...), each once, as written: `{listid:Kilder}`.
+   * They are left in place by `replaceTokens`; a key it does not know is not a token and is not
+   * reported.
+   *
+   * @param string - The string, before or after `replaceTokens` (which leaves only these)
+   */
+  public unresolvedTokens(string: string): string[] {
+    if (typeof string !== 'string' || !string.includes('{')) return []
+    const tokens: string[] = []
+    const regex = new RegExp(this.tokenRegex.source, 'g')
+    let match: RegExpExecArray | null
+    while ((match = regex.exec(string)) !== null) {
+      const [token, tokenKey, tokenValue] = match
+      if (!KNOWN_KEYS.has(tokenKey) || tokens.includes(token)) continue
+      const value = this.resolveToken(tokenKey, tokenValue)
+      if (value === undefined || value === null) tokens.push(token)
+    }
+    return tokens
   }
 
   /**

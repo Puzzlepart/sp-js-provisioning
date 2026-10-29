@@ -1,9 +1,10 @@
 import * as xmljs from 'xml-js'
 
 /**
- * Field schema XML (`<Field ...>`) for updating a list field in place: what a template says merged
- * onto what SharePoint stores, compared without the noise SharePoint adds, and the type changes
- * SharePoint can make in place without losing values (docs/specs/lists-re-apply.md).
+ * Field schema XML (`<Field ...>`) for updating a list field or a site column in place: what a
+ * template says merged onto what SharePoint stores, compared without the noise SharePoint adds, and
+ * the type changes SharePoint can make in place without losing values (docs/specs/lists-re-apply.md,
+ * docs/specs/sitefields-re-apply.md).
  */
 
 interface IXmlNode {
@@ -36,6 +37,17 @@ const WIDENING: Record<string, string> = {
 }
 
 const GUID = /^{?([\da-f]{8}(?:-[\da-f]{4}){3}-[\da-f]{12})}?$/i
+
+/**
+ * A GUID in lower case without braces, or `undefined` when the value is not one (an unresolved
+ * token, a list URL, `UserInfo`).
+ *
+ * @param value - The value
+ */
+export function guidOf(value?: string): string | undefined {
+  const guid = GUID.exec(String(value ?? '').trim())
+  return guid ? guid[1].toLowerCase() : undefined
+}
 
 /**
  * The `<Field>` element of a schema XML.
@@ -180,6 +192,17 @@ function targetValue(field: IXmlNode, name: string): string | undefined {
 export const TARGET = ['List', 'WebId', 'TermSetId', 'SspId']
 
 /**
+ * The value of one target (`TARGET`) of a field schema XML: the attribute, or the `Customization`
+ * property; `undefined` when the field has none.
+ *
+ * @param xml - The schema XML
+ * @param name - The target
+ */
+export function fieldTarget(xml: string, name: string): string | undefined {
+  return targetValue(parseField(xml), name)
+}
+
+/**
  * Whether the template points a field at another target (a lookup at another list, a taxonomy
  * field at another term set) than the stored one. SharePoint accepts the change and keeps the
  * stored values, which then name items or terms of the old target.
@@ -248,16 +271,18 @@ function mergeCustomization(
 }
 
 /**
- * The template's field merged onto the stored one, to update a list field in place. The template's
- * attributes win, except the stored field's identity and storage (`ID`, `Name`, `StaticName`,
- * `ColName`, `RowOrdinal`, `SourceID`) and those in `keep`; `Version` is dropped. A child element
- * the template declares (`CHOICES`, `Default`, `Formula`, `Validation`, ...) replaces the stored
- * one; `Customization` properties are merged by name (those in `keep` stay stored).
+ * The template's field merged onto the stored one, to update a list field or a site column in place.
+ * The template's attributes win, except the stored field's identity and storage (`ID`, `Name`,
+ * `StaticName`, `ColName`, `RowOrdinal`, `SourceID`) and those in `keep`; `Version` is dropped. The
+ * type is written as SharePoint stores it (`declaredType`): `Type="Lookup" Mult="TRUE"` merged as
+ * written would set Type="Lookup" on a LookupMulti column. A child element the template declares
+ * (`CHOICES`, `Default`, `Formula`, `Validation`, ...) replaces the stored one, unless `keep` names
+ * it; `Customization` properties are merged by name (those in `keep` stay stored).
  *
  * @param stored - The stored schema XML
  * @param template - The template's schema XML, tokens replaced
- * @param keep - More attributes, or `Customization` properties, whose stored value is kept (an
- * attribute is left out when the stored field has none)
+ * @param keep - More attributes, `Customization` properties or child elements whose stored value is
+ * kept (an attribute is left out when the stored field has none)
  */
 export function mergeFieldXml(
   stored: string,
@@ -271,6 +296,8 @@ export function mergeFieldXml(
     ...storedAttributes,
     ...(t.attributes || {})
   }
+  if (t.attributes && t.attributes.Type)
+    attributes.Type = declaredType(t.attributes)
   for (const name of [...STORED_ATTRIBUTES, ...keep]) {
     if (storedAttributes[name] !== undefined)
       attributes[name] = storedAttributes[name]
@@ -279,6 +306,7 @@ export function mergeFieldXml(
   delete attributes.Version
   const elements = childElements(s)
   for (const child of childElements(t)) {
+    if (keep.includes(child.name)) continue
     const index = elements.findIndex((existing) => existing.name === child.name)
     if (index < 0) elements.push(child)
     else

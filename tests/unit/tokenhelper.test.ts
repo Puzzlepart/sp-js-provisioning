@@ -20,3 +20,45 @@ describe('TokenHelper: {sitename}', () => {
     assert.equal(helper.replaceTokens('{sitename}'), '{sitename}')
   })
 })
+
+describe('TokenHelper: unresolved tokens', () => {
+  const helper = () => {
+    const context = new ProvisioningContext()
+    context.web = { Id: 'web-guid', Title: 'Prosjekt A' }
+    context.lists['Kilder'] = 'list-guid'
+    return new TokenHelper(context, { parameters: { Fase: 'Konsept' } })
+  }
+
+  it('names each known token it cannot resolve, once, as written', () => {
+    assert.deepEqual(
+      helper().unresolvedTokens(
+        '<Field List="{listid:Mangler}" WebId="{webid}" Description="{parameter:Ukjent} {listid:Mangler} {sitecollectiontermstoreid}" />'
+      ),
+      ['{listid:Mangler}', '{parameter:Ukjent}', '{sitecollectiontermstoreid}']
+    )
+  })
+
+  it('leaves out tokens it resolves, and text that only looks like a token', () => {
+    // `{Title}` (upper case) and JSON are not tokens; `{{listid:X}}` holds one.
+    assert.deepEqual(
+      helper().unresolvedTokens(
+        '{listid:Kilder} {parameter:Fase} {sitename} {Title} {"a":1} {ukjent} {{listid:Kilder}}'
+      ),
+      []
+    )
+    assert.deepEqual(helper().unresolvedTokens('{{listid:Borte}}'), [
+      '{listid:Borte}'
+    ])
+  })
+
+  it('finds what replaceTokens left in place', () => {
+    const tokens = helper()
+    const replaced = tokens.replaceTokens(
+      'List="{listid:Kilder}" X="{listid:Borte}"'
+    )
+
+    assert.equal(replaced, 'List="list-guid" X="{listid:Borte}"')
+    assert.deepEqual(tokens.unresolvedTokens(replaced), ['{listid:Borte}'])
+    assert.deepEqual(tokens.unresolvedTokens(undefined), [])
+  })
+})

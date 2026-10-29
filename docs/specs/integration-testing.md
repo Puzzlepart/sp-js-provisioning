@@ -200,7 +200,7 @@ Result.
 
 ```json
 "test:ci": "node -e \"require('node:fs').mkdirSync('test-results',{recursive:true})\" && tsx --tsconfig tests/tsconfig.json --test --test-reporter=spec --test-reporter-destination=stdout --test-reporter=junit --test-reporter-destination=test-results/unit.xml \"tests/unit/*.test.ts\"",
-"test:coverage": "tsx --enable-source-maps --tsconfig tests/tsconfig.json --test --experimental-test-coverage --test-coverage-include=\"src/**\" --test-coverage-lines=73 --test-coverage-branches=78 --test-coverage-functions=74 \"tests/unit/*.test.ts\"",
+"test:coverage": "tsx --enable-source-maps --tsconfig tests/tsconfig.json --test --experimental-test-coverage --test-coverage-include=\"src/**\" --test-coverage-lines=79 --test-coverage-branches=83 --test-coverage-functions=79 \"tests/unit/*.test.ts\"",
 "lint:check": "eslint --ext .ts ./src && prettier \"**/*.ts*\" --check",
 "check:tenant": "tsx --tsconfig tests/tsconfig.json tests/integration/run.ts reachability --strict",
 "test:integration": "tsx --tsconfig tests/tsconfig.json tests/integration/run.ts",
@@ -321,11 +321,12 @@ As built in Phase 1 (`docs/TESTING.md` has the reference suite).
    ids, group ids, web part component ids) are read in the same test.
 2. `applyTwice`: apply and read back, twice. Each apply ends without a `ProvisioningError` and with
    `logs.errors()` empty; the read-backs are equal after stripping volatile members (`Modified`,
-   ETags, navigation node ids, page `UniqueId` with `Overwrite: true`); handler checks prove
+   ETags, page `UniqueId` with `Overwrite: true`; navigation node ids are stable since the
+   [Navigation re-apply spec](./navigation-re-apply.md) and asserted equal); handler checks prove
    "updated, not duplicated".
 3. Each apply and expectation gets a fresh copy from `loadFixture()`: handlers mutate their input
-   (Navigation sets `node.Url`, WebSettings writes values back into `settings`, ContentTypes sorts
-   in place).
+   (WebSettings writes values back into `settings`, ContentTypes sorts in place; Navigation set
+   `node.Url` until the [Navigation re-apply spec](./navigation-re-apply.md)).
 4. The read-back is the proof; logs are a second signal (until 0b, `errors()` misses Lists and
    ClientSidePages failures).
 5. Fixtures use engine tokens only where the engine replaces them (matrix). `loadFixture`
@@ -348,7 +349,7 @@ Token reach: T = `TokenHelper` (`{listid:}`, `{listviewid:}`, `{webid}`/`{siteid
 | Handler (sort) | Node today | Token reach | Read-back (REST) | Second apply | Pins and notes |
 |---|---|---|---|---|---|
 | Taxonomy (-1) | no: JSOM | none | `_api/v2.1/termstore` groups, sets, terms (ids, labels, properties, sort order) | same ids and counts | skips (D3) |
-| SiteFields (0) | yes | T in `SchemaXml`; `{listid:}` only for lists existing when the run starts | `web.fields.getByInternalNameOrTitle(n)`: `Id`, `TypeAsString`, `Title`, `Group`, `Required`, `Hidden`, `SchemaXml` | same `Id`, update path; B variant changes `Title`/`Required` | a lookup to a list from the same template is unresolved on the first apply: pre-create the source or use list `Fields` |
+| SiteFields (0) | yes | T in `SchemaXml`; `{listid:}` for lists existing when the run starts and for lists the same template's `Lists` declares (created before SiteFields); an unresolved known token is an Error | `web.fields.getByInternalNameOrTitle(n)`: `Id`, `TypeAsString`, `Title`, `Group`, `Required`, `Hidden`, `SchemaXml`; the `SchemaXml` `Version` per column (unchanged: not written); `availablefields` not read back | same `Id`; nothing written (`Version` unchanged); B variant changes only the Text column's `Title`/`Required` | fixed by [the SiteFields re-apply spec](./sitefields-re-apply.md) (2026-10-29): `{listid:}` to the same template, merge instead of rewrite, per-column errors; `failures.json` has a SiteFields part (a refused Calculated column, then a valid one) |
 | ContentTypes (1) | no: JSOM | none | `web.contentTypes.getById(id)` with field links | no duplicate, links unchanged | skips (D3) |
 | Features (2) | yes | none | `web.features.select('DefinitionId')()` membership (inactive is not a 404) | unchanged | feature chosen in Phase 1 |
 | Security (2.5) | yes (old `HANDLERS` omitted it) | T in group `Title`, string properties, `Members`, `Owner`, `Principal`; G in `Owner`, `Principal` | `siteGroups.getByName(t)` with owner and join/leave settings, `.users()`; `HasUniqueRoleAssignments`; `roleAssignments.expand('Member','RoleDefinitionBindings')` | no duplicate group or assignment; `ClearExistingMembers` exact | failures at Error; owner `{associatedownergroupid}` and the group itself; the "inherits, break" branch on a nested inheriting web |
@@ -358,7 +359,7 @@ Token reach: T = `TokenHelper` (`{listid:}`, `{listviewid:}`, `{webid}`/`{siteid
 | ComposedLook (6) | yes, shims | U | best effort: `_api/web/ThemeInfo` changed | no error | util guards (D4, 1) |
 | ClientSidePages (7) | yes, shims | T + U in `Properties`; T in `ServerProcessedContent`; not `Name`, `Title`, control `Id` | `web.loadClientsidePage(path)`: title, layout, comments, sections, controls | `Overwrite: false` skipped; `true` recreated | literal OOTB component GUIDs, asserted in `getClientsideWebParts()` first; D4 level (0b); no Warning from the handler asserted |
 | PropertyBagEntries (8) | no: `reject()` with `undefined` | none | `web.allProperties()`, `vti_indexedpropertykeys` | same | skips (D3, NoScript); D4 `Error` (0b); writes only `Overwrite: true` entries (pinned) |
-| Navigation (9) | yes, shims | U in `Url` only | `quicklaunch()`, `topNavigationBar()`, children: titles, URLs, order | same count and order (new ids) | deletes all nodes first (scratch defaults vanish: asserted); an existing title keeps its URL unless `IgnoreExisting` (B) |
+| Navigation (9) | yes, shims | U in `Url` only | `quicklaunch()`, `topNavigationBar()`, children: titles, URLs, order, ids | same nodes, same ids, no write (recording web); one read per collection | reconciles in place ([spec](./navigation-re-apply.md)): unmatched nodes (scratch defaults, an owner's node) deleted, kept nodes keep ids, audiences and their URL at every level unless `IgnoreExisting` (B); a refused node leaves both collections as they were (pin flipped) |
 | WebSettings (10) | yes, shims (old `HANDLERS` omitted it) | U in string values | `web.select(...)`, `rootFolder.select('WelcomePage')` | same | D4: apply without `WelcomePage` (1); master page and CSS URLs out of the fixture (NoScript) |
 | Hooks (11) | yes (global `fetch`) | none | a local `node:http` listener (reachable: hooks run in the calling process) records method, headers, body with merged `allProperties()` | called again by design | D4: resolve after 202 then 2xx, a relative `Location`, a 202 without one, a failed poll (1, fixed) |
 | WebProvisioner | | | order from `progressCallback` = `DefaultHandlerSort`; `handlers` filter; `Parameters`/`Version` ignored; tokens equal site values | | D4 (0b) |
@@ -399,10 +400,13 @@ Pinned only (`{ todo }` with the evidence), each for its own change:
   and a message that does not name it), and a URL value's default `Description` keeping the raw
   token. All fixed by [the Lists re-apply spec](./lists-re-apply.md) (2026-10-27); the pins are
   plain tests.
-- SiteFields: `{listid:}` for a list from the same template stays literal on the first run, and
-  SharePoint accepts it without an error or warning (SiteFields runs before Lists).
-- Navigation: the handler deletes every node before adding the template's; a node SharePoint
-  refuses stops the run and leaves the menu with only the nodes added before it.
+- SiteFields: `{listid:}` for a list from the same template stayed literal on the first run, and
+  SharePoint accepted it without an error or warning (SiteFields runs before Lists). Fixed by [the
+  SiteFields re-apply spec](./sitefields-re-apply.md) (2026-10-29): WebProvisioner creates that list
+  before SiteFields; the pin is a plain test.
+- Navigation: the handler deleted every node before adding the template's; a node SharePoint
+  refused stopped the run and left the menu with only the nodes added before it. Fixed by [the
+  Navigation re-apply spec](./navigation-re-apply.md) (2026-10-29); the pin is a plain test.
 - Not defects, recorded: classic custom actions (ScriptLink, EditControlBlock, StandardMenu) are
   refused under NoScript, only `ClientSideExtension.*` actions get through; `{site}` on a subweb is
   the site collection's URL (documented); PnPjs's `loadClientsidePage().commentsDisabled` reads
@@ -453,13 +457,15 @@ Pinned only (`{ todo }` with the evidence), each for its own change:
   61.03 / 72.18 / 59.18 (lines, branches, functions; `src/**`), set one point below as 60/71/58
   so small differences between machines do not fail the check. They only rise: raised at the end
   of Phase 1 to 66/74/65 (measured 67.09 / 75.05 / 65.91), and with the Lists re-apply spec to
-  73/78/74 (measured 74.35 / 79.68 / 75.61).
+  73/78/74 (measured 74.35 / 79.68 / 75.61), and with the SiteFields and Navigation re-apply specs
+  to 79/83/79 (measured 80.36 / 84.02 / 80.21, 2026-10-29; one point below, as for Lists).
 - Phase 2: `tests/contract/` turns the recording web of `webprovisioner.test.ts` into a fake
   transport (`on.send.replace`, canned `Response` bodies, recorded `{ url, method, body }`, an
   SPFx-style relative mode) pinning wire shapes (`createfieldasxml`, `$top=5000`, OData escaping,
-  `addroleassignment`, `setuserasowner`, the custom-action batch, navigation delete-then-add, the
-  page save). `tests/helpers/` consolidates the fakes; orchestration tests cover sort order, the
-  `handlers` filter, a throwing handler and a custom `handlerSort` without `Security` (runs last).
+  `addroleassignment`, `setuserasowner`, the custom-action batch, the navigation reconcile (adds,
+  URL updates, deletes, `MoveAfter`), the page save). `tests/helpers/` consolidates the fakes;
+  orchestration tests cover sort order, the `handlers` filter, a throwing handler and a custom
+  `handlerSort` without `Security` (runs last).
 - `ci.yml` (0b): `pull_request` and `push` to `main`; `permissions: contents: read`;
   `concurrency` per ref, cancel in progress; `timeout-minutes: 15`; one job named
   `Build and offline tests` (the required check; no path filter: a workflow skipped by a path

@@ -1,5 +1,9 @@
 {
   "$schema": "../../../schema.json",
+  "SiteFields": [
+    "<Field ID=\"{4e9b6c1a-2d7f-4a83-b5e0-8c3f1d9a7b62}\" Name=\"SPJSItestFailFormula\" StaticName=\"SPJSItestFailFormula\" DisplayName=\"SPJS Itest Failing Formula\" Type=\"Calculated\" ResultType=\"Number\" Group=\"SPJS Itest\"><Formula>=[SPJS Itest No Such Column]*2</Formula></Field>",
+    "<Field ID=\"{b17d3e58-9c2a-4f06-a4d1-6e8b2c0f5a93}\" Name=\"SPJSItestFailValid\" StaticName=\"SPJSItestFailValid\" DisplayName=\"SPJS Itest After The Failure\" Type=\"Text\" Group=\"SPJS Itest\" />"
+  ],
   "Lists": [
     {
       "Title": "SPJS Itest Failures",

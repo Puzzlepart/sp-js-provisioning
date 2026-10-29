@@ -15,9 +15,9 @@ export interface IFixtureValues {
 
 /**
  * A fresh copy of a fixture template, `tests/fixtures/templates/<name>.json`, with the test-only
- * placeholders filled in. Fresh on every call, because handlers mutate their input (Navigation sets
- * `node.Url`, WebSettings writes values back, ContentTypes sorts in place). A placeholder without a
- * value is an error, so a fixture never reaches SharePoint half-filled.
+ * placeholders filled in. Fresh on every call, because handlers mutate their input (WebSettings
+ * writes values back, ContentTypes sorts in place). A placeholder without a value is an error, so a
+ * fixture never reaches SharePoint half-filled.
  *
  * @param name - The fixture, e.g. `lists`
  * @param values - The placeholder values

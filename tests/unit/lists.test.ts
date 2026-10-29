@@ -156,6 +156,77 @@ describe('Lists: v4 list creation result', () => {
   })
 })
 
+describe('Lists: a list created before SiteFields', () => {
+  it('finds it existing, sends its settings no second time, and still counts it as made in this setup', async () => {
+    // WebProvisioner created it with the template's settings because a site column's {listid:}
+    // names it (docs/specs/sitefields-re-apply.md).
+    const context = new ProvisioningContext()
+    context.lists['Kilder'] = 'list-guid'
+    context.createdLists['Kilder'] = true
+    context.preCreatedLists['Kilder'] = true
+    const handler = createHandler(context)
+    const updates: any[] = []
+    const web: any = {
+      lists: {
+        add: async () => {
+          throw new Error(
+            'add must not be called for a list created before SiteFields'
+          )
+        },
+        getById: () => ({
+          contentTypes: createContentTypes([]),
+          update: async (properties: any) => {
+            updates.push(properties)
+          }
+        })
+      }
+    }
+
+    await handler.processList(web, {
+      Title: 'Kilder',
+      Description: 'Kildeliste',
+      AdditionalSettings: { EnableVersioning: true }
+    })
+
+    assert.deepEqual(updates, [])
+    assert.deepEqual(context.createdLists, { Kilder: true })
+    assert.deepEqual(context.preCreatedLists, {})
+  })
+
+  it('creates a list with its settings through createList, recording it in the context it is given', async () => {
+    const context = new ProvisioningContext()
+    const added: any[] = []
+    const web: any = {
+      lists: {
+        add: async (...parameters: any[]) => {
+          added.push(parameters)
+          return { Id: 'list-guid', Title: parameters[0] }
+        },
+        getById: (id: string) => ({ id })
+      }
+    }
+
+    const list = await new Lists({}).createList(
+      web,
+      {
+        Title: 'Kilder',
+        Description: 'Kildeliste',
+        Template: 100,
+        ContentTypesEnabled: true,
+        AdditionalSettings: { EnableVersioning: true }
+      },
+      context
+    )
+
+    assert.deepEqual(added, [
+      ['Kilder', 'Kildeliste', 100, true, { EnableVersioning: true }]
+    ])
+    assert.deepEqual(list, { id: 'list-guid' })
+    assert.deepEqual(context.lists, { Kilder: 'list-guid' })
+    assert.deepEqual(context.createdLists, { Kilder: true })
+  })
+})
+
 describe('Lists: lists made in this setup', () => {
   it('keeps those an earlier applyTemplate made', async () => {
     const handler: any = new Lists({})
@@ -546,6 +617,45 @@ describe('Lists: v4 field ref creation result', () => {
     assert.deepEqual(
       updates.map((update) => update.id),
       ['22222222-bbbb-2222-2222-222222222222']
+    )
+  })
+})
+
+describe('Lists: a field ref to a column that exists nowhere', () => {
+  it('is an error naming the field ref and the list, and nothing is sent', async () => {
+    // A site column that failed or was skipped: the field ref used to do nothing, silently.
+    const handler = createHandler(new ProvisioningContext())
+    const sent: any[] = []
+    const list: any = {
+      fields: {
+        getById: (id: string) => ({
+          update: async () => {
+            sent.push(id)
+          }
+        }),
+        createFieldAsXml: async (xml: string) => {
+          sent.push(xml)
+        }
+      }
+    }
+
+    const { entries } = await captureLogs(() =>
+      handler.processFieldRef(
+        list,
+        { Title: 'Risikoer' },
+        { ID: '{33333333-cccc-3333-3333-333333333333}', Name: 'GtMissing' },
+        [],
+        []
+      )
+    )
+
+    assert.deepEqual(sent, [])
+    assert.equal(
+      levelOf(
+        entries,
+        /Field ref '\{33333333-cccc-3333-3333-333333333333\}' \(GtMissing\) for list Risikoer: no column with that id on the list or the web/
+      ),
+      LogLevel.Error
     )
   })
 })

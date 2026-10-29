@@ -6,6 +6,7 @@ import {
   mapStrings,
   replaceUrlTokens
 } from '../../src/util'
+import { normaliseNavigationUrl } from '../../src/util/navigationurl'
 
 const spfxContext = {
   pageContext: {
@@ -157,5 +158,99 @@ describe('util: mapStrings', () => {
     // A copy: the template is left as it was.
     assert.equal(value.title, '{x}')
     assert.notEqual(mapped.list, value.list)
+  })
+})
+
+describe('util: normaliseNavigationUrl', () => {
+  const base = {
+    serverRelativeUrl: '/sites/demo/sub',
+    origin: 'https://contoso.sharepoint.com'
+  }
+
+  // [the template's URL (tokens replaced), the URL SharePoint stored for it]: the forms the tenant
+  // probe saw (docs/specs/navigation-re-apply.md, N1).
+  const same: Array<[string, string]> = [
+    ['SitePages/Home.aspx', '/sites/demo/sub/SitePages/Home.aspx'],
+    ['', '/sites/demo/sub'],
+    ['/sites/demo/sub/', '/sites/demo/sub'],
+    ['#', '/sites/demo/sub#'],
+    [
+      'https://contoso.sharepoint.com/sites/demo/sub/SitePages/Home.aspx',
+      '/sites/demo/sub/SitePages/Home.aspx'
+    ],
+    [
+      'Delte%20dokumenter/SPJS%20Probe%20Space.txt',
+      '/sites/demo/sub/Delte dokumenter/SPJS Probe Space.txt'
+    ],
+    // Reserved escapes too: SharePoint stores the target's own path, decoded.
+    [
+      'Delte%20dokumenter/Rapport%2C%20mars.docx',
+      '/sites/demo/sub/Delte dokumenter/Rapport, mars.docx'
+    ],
+    [
+      'Delte%20dokumenter/R%26D.docx',
+      '/sites/demo/sub/Delte dokumenter/R&D.docx'
+    ],
+    ['SITEPAGES/HOME.ASPX', '/sites/demo/sub/SitePages/Home.aspx'],
+    [
+      '_layouts/15/groupstatus.aspx?Target=NOTEBOOK',
+      '/sites/demo/sub/_layouts/15/groupstatus.aspx?Target=NOTEBOOK'
+    ],
+    ['SitePages/Home.aspx#frag', '/sites/demo/sub/SitePages/Home.aspx#frag'],
+    ['Lists/Prosjekter/', '/sites/demo/sub/Lists/Prosjekter'],
+    ['http://linkless.header/', 'http://linkless.header/'],
+    ['https://example.com/a b?x=1', 'https://example.com/a b?x=1']
+  ]
+  const different: Array<[string, string]> = [
+    // `{site}` on a subweb is the site collection, not the web.
+    [
+      '/sites/demo/_layouts/15/viewlsts.aspx',
+      '/sites/demo/sub/_layouts/15/viewlsts.aspx'
+    ],
+    // External URLs are kept verbatim, case and trailing slash included.
+    ['https://www.contoso.com/A', 'https://www.contoso.com/a'],
+    ['https://www.contoso.com/a/', 'https://www.contoso.com/a'],
+    ['http://linkless.header/', 'http://linkless.header'],
+    // Another host is external, whatever its path.
+    ['https://fabrikam.sharepoint.com/sites/demo/sub', '/sites/demo/sub'],
+    // A query string or fragment counts, in its case.
+    ['SitePages/Home.aspx?x=1', '/sites/demo/sub/SitePages/Home.aspx'],
+    ['SitePages/Home.aspx?x=A', '/sites/demo/sub/SitePages/Home.aspx?x=a']
+  ]
+
+  for (const [template, stored] of same)
+    it(`'${template}' is the same as '${stored}'`, () => {
+      assert.equal(
+        normaliseNavigationUrl(template, base),
+        normaliseNavigationUrl(stored, base)
+      )
+    })
+
+  for (const [template, stored] of different)
+    it(`'${template}' differs from '${stored}'`, () => {
+      assert.notEqual(
+        normaliseNavigationUrl(template, base),
+        normaliseNavigationUrl(stored, base)
+      )
+    })
+
+  it('resolves against a root site, and keeps a malformed escape as written', () => {
+    const root = { serverRelativeUrl: '/', origin: base.origin }
+    assert.equal(normaliseNavigationUrl('', root), '/')
+    assert.equal(normaliseNavigationUrl('SitePages', root), '/sitepages')
+    assert.equal(
+      normaliseNavigationUrl('https://contoso.sharepoint.com', root),
+      '/'
+    )
+    assert.equal(normaliseNavigationUrl('/a%E0%A4%A', root), '/a%e0%a4%a')
+  })
+
+  it('treats every absolute URL as external without an origin', () => {
+    assert.equal(
+      normaliseNavigationUrl('https://contoso.sharepoint.com/sites/demo/sub', {
+        serverRelativeUrl: '/sites/demo/sub'
+      }),
+      'https://contoso.sharepoint.com/sites/demo/sub'
+    )
   })
 })

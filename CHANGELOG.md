@@ -42,6 +42,41 @@ For releases older than 1.3.6, see the git history.
   - A template view's fields are set only when they differ; one field that cannot be added no
     longer leaves the view without the rest.
   - List `Security` breaks inheritance only on a list that still inherits, as web `Security` does.
+- Re-applying `SiteFields` follows the list-field rules
+  ([spec](./docs/specs/sitefields-re-apply.md)):
+  - An existing site column is no longer rewritten with the template's XML on every run (which
+    dropped what the template left out: an index, a formatter, a description). The template is
+    merged onto the stored schema and written only when it changes something; a child element the
+    template declares (`CHOICES`, `Default`, `Formula`) still replaces the stored one, so a choice
+    an admin added to a column whose template lists `CHOICES` is reset, as before. A widening type
+    change is applied; another type change is a warning and leaves the column as it is. A lookup or
+    taxonomy column the template points at another list, term set or term store is a warning and
+    keeps its stored target (the rest of the template is still merged), unless the column was made
+    in this setup. Changes do not reach existing list copies of the column; the engine does not
+    push them.
+  - A site column that SharePoint refuses is logged as an error, and the other columns and the
+    handlers after `SiteFields` still run; the template used to stop there.
+  - A column with the template column's id under another internal name is an error and is not
+    created (SharePoint refused it with "The local device name is already in use"). On a subweb, a
+    column a parent web already has is a warning and is neither created nor changed (SharePoint
+    refused it as a duplicate).
+  - A known token that cannot be resolved in a site column's XML is logged as an error naming the
+    column and the token; it is still written as before, except over a list, web, term store or
+    term set the column already points at. A target an earlier run stored as a literal token heals
+    on the next run.
+- `{listid:}` in a site column now resolves to a list of the same template: `WebProvisioner`
+  creates those lists, with their settings, before `SiteFields` (when `Lists` runs too, after
+  `SiteFields`). The column used to hold the literal token after the first run, silently, and so
+  did the copies made of it in that run.
+- A list FieldRef naming a column found neither on the list nor on the web is logged as an error;
+  it was skipped silently.
+- Re-applying a template reconciles the navigation in place instead of deleting and re-adding
+  every node ([spec](./docs/specs/navigation-re-apply.md)): a node whose title exists at the same
+  level is kept with its id, audiences and URL, and nothing is written for it, so an unchanged
+  re-apply changes nothing; missing nodes are added, nodes the template does not declare are
+  deleted and the nodes are moved into the template's order. A kept child now keeps its stored URL
+  as a top-level node does: a template change to an existing child's URL needs `IgnoreExisting`,
+  which sets the template's URL only where it differs.
 - `DataRows`: an unresolved Lookup or User value (and each unresolved entry of a LookupMulti or
   UserMulti) is logged as an error naming the column and the value; a new item gets the values
   that resolved and an existing one keeps what it holds in that column. A lookup or user request
@@ -109,6 +144,13 @@ Phases 0b and 1; each fix has the test that exposed it.
   saved without the part.
 - `ComposedLook` applies a look without `FontSchemeUrl` (it threw a `TypeError`); `FontSchemeUrl`
   and `BackgroundImageUrl` are optional in `IComposedLook`, as `schema.json` already had them.
+- `Navigation`: a node SharePoint refuses (a URL that names no existing file or folder) no longer
+  leaves the menu with only the nodes added before it: nothing is deleted until every node is
+  accepted, this run's adds and URL changes are undone, and the error names the node and its URL
+  (`Navigation node '<Title>' (<Url>) was refused by SharePoint: ...`). The Quick Launch and the
+  top navigation bar are written one after the other, so a failure in one no longer lets the other
+  carry on unreported, and a refusal in either leaves both as they were. The template object is no
+  longer changed (`node.Url` was overwritten with the stored URL).
 
 - `Security`: a site group as `Owner` (an associated group token, a group title, or the group
   itself) is now applied. It goes through CSOM (`Group.Owner` over
@@ -140,13 +182,14 @@ Tooling only; nothing here ships in the package. Plan:
 
 - Offline CI (`.github/workflows/ci.yml`, job `Build and offline tests`) on every pull request and
   push to `main`: `lint:check`, build, `typecheck:tests`, `test:ci` (spec + JUnit to
-  `test-results/unit.xml`), `test:coverage` (source-mapped, floors 73/78/74 for lines, branches
+  `test-results/unit.xml`), `test:coverage` (source-mapped, floors 79/83/79 for lines, branches
   and functions, which only rise), `check:pack` (the package holds `lib/index.js` and every handler) and
   `check:secrets` (no tenant URL, cookie, token or certificate in any committed or new text
   file, docs and specs included). eslint's `quotes` rule allows `"''"` (it conflicted with prettier), and
   `.prettierignore` keeps `lib/` out of the formatting check.
 - `tests/fixtures/templates/failures.json`: a list field that cannot be created, a `Files` and a
-  `PropertyBagEntries` entry, for checking that failures surface (`--strict` exits 1 for each).
+  `PropertyBagEntries` entry, for checking that failures surface (`--strict` exits 1 for each),
+  and a site column SharePoint refuses followed by a valid one (`sitefields.test.ts`).
 - Integration tests against a tenant (Phase 1): `npm run check:tenant`, `npm run test:integration`
   (`-- <Handler ...>`, `--keep`, `:ci`), one suite per handler in `tests/integration/` applying a
   fixture twice to a scratch web (a subweb of the reserved site with its own associated groups) and

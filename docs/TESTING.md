@@ -136,9 +136,17 @@ Measured on 2026-10-27 with `npm run test:integration` against the reserved site
 pass, 2 `todo` (pinned defects), 1 skipped (custom script blocked), 0 fail; about 9 minutes; nothing
 left behind. (Phase 1, 2026-10-21: 45 tests, 34 pass, 10 `todo`.)
 
+Since then the [SiteFields](./specs/sitefields-re-apply.md) and
+[Navigation](./specs/navigation-re-apply.md) re-apply specs (2026-10-29) turned both pins into
+plain tests and added tests: SiteFields 7 (was 3), Navigation 6 (was 3). Each passed whole on
+2026-10-29 (`npm run test:integration -- SiteFields Lists`: 25 tests, all pass; `-- Navigation`: 6
+of 6, three times). Full run on 2026-10-29, after the review fixes: reachability 6 of 6; the suites
+52 tests, 51 pass, 0 `todo`, 1 skipped (custom script blocked), 0 fail; about 9 minutes; nothing
+left behind.
+
 | Handler | Suite | Fixture | Status | Pinned (`todo`) |
 | --- | --- | --- | --- | --- |
-| SiteFields | `sitefields.test.ts` | `sitefields.json`, `.b.json` | green | `{listid:}` for a list of the same template stays literal on the first run, silently |
+| SiteFields | `sitefields.test.ts` | `sitefields.json`, `.b.json`, `failures.json` | green (7 tests: an unchanged second apply writes nothing, B and back, an admin's description kept, a narrowing type change, a lookup to a list of the same template, a taxonomy column, a refused column) | — (re-apply and same-template `{listid:}` fixed, [spec](./specs/sitefields-re-apply.md)) |
 | Features | `features.test.ts` | `features.json`, `.b.json` | green | — (re-apply fixed in Phase 1) |
 | Security | `security.test.ts` | `security.json` | green (also a list granted to a group of the same template, and `ClearExistingMembers` removing a member added since) | — |
 | Lists | `lists.test.ts` | `lists.json`, `.b.json` | green; the tests after the first build on its lists, so run the file whole | — (re-apply without data loss, [spec](./specs/lists-re-apply.md)) |
@@ -146,7 +154,7 @@ left behind. (Phase 1, 2026-10-21: 45 tests, 34 pass, 10 `todo`.)
 | CustomActions | `customactions.test.ts` | `customactions.json`, `.b.json`, `customactions-script.json` | green; classic actions skip under NoScript | — (add-only behaviour asserted) |
 | ComposedLook | `composedlook.test.ts` | `composedlook.json` | green | — (palette-only look fixed in Phase 1) |
 | ClientSidePages | `clientsidepages.test.ts` | `clientsidepages.json`, `.b.json` | green | — |
-| Navigation | `navigation.test.ts` | `navigation.json`, `.b.json` | green | a refused node leaves the menu half replaced |
+| Navigation | `navigation.test.ts` | `navigation.json`, `.b.json` | green (6 tests: a second apply keeps ids and writes nothing, an owner's changes, B, refusals in either collection, a recycled target) | — (re-apply reconciles in place, [spec](./specs/navigation-re-apply.md)) |
 | WebSettings | `websettings.test.ts` | `websettings.json`, `.b.json` | green | — (applying without a welcome page fixed in Phase 1) |
 | Hooks | `hooks.test.ts` | `hooks.json` | green | — (the 202 poll, its `Location` and failures fixed in Phase 1) |
 | Taxonomy, ContentTypes, Files, PropertyBagEntries | `<name>.test.ts` | — | skipped: JSOM, until the JSOM exit | — |

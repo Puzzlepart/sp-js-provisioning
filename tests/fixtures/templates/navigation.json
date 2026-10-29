@@ -16,7 +16,13 @@
           },
           {
             "Title": "SPJS Itest Contoso",
-            "Url": "https://www.contoso.com/spjs-itest/child"
+            "Url": "https://www.contoso.com/spjs-itest/child",
+            "Children": [
+              {
+                "Title": "SPJS Itest Contoso grandchild",
+                "Url": "https://www.contoso.com/spjs-itest/grandchild"
+              }
+            ]
           },
           {
             "Title": "SPJS Itest Contents",
