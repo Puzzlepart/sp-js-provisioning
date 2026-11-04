@@ -5,8 +5,6 @@ All notable changes to this package are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 For releases older than 1.3.6, see the git history.
 
-## [Unreleased]
-
 ## [1.5.0] - 2026-11-04
 
 Re-applying a template to a site in use is now safe for `Lists`, `SiteFields` and `Navigation`:
