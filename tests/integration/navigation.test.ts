@@ -1,7 +1,6 @@
 import assert from 'node:assert/strict'
 import { before, describe, it } from 'node:test'
 import { apply } from '../../debug/lib/apply'
-import { ISiteConnection } from '../../debug/lib/connect'
 import {
   INavigationNodeState,
   INavigationState,
@@ -12,7 +11,13 @@ import {
 } from '../../debug/lib/readback/navigation'
 import { INavigationNode } from '../../src/schema'
 import { loadFixture } from '../fixtures/fixtures'
-import { applyTwice, assertClean, skipReason, withScratchWeb } from './helpers'
+import {
+  applyTwice,
+  assertClean,
+  recording,
+  skipReason,
+  withScratchWeb
+} from './helpers'
 
 /**
  * The template's nodes as the read-back should show them: `{site}` (the handler's only token)
@@ -71,37 +76,6 @@ function nodeOf(
   const node = find([...state.quickLaunch, ...state.topNavigationBar])
   assert.ok(node, `${title} is not in the navigation`)
   return node
-}
-
-/**
- * A connection whose web records every request the engine sends through it (method and path
- * below the site), so a test can see what a run asked for, not only what it left behind.
- *
- * @param conn - The scratch web
- * @param requests - Where the requests go
- */
-function recording(conn: ISiteConnection, requests: string[]): ISiteConnection {
-  return Object.create(conn, {
-    web: {
-      get: () => {
-        const web = conn.sp.web
-        web.on.pre(function (url: string, init: any, result: any) {
-          // PnPjs sends MERGE and DELETE as a POST with X-HTTP-Method.
-          const tunnelled =
-            init &&
-            init.headers &&
-            new Headers(init.headers).get('X-HTTP-Method')
-          requests.push(
-            `${
-              tunnelled || (init && init.method) || 'GET'
-            } ${decodeURIComponent(url.slice(conn.url.length))}`
-          )
-          return Promise.resolve<[string, any, any]>([url, init, result])
-        })
-        return web
-      }
-    }
-  })
 }
 
 /** The requests that write: anything but a GET. */

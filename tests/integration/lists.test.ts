@@ -2,7 +2,6 @@ import { ISiteGroup } from '@pnp/sp/presets/all'
 import assert from 'node:assert/strict'
 import { before, describe, it } from 'node:test'
 import { apply } from '../../debug/lib/apply'
-import { ISiteConnection } from '../../debug/lib/connect'
 import {
   IListState,
   readList,
@@ -10,7 +9,13 @@ import {
   roleAssignmentsOf
 } from '../../debug/lib/readback/lists'
 import { loadFixture } from '../fixtures/fixtures'
-import { applyTwice, assertClean, skipReason, withScratchWeb } from './helpers'
+import {
+  applyTwice,
+  assertClean,
+  recording,
+  skipReason,
+  withScratchWeb
+} from './helpers'
 
 const TASKS = 'SPJS Itest Oppgaver'
 const DOCS = 'SPJS Itest Dokumenter'
@@ -47,37 +52,6 @@ const parentOf = (listContentTypeId: string) =>
 /** A site group's title. */
 const titleOf = async (group: ISiteGroup) =>
   (await group.select('Title')<{ Title: string }>()).Title
-
-/**
- * A connection whose web records every request the engine sends through it (method and path
- * below the web), so a test can see what a run asked for, not only what it left behind.
- *
- * @param conn - The scratch web
- * @param requests - Where the requests go
- */
-function recording(conn: ISiteConnection, requests: string[]): ISiteConnection {
-  return Object.create(conn, {
-    web: {
-      get: () => {
-        const web = conn.sp.web
-        web.on.pre(function (url: string, init: any, result: any) {
-          // PnPjs sends MERGE and DELETE as a POST with X-HTTP-Method.
-          const tunnelled =
-            init &&
-            init.headers &&
-            new Headers(init.headers).get('X-HTTP-Method')
-          requests.push(
-            `${
-              tunnelled || (init && init.method) || 'GET'
-            } ${decodeURIComponent(url.slice(conn.url.length))}`
-          )
-          return Promise.resolve<[string, any, any]>([url, init, result])
-        })
-        return web
-      }
-    }
-  })
-}
 
 /**
  * The Lists handler (structure) on a scratch web: a generic list and a library with list

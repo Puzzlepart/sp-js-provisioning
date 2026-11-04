@@ -7,6 +7,15 @@ For releases older than 1.3.6, see the git history.
 
 ## [Unreleased]
 
+## [1.5.0] - 2026-11-04
+
+Re-applying a template to a site in use is now safe for `Lists`, `SiteFields` and `Navigation`:
+list fields, site columns and menu nodes that exist are updated in place instead of deleted and
+recreated, so item values, node ids and what an admin set survive; an unchanged re-run writes no
+site column and no menu node; a failure is logged naming what failed, and no longer stops the
+template at the first site column or leaves half a menu. Templates written for 1.4.0 work unchanged
+on a first run; what a re-run does differs, see Changed.
+
 ### Added
 
 - New top-level `Security` section and handler, run right before `Lists`
@@ -96,6 +105,8 @@ For releases older than 1.3.6, see the git history.
 - The URL tokens, `makeUrlRelative` and the base64 encoding of indexed property bag keys work
   without a browser (`window`, `document`, `btoa`): in Node they no longer throw a
   `ReferenceError`, so no browser shims are needed there. In a browser nothing changes.
+- `object.omit` is no longer a dependency: nothing uses it since `WebSettings` splits off the
+  welcome page with object rest, so consumers no longer install it.
 
 ### Fixed
 

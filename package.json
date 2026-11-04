@@ -12,7 +12,6 @@
     "CHANGELOG.md"
   ],
   "dependencies": {
-    "object.omit": "3.0.0",
     "spfx-jsom": "0.6.6",
     "xml-js": "1.6.11"
   },
