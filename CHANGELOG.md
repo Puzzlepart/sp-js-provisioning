@@ -22,6 +22,19 @@ For releases older than 1.3.6, see the git history.
   the newest PnPjs, so the build and the tests use what a new install of the peers gets; the
   peer range stays `^4.21.0`. The gulp-era `merge` and `merge2` devDependencies are gone (nothing
   imports them; `merge2` stays in the lock for `globby`).
+- The unit tests' report as a page in the browser: `npm run test:ci` also writes
+  `test-results/unit/index.html` with a node:test HTML reporter ported from prosjektportalen365
+  (`tests/reporters/html.ts`, every text through `redact()`), and on each push to `main` the new
+  `publish-report` job in `ci.yml` puts it on prosjektportalen365's private test report site, at
+  `sp-js-provisioning/` ([spec](./docs/specs/test-report-site.md)). The publisher,
+  `.tasks/publish-test-report.js`, is prosjektportalen365's current one, extended and shared byte
+  for byte: `--project` writes only the project's folder, never the site's front page, a guard
+  refuses any other change before the push, a failed publish is also written to the job summary,
+  and prosjektportalen365's own publishes add an "Also on this site" link to each project's page
+  once they use the shared file. Its tests run with `npm run test:tasks`, in CI too. Until the
+  deploy key and the variables are set up, the job only says so.
+
+---
 
 ## [1.5.0] - 2026-11-04
 

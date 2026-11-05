@@ -15,11 +15,12 @@ code disagree, the code wins and the doc is fixed in the same change.
 | `src/schema.ts`, `schema.json` | The template contract (TypeScript) and its JSON Schema (hand-maintained; Phase 2 regenerates it) |
 | `debug/` | `npm run provision` and `npm run cleanup`; `debug/lib/` is the harness they share with the tests |
 | `tests/unit/` | Offline tests (`npm test`) |
+| `tests/reporters/` | The node:test HTML reporter (`npm run test:ci`: `test-results/unit/index.html`) |
 | `tests/integration/` | Suites against scratch webs on the reserved site (`npm run test:integration`) |
 | `tests/fixtures/templates/` | Fixture templates (`SPJS Itest ...`) |
 | `docs/specs/`, `docs/adr/`, `docs/templates/` | Specs (lifecycle Draft → Ready → Implemented → Verified), decision records, templates |
 | `.claude/skills/` | Agent skills (the only skill folder; `npm run check-skills`) |
-| `.tasks/` | Repository checks run by CI |
+| `.tasks/` | Repository checks run by CI, and the test report publisher (shared with prosjektportalen365, byte for byte) |
 
 ## Before you edit
 
@@ -54,6 +55,7 @@ code disagree, the code wins and the doc is fixed in the same change.
 | `npm run lint:check` | eslint (`src/`) and prettier, without rewriting; `npm run lint` rewrites |
 | `npm run test:coverage` | Unit tests with coverage floors (they only rise) |
 | `npm run check:pack`, `npm run check:secrets`, `npm run check-skills` | Package contents, committed secrets, skills |
+| `npm run test:tasks` | The test report publisher's tests, against local bare repositories |
 | `npm run check:tenant` | Is the tenant ready for the integration suites |
 | `npm run test:integration [-- <Handler ...>] [--keep]` | Integration suites against scratch webs |
 | `npm run provision -- --package <path> [--twice] [--strict] [--dry-run]` | Apply a template or a PP365 package by hand |

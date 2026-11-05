@@ -1,5 +1,5 @@
 /**
- * Minimal declarations for the Node builtins the unit tests use.
+ * Minimal declarations for the Node builtins the unit tests and the HTML reporter use.
  *
  * The package is pinned to `@types/node@8`, which predates both `node:test` and
  * `node:assert/strict`. Declaring just the surface the tests touch keeps
@@ -85,8 +85,22 @@ declare module 'node:fs' {
     path: string,
     options?: { recursive?: boolean; force?: boolean }
   ): void
+  export function realpathSync(path: string): string
 }
 
 declare module 'node:path' {
   export function join(...parts: string[]): string
+  export function relative(from: string, to: string): string
+  export function resolve(...parts: string[]): string
+}
+
+declare module 'node:url' {
+  export function pathToFileURL(path: string): { href: string }
+}
+
+declare module 'node:util' {
+  export function inspect(
+    value: unknown,
+    options?: { depth?: number; breakLength?: number }
+  ): string
 }

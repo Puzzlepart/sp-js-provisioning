@@ -25,7 +25,9 @@ the code disagree, the code wins and the doc is fixed. The plan: `docs/specs/int
 
 ## Running
 
-- Offline: `npm test`, `npm run typecheck:tests`, `npm run lint:check`, `npm run test:coverage`.
+- Offline: `npm test`, `npm run typecheck:tests`, `npm run lint:check`, `npm run test:coverage`;
+  `npm run test:tasks` after a change to `.tasks/publish-test-report.js` (copy it to
+  prosjektportalen365 too: the file is shared byte for byte).
 - Tenant ready? `npm run check:tenant`. Then `npm run test:integration -- Lists` (reachability runs
   first). `--keep` keeps the scratch web; `npm run cleanup -- --webs` lists leftovers older than
   2 h (`--older-than 0m` for younger ones, only while no other run is active; `--apply` removes

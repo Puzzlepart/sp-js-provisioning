@@ -1,10 +1,14 @@
-# Offline CI: build, lint, type check, unit tests with coverage floors, the package contents and a
-# scan for committed tenant values. Nothing here reaches a tenant or needs a secret, so it runs on
-# every pull request, forks included. The tenant tests are a separate, manually dispatched workflow
-# (docs/specs/integration-testing.md, Phase 3).
+# Offline CI: build, lint, type check, unit tests with coverage floors, the package contents, a
+# scan for committed tenant values and the test report publisher's tests. Nothing in that job
+# reaches a tenant or needs a secret, so it runs on every pull request, forks included. The tenant
+# tests are a separate, manually dispatched workflow (docs/specs/integration-testing.md, Phase 3).
 #
 # The job name is the required check for main. No path filter: a workflow skipped by a path filter
 # leaves a required check pending and blocks the merge.
+#
+# On a push to main, a second job puts the unit report on the private test report site
+# (docs/specs/test-report-site.md). It is the only one with a secret, and never runs for a pull
+# request.
 name: CI
 
 on:
@@ -24,6 +28,8 @@ jobs:
     name: Build and offline tests
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    outputs:
+      unit: ${{ steps.unit.outcome }}
     steps:
       - uses: actions/checkout@v7
 
@@ -43,7 +49,8 @@ jobs:
       - name: Type check the tests with src and the runner
         run: npm run typecheck:tests
 
-      - name: Unit tests (spec + JUnit)
+      - name: Unit tests (spec + JUnit + HTML)
+        id: unit
         run: npm run test:ci
 
       - name: Coverage floors
@@ -58,6 +65,9 @@ jobs:
       - name: Agent skills are valid and in one place
         run: npm run check-skills
 
+      - name: The test report publisher, against a local repository
+        run: npm run test:tasks
+
       - uses: actions/upload-artifact@v7
         if: always()
         with:
@@ -65,3 +75,44 @@ jobs:
           path: test-results/
           retention-days: 7
           if-no-files-found: ignore
+
+  # The unit report on the test report site, beside prosjektportalen365's reports. A job of its own:
+  # the required check never waits on a push to another repository, and the deploy key is never in
+  # a job that runs npm ci. It takes the report from the artifact and installs nothing: the
+  # publisher needs only Node and git.
+  publish-report:
+    name: Publish the unit report to the test report site
+    needs: build
+    if: ${{ !cancelled() && github.event_name == 'push' && github.ref == 'refs/heads/main' && github.repository == 'Puzzlepart/sp-js-provisioning' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+
+      # Missing when the build failed before the unit tests; the next step then says so.
+      - uses: actions/download-artifact@v8
+        continue-on-error: true
+        with:
+          name: test-results
+          path: test-results
+
+      # A failed publish is a warning and a line in the job summary, never a red main. Without the
+      # variables and the secret (before the setup by hand) it prints a notice and exits 0.
+      - name: Publish the report to the test report site
+        continue-on-error: true
+        timeout-minutes: 8
+        run: node .tasks/publish-test-report.js --project sp-js-provisioning --suite unit --title Unit --report test-results/unit --outcome "$OUTCOME"
+        env:
+          OUTCOME: ${{ needs.build.outputs.unit }}
+          TEST_REPORTS_REPOSITORY: ${{ vars.TEST_REPORTS_REPOSITORY }}
+          TEST_REPORTS_URL: ${{ vars.TEST_REPORTS_URL }}
+          TEST_REPORTS_DEPLOY_KEY: ${{ secrets.TEST_REPORTS_DEPLOY_KEY }}
+          GITHUB_TOKEN: ${{ github.token }}

@@ -19,6 +19,7 @@
     "helpers/**/*.ts",
     "fixtures/**/*.ts",
     "integration/**/*.ts",
+    "reporters/**/*.ts",
     "types/**/*.d.ts",
     "../src/**/*.ts",
     "../debug/lib/**/*.ts",

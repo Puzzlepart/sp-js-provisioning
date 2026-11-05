@@ -9,7 +9,7 @@ the code disagree, the code wins and this page is fixed in the same change. The 
 
 | Layer | Where | Needs a tenant | Runs |
 | --- | --- | --- | --- |
-| Unit | `tests/unit/*.test.ts` (node:test through tsx; real PnPjs with fake webs or a recording web) | no | `npm test`, and in CI (`ci.yml`, job "Build and offline tests") with JUnit and coverage floors |
+| Unit | `tests/unit/*.test.ts` (node:test through tsx; real PnPjs with fake webs or a recording web) | no | `npm test`, and in CI (`ci.yml`, job "Build and offline tests") with JUnit, an HTML report and coverage floors |
 | Contract | `tests/contract/*.test.ts` (Phase 2: real PnPjs, a fake transport, the wire shape of each handler) | no | `npm test`, CI |
 | Integration | `tests/integration/*.test.ts`, one suite per handler, against scratch webs below the reserved site | yes | `npm run test:integration` locally; `integration.yml` (Phase 3, dispatched by hand behind a protected environment) |
 | Packages | `tests/integration/packages.test.ts` (Phase 2: the prosjektportalen-hosting packages) | yes | `npm run test:integration -- packages` |
@@ -31,7 +31,8 @@ the code disagree, the code wins and this page is fixed in the same change. The 
 | --- | --- |
 | `npm test` | Unit tests, offline, seconds |
 | `npm run typecheck:tests` | Type-checks the tests with `src/` and `debug/` |
-| `npm run test:ci` / `npm run test:coverage` | Unit tests with spec + JUnit to `test-results/unit.xml` / with source-mapped coverage floors |
+| `npm run test:ci` / `npm run test:coverage` | Unit tests with spec, JUnit to `test-results/unit.xml` and HTML to `test-results/unit/index.html` / with source-mapped coverage floors |
+| `npm run test:tasks` | The test report publisher's tests (`.tasks/*.test.js`), against local bare repositories; needs git |
 | `npm run lint:check` | eslint on `src/` and prettier on all TypeScript, without rewriting |
 | `npm run check:pack`, `npm run check:secrets`, `npm run check-skills` | The package holds `lib/`; no tenant URL, cookie, token or certificate committed; the agent skills are valid |
 | `npm run check:tenant` | Is the tenant ready: sign-in, site collection admin, term store, custom script, a scratch web created and deleted, leftovers. Strict: a missing site or sign-in fails instead of skipping |
@@ -42,6 +43,19 @@ the code disagree, the code wins and this page is fixed in the same change. The 
 | `npm run cleanup -- --webs` / `--prefix 'SPJS Itest'` | What a crashed run left behind (scratch webs and their groups older than 2 h / prefixed artefacts); a plan unless `--apply` |
 | `npm run cleanup -- --webs --older-than 0m` | The same right after a run or `--keep` (webs younger than 2 h are left for a run that may be active); only while no other run is |
 | `npm run provision -- --package <path> --twice --strict` | Apply a template or package by hand (`debug/README.md`) |
+
+## Reports
+
+| Report | Written by | Where |
+| --- | --- | --- |
+| Unit, JUnit | `npm run test:ci`: `test-results/unit.xml` | CI artifact `test-results` (7 days) |
+| Unit, HTML | `npm run test:ci`: `test-results/unit/index.html` (`tests/reporters/html.ts`, every text through `redact()`) | the same artifact, and on each push to `main` the private test report site, `<site>/sp-js-provisioning/` (job `publish-report`; [spec](./specs/test-report-site.md)) |
+| Coverage | `npm run test:coverage` | the job log |
+| Integration, JUnit | `npm run test:integration:ci`: `test-results/reachability.xml`, `test-results/integration.xml` | local only until Phase 3 |
+
+The test report site is a private GitHub Pages site shared with prosjektportalen365, readable by the
+organization's members after signing in to GitHub. Its address is the repository variable
+`TEST_REPORTS_URL`, and each run's job summary links the report.
 
 ## The tenant
 
