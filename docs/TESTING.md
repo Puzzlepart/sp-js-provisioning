@@ -69,7 +69,7 @@ the code disagree, the code wins and this page is fixed in the same change. The 
 | Scratch webs | `debug/lib/scratch.ts` | `SPJS Itest <suite> <stamp>` at `spjs-itest-<suite>-<stamp>` (UTC `yyMMddHHmmss`), unique permissions, its own associated groups; deleted with the site groups whose title starts with its title (its associated groups and the fixtures' `{sitename} ...` groups) |
 | Applying | `debug/lib/apply.ts` | `apply(conn, template, options)` returns `{ order, skipped, errors, warnings, error }` and never throws |
 | Reading back | `debug/lib/readback/<handler>.ts` | What a handler provisioned, as plain data without ids or timestamps |
-| Suites | `tests/integration/helpers.ts` | `withScratchWeb`, `applyTwice`, `assertClean`, `skipReason` |
+| Suites | `tests/integration/helpers.ts` | `withScratchWeb`, `applyTwice`, `assertClean`, `skipReason`; `recording(conn, requests)`, a connection that records each request the engine sends, for "no write" or "no DELETE" assertions on a second apply |
 | Fixtures | `tests/fixtures/templates/*.json`, `tests/fixtures/fixtures.ts` | `loadFixture(name, { user, hookUrl })` |
 | Runner | `tests/integration/run.ts` | Maps names to suite files; runs reachability first in its own process (`node --test` sorts the files it is given), then the suites, one file at a time |
 

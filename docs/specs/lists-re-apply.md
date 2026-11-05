@@ -6,7 +6,7 @@ Owner: Remi Blom-Ohlsen
 
 Related: [integration testing](./integration-testing.md) (D4 pinned these defects),
 [site groups and web security](./site-groups-and-web-security.md) (the web-level guard this spec
-mirrors for lists). Ships in 1.5.0 with Security.
+mirrors for lists). Shipped in 1.5.0 (2026-11-04) with Security.
 
 ## Problem
 
@@ -296,7 +296,8 @@ created with `createFieldAsXml` and one item with values, then a `SchemaXml` MER
 - **PP365** (separate change, when it bumps to 1.5.0): CompatibilityService can stop classifying
   existing list Fields and FieldRefs as "blocked" and stripping them. PP365 bundles the engine at
   build time, so this ships in the same PP365 release that bumps the dependency; hubs and projects
-  on older PP365 keep today's behaviour.
+  on older PP365 keep today's behaviour. 1.5.0 was published on 2026-11-04, when PP365
+  `releases/1.15` still pinned 1.4.0.
 - **PP365 CopyListData** drops the KeyColumn from pp-veiprosjekt's projected rows
   (`manifest.json` projects `GtSortOrder,Title,GtProjectPhase,GtVeiAnchored`, the key is
   `GtDataRowUniqueKey`), so every row is added again on each run; the new Warning makes it visible,

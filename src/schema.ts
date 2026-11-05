@@ -11,6 +11,15 @@ export interface Schema {
   Files?: IFileObject[]
   PropertyBagEntries?: IPropertyBagEntry[]
   ClientSidePages?: IClientSidePage[]
+  /**
+   * Site columns as schema XML, matched by internal name (`Name`). A missing one is created; one the
+   * web has gets the template merged onto its stored schema, written only when that changes
+   * something, so what the template leaves out (an index, a formatter, a description) survives. A
+   * widening type change is applied, another type change is a warning and leaves it as it is. A new
+   * target (a lookup's list, a taxonomy column's term set or term store) is a warning that keeps the
+   * stored one, unless the column was made in this setup. A column SharePoint refuses is logged as
+   * an error and the others still run. Changes do not reach the column's existing list copies.
+   */
   SiteFields?: string[]
   ContentTypes?: IContentType[]
   Taxonomy?: ITaxonomy
@@ -259,7 +268,8 @@ export interface IRoleAssignment {
  */
 export interface IListSecurity {
   /**
-   * Break role inheritance before adding role assignments.
+   * Break role inheritance before adding role assignments. Only done while it still inherits, so on
+   * a re-run `CopyRoleAssignments` and `ClearSubscopes` do nothing.
    */
   BreakRoleInheritance?: boolean
   /**

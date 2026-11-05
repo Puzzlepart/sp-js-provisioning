@@ -6,7 +6,8 @@ Owner: Remi Blom-Ohlsen
 
 Related: [Lists re-apply](./lists-re-apply.md) (the list-field rules this spec applies to site
 columns), [integration testing](./integration-testing.md) (the pinned `{listid:}` case),
-navigation-re-apply.md (written alongside, same release). Ships in 1.5.0 with Lists and Security.
+navigation-re-apply.md (written alongside, same release). Shipped in 1.5.0 (2026-11-04) with Lists
+and Security.
 
 ## Problem
 
@@ -371,7 +372,8 @@ changed to match.
   does not state survive, a type mismatch is no longer applied (Warning), and a column that fails
   no longer aborts the import.
 - **PP365 follow-ups** (separate change, when PP365 bumps to 1.5.0; it bundles the engine at build
-  time, so older hubs and projects keep today's behaviour):
+  time, so older hubs and projects keep today's behaviour; 1.5.0 was published on 2026-11-04, when
+  PP365 `releases/1.15` still pinned 1.4.0):
   - CompatibilityService says a same-name column with another type or id "will be overwritten"
     (`CompatibilityService.ts:170-189`): with S2 and S4 the engine keeps the stored type or id and
     logs a Warning. The wording should say so.
@@ -379,4 +381,4 @@ changed to match.
     `PackageInstaller.ts:553-559`) can stop being stripped: the engine logs an Error and creates
     nothing, without aborting `applyTemplate`.
 - The README's token table and ARCHITECTURE's handler order gain the S1 exception and S1d; the
-  integration-testing matrix row and the pin list change (doc notes for the docs change).
+  integration-testing matrix row and the pin list change (done in `1381ca2`).

@@ -78,7 +78,10 @@ Exit codes: 0 applied, 1 failed (or, with `--strict`, an error was logged), 2 us
 target the site guard refuses).
 
 `--strict` sees what the handlers log as errors, including the failures they log and carry on
-after (a list field, a view's fields, a folder, a row, a page control). It does not read the result
+after (a site column SharePoint refuses, an unresolved token in a site column, a list field, a
+FieldRef to a column that is not found, a view's fields, a folder, a row or an unresolved
+lookup or user value in it, a page control). Since 1.5.0 a failing site column is one of these
+and no longer stops the run, so only `--strict` makes it fail. It does not read the result
 back from the site, so a green strict run is not proof that everything was applied: the first
 tenant run found a group owner that SharePoint silently did not change. The integration suites
 read back (`npm run test:integration`, `docs/TESTING.md`).

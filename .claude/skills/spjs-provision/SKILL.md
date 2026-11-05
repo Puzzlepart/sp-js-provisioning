@@ -45,6 +45,10 @@ then assume the content types already exist.
 - Lines are `(provision) (<Handler>): (<scope>): <message>`; errors carry SharePoint's answer.
 - `Failing handler: X` means a `ProvisioningError` stopped the run there; later handlers did not
   run.
+- Since 1.5.0 a site column that fails is an error line, not `Failing handler: SiteFields`: the
+  run goes on, and only `--strict` exits 1. A navigation node SharePoint refuses still fails the
+  run, as `Navigation node '<Title>' (<Url>) was refused by SharePoint: ...`, and both menus are
+  left as they were.
 - `--strict` sees logged errors, not what SharePoint silently ignored: read the result back (the
   suites do; `debug/lib/readback/`), or look at the site.
 

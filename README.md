@@ -278,6 +278,8 @@ one in Node — see [`debug/`](./debug)) and resolve to `null` without one.
 | `{sitecollectiontermstoreid}` / `{termstoreid}`                                         | Id of the default term store — enables managed metadata site columns from a template |
 | `{parameter:Name}`                                                                      | Value from `IProvisioningConfig.parameters`                                          |
 | `{site}` / `{sitecollection}`                                                           | Server-relative / absolute URL (in URLs)                                             |
+| `{wpgallery}` / `{themegallery}`                                                        | `{sitecollection}` + `/_catalogs/wp` / + `/_catalogs/theme/15` (in URLs)             |
+| `{hosturl}`                                                                             | Origin, `https://contoso.sharepoint.com` (in URLs; it ended in `:` before 1.5.0)     |
 | `{associatedownergroupid}` / `{associatedmembergroupid}` / `{associatedvisitorgroupid}` | Associated group (in `Security` principals and group owners)                         |
 
 `SiteFields` runs before `Lists`, so `{listid:}` there resolves for lists that exist when the run

@@ -56,7 +56,7 @@ Important behavior:
 - Unknown template sections are ignored unless a matching handler exists in `handlerMap`.
 - Handler selection is by top-level schema property name.
 - `progressCallback` is called before each handler starts.
-- The current implementation logs before `onSetup()`, so `this.config` must be set by `.setup(config)` before `applyTemplate()`.
+- `applyTemplate()` works without `.setup(config)`, or with a config without `logging`: the log prefix is read with optional chaining, and each handler's config defaults to `{}`. Without `setup` there are no parameters and no SPFx context, so `{parameter:}` tokens stay as written and the URL tokens resolve only from the page (none in Node).
 
 ### `src/handlers/exports.ts`
 
@@ -66,6 +66,7 @@ Current order:
 
 | Sort | Handler | Why It Is Early Or Late |
 | ---: | --- | --- |
+| -1 | `Taxonomy` | Creates term groups, term sets and terms (JSOM) before the site columns that use them. |
 | 0 | `SiteFields` | Creates or updates web fields used by content types and lists. |
 | 1 | `ContentTypes` | Uses site fields and produces content types used by list bindings. |
 | 2 | `Features` | Activates or deactivates web features before list and page work. |

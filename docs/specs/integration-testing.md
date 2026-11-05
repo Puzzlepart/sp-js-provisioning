@@ -354,7 +354,7 @@ Token reach: T = `TokenHelper` (`{listid:}`, `{listviewid:}`, `{webid}`/`{siteid
 | ContentTypes (1) | no: JSOM | none | `web.contentTypes.getById(id)` with field links | no duplicate, links unchanged | skips (D3) |
 | Features (2) | yes | none | `web.features.select('DefinitionId')()` membership (inactive is not a 404) | unchanged | feature chosen in Phase 1 |
 | Security (2.5) | yes (old `HANDLERS` omitted it) | T in group `Title`, string properties, `Members`, `Owner`, `Principal`; G in `Owner`, `Principal` | `siteGroups.getByName(t)` with owner and join/leave settings, `.users()`; `HasUniqueRoleAssignments`; `roleAssignments.expand('Member','RoleDefinitionBindings')` | no duplicate group or assignment; `ClearExistingMembers` exact | failures at Error; owner `{associatedownergroupid}` and the group itself; the "inherits, break" branch on a nested inheriting web |
-| Lists (3) | yes (`initSpfxJsom` on the stub, JSOM unused) | T in `Fields` XML, DataRows text and URL values; T + G in `Security` principals; not titles, views, `FieldRefs`, bindings, folders, User/Lookup values or the `KeyColumn` match | list properties, `contentTypes()`, fields, views with fields, folders, items with `FieldValuesAsText`, `roleAssignments` | row count by key; `Skip` keeps an edited value, `Overwrite` restores it; no duplicate views, folders, bindings | D4 levels (0b); `{ todo }`: field recreation (a `Fields` column value is lost), list `breakRoleInheritance`, `RemoveExistingViews`, tokenised key duplicates rows, silent unresolved lookups; until D3 only OOTB content types valid for the template (not `0x0101` on a 100 list) |
+| Lists (3) | yes (`initSpfxJsom` on the stub, JSOM unused) | T in `Fields` XML, DataRows text and URL values; T + G in `Security` principals; not titles, views, `FieldRefs`, bindings, folders, User/Lookup values or the `KeyColumn` match | list properties, `contentTypes()`, fields, views with fields, folders, items with `FieldValuesAsText`, `roleAssignments` | row count by key; `Skip` keeps an edited value, `Overwrite` restores it; no duplicate views, folders, bindings | D4 levels (0b); fixed by [the Lists re-apply spec](./lists-re-apply.md) (2026-10-27): fields updated in place, list `breakRoleInheritance` only on a list that inherits, `RemoveExistingViews` and `RemoveExistingContentTypes` only on lists made in this setup, the key matched with its tokens replaced, unresolved lookups logged as errors; until D3 only OOTB content types valid for the template (not `0x0101` on a 100 list) |
 | Files (4) | no: throws under `spfxContext` before `try`; JSOM web parts | T + U in `Src`, `FileSrc`; T in web part XML | file, `listItemAllFields`, web parts | `Overwrite` | skips (D3); D4 `Error` (0b) |
 | CustomActions (5) | yes | none | `userCustomActions` by title prefix: `Location`, `Sequence`, component id/properties, `ScriptBlock` | no duplicate by title; changed `Sequence` not applied (add-only) | `ScriptLink` in `customactions-script.json`, skipped under NoScript |
 | ComposedLook (6) | yes, shims | U | best effort: `_api/web/ThemeInfo` changed | no error | util guards (D4, 1) |
@@ -605,12 +605,17 @@ spike re-tests it.
   (devDependencies), `README.md` and `CHANGELOG.md` change, with no runtime effect. `@pnp/nodejs`
   leaves devDependencies;
   `debug/provision.settings.ts` is gone, so runner users move to `.env` (`debug/README.md`).
-- 1.5.0 ships Security with D4's fixes and is cut when Phase 1 exits with Security Verified.
-  Consumer-visible: Lists and ClientSidePages failures appear at Error in install logs; `{hosturl}`
-  loses its trailing colon; WebSettings applies without `WelcomePage`; Files and
-  PropertyBagEntries errors become readable.
-- Then PP365's exact pin (1.4.0 in `ProjectExtensions` and `PortfolioExtensions`) is bumped with
-  `npm run rush:update` and one hand project setup. A `pp-testprosjekt` hub import in PP365 still
+- 1.5.0 was published on 2026-11-04 (`a0bec77`, tag `v1.5.0`) with Security and D4's fixes, and,
+  later than D6 planned, with the Lists, SiteFields and Navigation re-apply specs. What consumers
+  see is in CHANGELOG `[1.5.0]` and each spec's Rollout Notes; from this spec: Lists and
+  ClientSidePages failures appear at Error in install logs; `{hosturl}` lost its trailing colon;
+  WebSettings applies without `WelcomePage`; Files and PropertyBagEntries errors are readable.
+- Next, PP365's exact pin (1.4.0 in `ProjectExtensions` and `PortfolioExtensions` on
+  `releases/1.15`) is bumped with `npm run rush:update`. One project setup does not exercise what
+  1.5.0 changes, which is re-applying: a project setup, then "Run project setup" again on the same
+  site, and a hub package import run twice. The PP365 follow-ups are in the Rollout Notes of the
+  [Lists](./lists-re-apply.md), [SiteFields](./sitefields-re-apply.md) and
+  [Navigation](./navigation-re-apply.md) specs. A `pp-testprosjekt` hub import in PP365 still
   stops at Files, now with a readable message, until PackageInstaller strips Files and
   PropertyBagEntries or D3 lands.
 - Prerequisites: before 0a can exit, the reserved site (created by hand, subsites enabled, e.g.

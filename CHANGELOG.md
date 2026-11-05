@@ -5,6 +5,24 @@ All notable changes to this package are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 For releases older than 1.3.6, see the git history.
 
+## [Unreleased]
+
+### Fixed
+
+- `schema.json` describes what 1.5.0 changed, copied from the TSDoc in `src/schema.ts`: list
+  `Fields`, `RemoveExistingViews` and `RemoveExistingContentTypes`, `SiteFields`, `Navigation` and
+  its nodes (`IgnoreExisting`, `Children`), web and list `Security`, role assignments, site groups
+  and the optional `ComposedLook` URLs. An editor using the schema showed none of it, so the
+  re-run rules were only in the README. `SiteFields` gets a TSDoc of its own, and
+  `BreakRoleInheritance`'s says it is only done while the list or web still inherits.
+
+### Development
+
+- The `@pnp/core`, `@pnp/logging`, `@pnp/queryable` and `@pnp/sp` devDependencies are 4.22.0,
+  the newest PnPjs, so the build and the tests use what a new install of the peers gets; the
+  peer range stays `^4.21.0`. The gulp-era `merge` and `merge2` devDependencies are gone (nothing
+  imports them; `merge2` stays in the lock for `globby`).
+
 ## [1.5.0] - 2026-11-04
 
 Re-applying a template to a site in use is now safe for `Lists`, `SiteFields` and `Navigation`:
@@ -375,6 +393,9 @@ Tooling only; nothing here ships in the package. Plan:
 
 - Content types are created and updated with fixed, deterministic ids from the template.
 
+[Unreleased]: https://github.com/Puzzlepart/sp-js-provisioning/compare/v1.5.0...HEAD
+[1.5.0]: https://github.com/Puzzlepart/sp-js-provisioning/compare/v1.4.0...v1.5.0
+[1.4.0]: https://github.com/Puzzlepart/sp-js-provisioning/compare/v1.3.15...v1.4.0
 [1.3.15]: https://github.com/Puzzlepart/sp-js-provisioning/compare/v1.3.14...v1.3.15
 [1.3.14]: https://github.com/Puzzlepart/sp-js-provisioning/compare/v1.3.13...v1.3.14
 [1.3.13]: https://github.com/Puzzlepart/sp-js-provisioning/compare/v1.3.12...v1.3.13

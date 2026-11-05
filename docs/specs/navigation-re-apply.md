@@ -6,7 +6,7 @@ Owner: Remi Blom-Ohlsen
 
 Related: [integration testing](./integration-testing.md) (pinned the refused-node defect),
 [Lists re-apply](./lists-re-apply.md) (the same goal for lists), the SiteFields re-apply spec
-written on the same branch. Ships in 1.5.0 with Lists and SiteFields.
+written on the same branch. Shipped in 1.5.0 (2026-11-04) with Lists and SiteFields.
 
 ## Problem
 

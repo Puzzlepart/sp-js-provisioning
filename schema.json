@@ -105,12 +105,14 @@
         "IComposedLook": {
             "properties": {
                 "BackgroundImageUrl": {
+                    "description": "Without it, the theme has no background image (one set before is removed).",
                     "type": "string"
                 },
                 "ColorPaletteUrl": {
                     "type": "string"
                 },
                 "FontSchemeUrl": {
+                    "description": "Without it, the theme has no font scheme of its own.",
                     "type": "string"
                 }
             },
@@ -383,15 +385,18 @@
                     "type": "array"
                 },
                 "Fields": {
+                    "description": "List fields as schema XML. A missing one is created; one that exists is updated in place, never deleted: a widening type change (Text to Note, Lookup or User single to multi) is applied, another type change is a warning and leaves it as it is. A new target (a lookup's list, a taxonomy field's term set) is applied on a list made in this setup, otherwise a warning that keeps the stored one.",
                     "items": {
                         "type": "string"
                     },
                     "type": "array"
                 },
                 "RemoveExistingContentTypes": {
+                    "description": "Remove the content types not bound, on a list made in this setup (created by this provisioner, across its applyTemplate calls). On a list that existed it does nothing.",
                     "type": "boolean"
                 },
                 "RemoveExistingViews": {
+                    "description": "Remove the views the template does not name, on a list made in this setup (created by this provisioner, across its applyTemplate calls), after the template's own exist. Never a personal view, the default view or the view behind a page's list web part. On a list that existed it does nothing (PnP Framework removes on every run).",
                     "type": "boolean"
                 },
                 "Security": {
@@ -437,17 +442,22 @@
             "type": "object"
         },
         "IListSecurity": {
+            "description": "List security, applied after the list's data rows. Mirrors the PnP provisioning schema Security element.",
             "properties": {
                 "BreakRoleInheritance": {
+                    "description": "Break role inheritance before adding role assignments. Only done while it still inherits, so on a re-run CopyRoleAssignments and ClearSubscopes do nothing.",
                     "type": "boolean"
                 },
                 "ClearSubscopes": {
+                    "description": "Clear unique permissions on child objects when breaking inheritance.",
                     "type": "boolean"
                 },
                 "CopyRoleAssignments": {
+                    "description": "Copy the inherited role assignments when breaking inheritance.",
                     "type": "boolean"
                 },
                 "RoleAssignments": {
+                    "description": "Role assignments to add. Requires BreakRoleInheritance, since SharePoint rejects role assignments on a list that still inherits permissions; inherited assignments are kept only with CopyRoleAssignments.",
                     "items": {
                         "$ref": "#/definitions/IRoleAssignment"
                     },
@@ -504,6 +514,7 @@
             "type": "object"
         },
         "INavigation": {
+            "description": "The web's navigation. The template owns each collection it names: on every run the collection ends with exactly the template's nodes, in its order. A node whose title is already there at the same level is kept as it is (id, URL, audiences); a missing one is added; a node the template does not declare is deleted, children and nodes a site owner added included. A collection the template leaves out is not touched. A node SharePoint refuses (its URL names no existing file or folder) fails the run and leaves both collections as they were.",
             "properties": {
                 "QuickLaunch": {
                     "items": {
@@ -521,20 +532,25 @@
             "type": "object"
         },
         "INavigationNode": {
+            "description": "A navigation node, matched to a stored node at the same level by its exact title (case included).",
             "properties": {
                 "Children": {
+                    "description": "The node's children, owned like the collection: without Children, a kept node loses the children it has.",
                     "items": {
                         "$ref": "#/definitions/INavigationNode"
                     },
                     "type": "array"
                 },
                 "IgnoreExisting": {
+                    "description": "Set the template's Url on a node that exists (where it differs). Without it an existing node keeps its stored URL, at every level: SharePoint updates a node's URL when its target is renamed, and an owner may have changed it. A title stored more than once gets the template's URL either way.",
                     "type": "boolean"
                 },
                 "Title": {
+                    "description": "Title, no tokens. SharePoint returns its own nodes' titles in the signed-in account's language (Hjem or Home), so such a node matches only for an account with the template's language; otherwise it is added and the stored one deleted.",
                     "type": "string"
                 },
                 "Url": {
+                    "description": "Server-relative, web-relative (resolved against the web) or absolute. Takes the URL tokens only ({site} is the site collection). Used when the node is added, or with IgnoreExisting.",
                     "type": "string"
                 }
             },
@@ -560,15 +576,18 @@
         "IRoleAssignment": {
             "properties": {
                 "Principal": {
+                    "description": "The principal: a PnP-style token for one of the web's associated groups ({associatedownergroupid}, {associatedmembergroupid}, {associatedvisitorgroupid}), a principal id, a site group name or a user login name.",
                     "type": "string"
                 },
                 "RoleDefinition": {
+                    "description": "Role definition name as it exists on the web (localized, e.g. Full kontroll or Lese). The English well-known names (Full Control, Design, Edit, Contribute, Read, View Only) are resolved by role type as a fallback.",
                     "type": "string"
                 }
             },
             "type": "object"
         },
         "ISiteGroup": {
+            "description": "A SharePoint site group. Mirrors the PnP provisioning schema SiteGroup element. Groups are matched by title, so re-applying a template updates the group instead of creating a duplicate.",
             "properties": {
                 "AllowMembersEditMembership": {
                     "type": "boolean"
@@ -673,14 +692,18 @@
             "type": "object"
         },
         "IWebSecurity": {
+            "description": "Web security: site groups, and role inheritance and role assignments on the web itself. Mirrors the PnP provisioning schema Security element. The members inherited from IListSecurity behave as they do for lists, but apply to the web; the root web of a site collection always has unique permissions, so it takes role assignments without BreakRoleInheritance.",
             "properties": {
                 "BreakRoleInheritance": {
+                    "description": "Break role inheritance before adding role assignments. Only done while it still inherits, so on a re-run CopyRoleAssignments and ClearSubscopes do nothing.",
                     "type": "boolean"
                 },
                 "ClearSubscopes": {
+                    "description": "Clear unique permissions on child objects when breaking inheritance.",
                     "type": "boolean"
                 },
                 "CopyRoleAssignments": {
+                    "description": "Copy the inherited role assignments when breaking inheritance.",
                     "type": "boolean"
                 },
                 "RoleAssignments": {
@@ -690,6 +713,7 @@
                     "type": "array"
                 },
                 "SiteGroups": {
+                    "description": "Site groups to create or update. They are provisioned before Lists, so list Security can grant permissions to them.",
                     "items": {
                         "$ref": "#/definitions/ISiteGroup"
                     },
@@ -812,6 +836,7 @@
             "$ref": "#/definitions/IWebSecurity"
         },
         "SiteFields": {
+            "description": "Site columns as schema XML, matched by internal name (Name). A missing one is created; one the web has gets the template merged onto its stored schema, written only when that changes something, so what the template leaves out (an index, a formatter, a description) survives. A widening type change is applied, another type change is a warning and leaves it as it is. A new target (a lookup's list, a taxonomy column's term set or term store) is a warning that keeps the stored one, unless the column was made in this setup. A column SharePoint refuses is logged as an error and the others still run. Changes do not reach the column's existing list copies.",
             "items": {
                 "type": "string"
             },
