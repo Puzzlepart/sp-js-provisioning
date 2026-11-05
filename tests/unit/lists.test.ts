@@ -1167,6 +1167,55 @@ describe('Lists: views', () => {
     assert.deepEqual(updates, [{ RowLimit: 30 }])
   })
 
+  it('sends a new view its settings again after creating it, as SharePoint ignores CustomFormatter there', async () => {
+    const handler = createHandler(new ProvisioningContext())
+    const calls: any[] = []
+    let created = false
+    const view: any = Object.assign(
+      async () => {
+        if (!created) throw new Error('404 The view does not exist')
+        return { Title: 'Kort' }
+      },
+      {
+        update: async (settings: any) => {
+          calls.push(['update', settings])
+        },
+        fields: Object.assign(async () => ({ Items: ['LinkTitle'] }), {
+          removeAll: async () => undefined,
+          add: async () => undefined
+        })
+      }
+    )
+    const web: any = {
+      lists: {
+        getByTitle: () => ({
+          views: {
+            getByTitle: () => view,
+            add: async (title: string, personal: boolean, settings: any) => {
+              created = true
+              calls.push(['add', title, personal, settings])
+            }
+          }
+        })
+      }
+    }
+    const settings = {
+      ViewType2: 'TILES',
+      CustomFormatter: '{"tileProps":{"height":150}}'
+    }
+
+    await handler.processView(web, lc, {
+      Title: 'Kort',
+      ViewFields: ['LinkTitle'],
+      AdditionalSettings: settings
+    })
+
+    assert.deepEqual(calls, [
+      ['add', 'Kort', undefined, settings],
+      ['update', settings]
+    ])
+  })
+
   it("leaves a view's fields alone when they are the template's, and adds the rest past one that fails", async () => {
     const handler = createHandler(new ProvisioningContext())
     const calls: string[] = []

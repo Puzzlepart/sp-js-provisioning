@@ -15,6 +15,11 @@ For releases older than 1.3.6, see the git history.
   and the optional `ComposedLook` URLs. An editor using the schema showed none of it, so the
   re-run rules were only in the README. `SiteFields` gets a TSDoc of its own, and
   `BreakRoleInheritance`'s says it is only done while the list or web still inherits.
+- A view's `CustomFormatter` (a string) and `ViewType2` (`TILES`, `COMPACTLIST`, `KANBAN` or
+  `MODERNCALENDAR`, as PnPjs types it) are in `IListView.AdditionalSettings` (`src/schema.ts` and
+  `schema.json`), so a TypeScript template no longer needs a cast for a cards view or a view
+  formatter. `Lists` already sent both again right after creating a view, since SharePoint
+  ignores them on create; a unit test now covers that path.
 
 ### Development
 
@@ -33,6 +38,8 @@ For releases older than 1.3.6, see the git history.
   and prosjektportalen365's own publishes add an "Also on this site" link to each project's page
   once they use the shared file. Its tests run with `npm run test:tasks`, in CI too. Until the
   deploy key and the variables are set up, the job only says so.
+- The unused `commitlint` devDependency and its `package.json` config are gone (no hook or CI ran
+  it, and the config it extended was no longer installed).
 
 ---
 

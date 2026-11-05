@@ -470,6 +470,10 @@
             "properties": {
                 "AdditionalSettings": {
                     "properties": {
+                        "CustomFormatter": {
+                            "description": "The view's formatting, as the JSON text SharePoint stores (column or row formatting, a card or tile layout). SharePoint ignores it when a view is created, so Lists sends the settings again right after creating the view.",
+                            "type": "string"
+                        },
                         "DefaultView": {
                             "type": "boolean"
                         },
@@ -493,6 +497,16 @@
                             "type": "number"
                         },
                         "ViewQuery": {
+                            "type": "string"
+                        },
+                        "ViewType2": {
+                            "description": "The view's modern layout: TILES for a cards view, COMPACTLIST, KANBAN (board) or MODERNCALENDAR. Like CustomFormatter, set again right after the view is created.",
+                            "enum": [
+                                "COMPACTLIST",
+                                "KANBAN",
+                                "MODERNCALENDAR",
+                                "TILES"
+                            ],
                             "type": "string"
                         }
                     },

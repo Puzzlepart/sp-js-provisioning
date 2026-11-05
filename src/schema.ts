@@ -470,6 +470,17 @@ export interface IListView {
     Scope?: 0 | 1
     DefaultView?: boolean
     JSLink?: string
+    /**
+     * The view's formatting, as the JSON text SharePoint stores (column or row formatting, a
+     * card or tile layout). SharePoint ignores it when a view is created, so `Lists` sends the
+     * settings again right after creating the view.
+     */
+    CustomFormatter?: string
+    /**
+     * The view's modern layout: `TILES` for a cards view, `COMPACTLIST`, `KANBAN` (board) or
+     * `MODERNCALENDAR`. Like `CustomFormatter`, set again right after the view is created.
+     */
+    ViewType2?: 'KANBAN' | 'TILES' | 'COMPACTLIST' | 'MODERNCALENDAR'
   }
 }
 
