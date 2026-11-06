@@ -46,6 +46,9 @@ jobs:
       - name: Build
         run: npm run build
 
+      - name: schema.json is generated from src/schema.ts
+        run: npm run check:schema
+
       - name: Type check the tests with src and the runner
         run: npm run typecheck:tests
 

@@ -2,43 +2,28 @@
     "$schema": "http://json-schema.org/draft-07/schema#",
     "additionalProperties": {},
     "definitions": {
-        "Body": {
-            "properties": {
-                "body": {
-                    "$ref": "#/definitions/ReadableStream<Uint8Array>"
-                },
-                "bodyUsed": {
-                    "type": "boolean"
-                }
-            },
-            "type": "object"
-        },
-        "Headers": {
-            "type": "object"
-        },
         "IClientSideControl": {
             "properties": {
                 "Id": {
-                    "type": "string",
-                    "description": "The ID of the control. Use Text or PageText for text controls."
+                    "type": "string"
                 },
                 "Properties": {
-                    "additionalProperties": true,
+                    "additionalProperties": {},
                     "type": "object"
                 },
                 "ServerProcessedContent": {
                     "properties": {
                         "htmlStrings": {
-                            "$ref": "#/definitions/Record<string,string>"
+                            "$ref": "#/definitions/Record%3Cstring%2Cstring%3E"
                         },
                         "imageSources": {
-                            "$ref": "#/definitions/Record<string,string>"
+                            "$ref": "#/definitions/Record%3Cstring%2Cstring%3E"
                         },
                         "links": {
-                            "$ref": "#/definitions/Record<string,string>"
+                            "$ref": "#/definitions/Record%3Cstring%2Cstring%3E"
                         },
                         "searchablePlainTexts": {
-                            "$ref": "#/definitions/Record<string,string>"
+                            "$ref": "#/definitions/Record%3Cstring%2Cstring%3E"
                         }
                     },
                     "type": "object"
@@ -57,6 +42,9 @@
                 "Name": {
                     "type": "string"
                 },
+                "Overwrite": {
+                    "type": "boolean"
+                },
                 "PageLayoutType": {},
                 "Sections": {
                     "items": {
@@ -72,9 +60,6 @@
                         "$ref": "#/definitions/IClientSideControl"
                     },
                     "type": "array"
-                },
-                "Overwrite": {
-                    "type": "boolean"
                 }
             },
             "type": "object"
@@ -186,11 +171,35 @@
                     "type": "string"
                 }
             },
-            "required": [
-                "Name",
-                "Title",
-                "Location"
-            ],
+            "type": "object"
+        },
+        "IDataRow": {
+            "additionalProperties": {},
+            "description": "One row: a map of field **internal name** → value. Value shapes by field type:\n- Text / Note / Number / Currency / Choice / Boolean / DateTime: the raw value.\n- MultiChoice: `string[]`.\n- URL: a string, or `{ Url, Description? }`.\n- Lookup / LookupMulti: an item id (number), `{ lookupId }`, or `{ lookupValue }`\n  (resolved against the target list's show field). Multi accepts an array.\n- User / UserMulti: a login/email string, `{ login }`, or a user id. Multi accepts an array.\n- Taxonomy (`TaxonomyFieldType` / `…Multi`): `{ termId, label }` (label required to\n  write the hidden note field). Multi accepts an array of `{ termId, label }`.",
+            "type": "object"
+        },
+        "IDataRows": {
+            "description": "Seed data for a list (provisioned after fields/content types/views exist).\n\nRows are upserted: when {@link KeyColumn} is set, an existing item whose\nKeyColumn matches is updated (or skipped, per {@link UpdateBehavior}) instead\nof creating a duplicate — so re-running the template is idempotent. Without a\nKeyColumn every row is added.",
+            "properties": {
+                "KeyColumn": {
+                    "description": "Field internal name used to match existing rows for idempotent upsert.",
+                    "type": "string"
+                },
+                "Rows": {
+                    "items": {
+                        "$ref": "#/definitions/IDataRow"
+                    },
+                    "type": "array"
+                },
+                "UpdateBehavior": {
+                    "description": "When a row matches {@link KeyColumn}: `Overwrite` (default) or `Skip`.",
+                    "enum": [
+                        "Overwrite",
+                        "Skip"
+                    ],
+                    "type": "string"
+                }
+            },
             "type": "object"
         },
         "IFeature": {
@@ -259,13 +268,35 @@
             },
             "type": "object"
         },
+        "IFolder": {
+            "description": "A folder to provision inside a list / document library. Provisioned after\nfields, content types and views exist. Creation is idempotent: an existing\nfolder with the same name is left in place and recursion continues into its\nchildren, so re-running the template is safe.",
+            "properties": {
+                "Folders": {
+                    "description": "Optional nested subfolders, created beneath this folder.",
+                    "items": {
+                        "$ref": "#/definitions/IFolder"
+                    },
+                    "type": "array"
+                },
+                "Name": {
+                    "description": "Leaf name of the folder (not a path). May contain spaces and Norwegian\ncharacters (å, æ, ø) — written as-is; PnPjs handles URL encoding.",
+                    "type": "string"
+                }
+            },
+            "type": "object"
+        },
         "IHooks": {
             "properties": {
                 "Body": {
-                    "$ref": "#/definitions/Body"
+                    "description": "The request body as a JSON object; the handler adds its own properties and sends it as JSON.",
+                    "type": "object"
                 },
                 "Headers": {
-                    "$ref": "#/definitions/Headers"
+                    "additionalProperties": {
+                        "type": "string"
+                    },
+                    "description": "Request headers, by name.",
+                    "type": "object"
                 },
                 "Method": {
                     "type": "string"
@@ -375,6 +406,9 @@
                 "ContentTypesEnabled": {
                     "type": "boolean"
                 },
+                "DataRows": {
+                    "$ref": "#/definitions/IDataRows"
+                },
                 "Description": {
                     "type": "string"
                 },
@@ -385,18 +419,24 @@
                     "type": "array"
                 },
                 "Fields": {
-                    "description": "List fields as schema XML. A missing one is created; one that exists is updated in place, never deleted: a widening type change (Text to Note, Lookup or User single to multi) is applied, another type change is a warning and leaves it as it is. A new target (a lookup's list, a taxonomy field's term set) is applied on a list made in this setup, otherwise a warning that keeps the stored one.",
+                    "description": "List fields as schema XML. A missing one is created; one that exists is updated in place, never\ndeleted: a widening type change (Text to Note, Lookup or User single to multi) is applied, another type change\nis a warning and leaves it as it is. A new target (a lookup's list, a taxonomy field's term\nset) is applied on a list made in this setup, otherwise a warning that keeps the stored one.",
                     "items": {
                         "type": "string"
                     },
                     "type": "array"
                 },
+                "Folders": {
+                    "items": {
+                        "$ref": "#/definitions/IFolder"
+                    },
+                    "type": "array"
+                },
                 "RemoveExistingContentTypes": {
-                    "description": "Remove the content types not bound, on a list made in this setup (created by this provisioner, across its applyTemplate calls). On a list that existed it does nothing.",
+                    "description": "Remove the content types not bound, on a list made in this setup (created by this provisioner,\nacross its `applyTemplate` calls). On a list that existed it does nothing.",
                     "type": "boolean"
                 },
                 "RemoveExistingViews": {
-                    "description": "Remove the views the template does not name, on a list made in this setup (created by this provisioner, across its applyTemplate calls), after the template's own exist. Never a personal view, the default view or the view behind a page's list web part. On a list that existed it does nothing (PnP Framework removes on every run).",
+                    "description": "Remove the views the template does not name, on a list made in this setup (created by this\nprovisioner, across its `applyTemplate` calls), after the template's own exist. Never a\npersonal view, the default view or the view behind a page's list web part. On a list that\nexisted it does nothing (PnP Framework removes on every run).",
                     "type": "boolean"
                 },
                 "Security": {
@@ -419,6 +459,9 @@
         },
         "IListInstanceFieldReference": {
             "properties": {
+                "AdditionalProperties": {
+                    "$ref": "#/definitions/Record%3Cstring%2Cstring%3E"
+                },
                 "DisplayName": {
                     "type": "string"
                 },
@@ -433,19 +476,15 @@
                 },
                 "Required": {
                     "type": "boolean"
-                },
-                "AdditionalProperties": {
-                    "type": "object",
-                    "additionalProperties": true
                 }
             },
             "type": "object"
         },
         "IListSecurity": {
-            "description": "List security, applied after the list's data rows. Mirrors the PnP provisioning schema Security element.",
+            "description": "List security, applied after the list's data rows. Mirrors the PnP\nprovisioning schema `Security` element.",
             "properties": {
                 "BreakRoleInheritance": {
-                    "description": "Break role inheritance before adding role assignments. Only done while it still inherits, so on a re-run CopyRoleAssignments and ClearSubscopes do nothing.",
+                    "description": "Break role inheritance before adding role assignments. Only done while it still inherits, so on\na re-run `CopyRoleAssignments` and `ClearSubscopes` do nothing.",
                     "type": "boolean"
                 },
                 "ClearSubscopes": {
@@ -457,7 +496,7 @@
                     "type": "boolean"
                 },
                 "RoleAssignments": {
-                    "description": "Role assignments to add. Requires BreakRoleInheritance, since SharePoint rejects role assignments on a list that still inherits permissions; inherited assignments are kept only with CopyRoleAssignments.",
+                    "description": "Role assignments to add. Requires `BreakRoleInheritance`, since SharePoint\nrejects role assignments on a list that still inherits permissions;\ninherited assignments are kept only with `CopyRoleAssignments`.",
                     "items": {
                         "$ref": "#/definitions/IRoleAssignment"
                     },
@@ -471,7 +510,7 @@
                 "AdditionalSettings": {
                     "properties": {
                         "CustomFormatter": {
-                            "description": "The view's formatting, as the JSON text SharePoint stores (column or row formatting, a card or tile layout). SharePoint ignores it when a view is created, so Lists sends the settings again right after creating the view.",
+                            "description": "The view's formatting, as the JSON text SharePoint stores (column or row formatting, a\ncard or tile layout). SharePoint ignores it when a view is created, so `Lists` sends the\nsettings again right after creating the view.",
                             "type": "string"
                         },
                         "DefaultView": {
@@ -500,7 +539,7 @@
                             "type": "string"
                         },
                         "ViewType2": {
-                            "description": "The view's modern layout: TILES for a cards view, COMPACTLIST, KANBAN (board) or MODERNCALENDAR. Like CustomFormatter, set again right after the view is created.",
+                            "description": "The view's modern layout: `TILES` for a cards view, `COMPACTLIST`, `KANBAN` (board) or\n`MODERNCALENDAR`. Like `CustomFormatter`, set again right after the view is created.",
                             "enum": [
                                 "COMPACTLIST",
                                 "KANBAN",
@@ -528,7 +567,7 @@
             "type": "object"
         },
         "INavigation": {
-            "description": "The web's navigation. The template owns each collection it names: on every run the collection ends with exactly the template's nodes, in its order. A node whose title is already there at the same level is kept as it is (id, URL, audiences); a missing one is added; a node the template does not declare is deleted, children and nodes a site owner added included. A collection the template leaves out is not touched. A node SharePoint refuses (its URL names no existing file or folder) fails the run and leaves both collections as they were.",
+            "description": "The web's navigation. The template owns each collection it names: on every\nrun the collection ends with exactly the template's nodes, in its order. A\nnode whose title is already there at the same level is kept as it is (id,\nURL, audiences); a missing one is added; a node the template does not\ndeclare is deleted, children and nodes a site owner added included. A\ncollection the template leaves out is not touched. A node SharePoint refuses\n(its URL names no existing file or folder) fails the run and leaves both\ncollections as they were.",
             "properties": {
                 "QuickLaunch": {
                     "items": {
@@ -546,25 +585,25 @@
             "type": "object"
         },
         "INavigationNode": {
-            "description": "A navigation node, matched to a stored node at the same level by its exact title (case included).",
+            "description": "A navigation node, matched to a stored node at the same level by its exact\ntitle (case included).",
             "properties": {
                 "Children": {
-                    "description": "The node's children, owned like the collection: without Children, a kept node loses the children it has.",
+                    "description": "The node's children, owned like the collection: without `Children`, a\nkept node loses the children it has.",
                     "items": {
                         "$ref": "#/definitions/INavigationNode"
                     },
                     "type": "array"
                 },
                 "IgnoreExisting": {
-                    "description": "Set the template's Url on a node that exists (where it differs). Without it an existing node keeps its stored URL, at every level: SharePoint updates a node's URL when its target is renamed, and an owner may have changed it. A title stored more than once gets the template's URL either way.",
+                    "description": "Set the template's `Url` on a node that exists (where it differs). Without\nit an existing node keeps its stored URL, at every level: SharePoint\nupdates a node's URL when its target is renamed, and an owner may have\nchanged it. A title stored more than once gets the template's URL either\nway.",
                     "type": "boolean"
                 },
                 "Title": {
-                    "description": "Title, no tokens. SharePoint returns its own nodes' titles in the signed-in account's language (Hjem or Home), so such a node matches only for an account with the template's language; otherwise it is added and the stored one deleted.",
+                    "description": "Title, no tokens. SharePoint returns its own nodes' titles in the signed-in\naccount's language (`Hjem` or `Home`), so such a node matches only for an\naccount with the template's language; otherwise it is added and the\nstored one deleted.",
                     "type": "string"
                 },
                 "Url": {
-                    "description": "Server-relative, web-relative (resolved against the web) or absolute. Takes the URL tokens only ({site} is the site collection). Used when the node is added, or with IgnoreExisting.",
+                    "description": "Server-relative, web-relative (resolved against the web) or absolute.\nTakes the URL tokens only (`{site}` is the site collection). Used when the\nnode is added, or with `IgnoreExisting`.",
                     "type": "string"
                 }
             },
@@ -588,20 +627,24 @@
             "type": "object"
         },
         "IRoleAssignment": {
+            "description": "A role assignment on a list.",
             "properties": {
                 "Principal": {
-                    "description": "The principal: a PnP-style token for one of the web's associated groups ({associatedownergroupid}, {associatedmembergroupid}, {associatedvisitorgroupid}), a principal id, a site group name or a user login name.",
-                    "type": "string"
+                    "description": "The principal: a PnP-style token for one of the web's associated groups\n(`{associatedownergroupid}`, `{associatedmembergroupid}`,\n`{associatedvisitorgroupid}`), a principal id, a site group name or a user\nlogin name.",
+                    "type": [
+                        "string",
+                        "number"
+                    ]
                 },
                 "RoleDefinition": {
-                    "description": "Role definition name as it exists on the web (localized, e.g. Full kontroll or Lese). The English well-known names (Full Control, Design, Edit, Contribute, Read, View Only) are resolved by role type as a fallback.",
+                    "description": "Role definition name as it exists on the web (localized, e.g. `Full kontroll`\nor `Lese`). The English well-known names (`Full Control`, `Design`, `Edit`,\n`Contribute`, `Read`, `View Only`) are resolved by role type as a fallback.",
                     "type": "string"
                 }
             },
             "type": "object"
         },
         "ISiteGroup": {
-            "description": "A SharePoint site group. Mirrors the PnP provisioning schema SiteGroup element. Groups are matched by title, so re-applying a template updates the group instead of creating a duplicate.",
+            "description": "A SharePoint site group. Mirrors the PnP provisioning schema `SiteGroup`\nelement. Groups are matched by title, so re-applying a template updates the\ngroup instead of creating a duplicate.",
             "properties": {
                 "AllowMembersEditMembership": {
                     "type": "boolean"
@@ -613,37 +656,103 @@
                     "type": "boolean"
                 },
                 "ClearExistingMembers": {
-                    "type": "boolean",
-                    "description": "Remove existing members that are not in Members."
+                    "description": "Remove existing members that are not in `Members`.",
+                    "type": "boolean"
                 },
                 "Description": {
                     "type": "string"
                 },
                 "Members": {
+                    "description": "Members to add, as login names (UPN, email or claims, e.g. an Entra ID\ngroup claim). Each one is ensured on the web before it is added.",
                     "items": {
                         "type": "string"
                     },
-                    "type": "array",
-                    "description": "Login names (UPN, email or claims) to add as members."
+                    "type": "array"
                 },
                 "OnlyAllowMembersViewMembership": {
                     "type": "boolean"
                 },
                 "Owner": {
-                    "type": "string",
-                    "description": "Group owner: an associated group token, a site group title (including this group's own) or a user login name."
+                    "description": "Group owner, resolved like a role assignment principal: an associated\ngroup token, a site group title (including this group's own title) or a\nuser login name. Without it SharePoint keeps the provisioning user as owner.",
+                    "type": "string"
                 },
                 "RequestToJoinLeaveEmailSetting": {
                     "type": "string"
                 },
                 "Title": {
-                    "type": "string",
-                    "description": "Group title, unique within the site collection. Supports tokens, e.g. {sitename}."
+                    "description": "Group title, unique within the site collection. Supports tokens, e.g.\n`{sitename} Styringsgruppe`.",
+                    "type": "string"
                 }
             },
-            "required": [
-                "Title"
-            ],
+            "type": "object"
+        },
+        "ITaxonomy": {
+            "properties": {
+                "TermGroup": {
+                    "$ref": "#/definitions/ITermGroup"
+                },
+                "TermSets": {
+                    "items": {
+                        "$ref": "#/definitions/ITermSet"
+                    },
+                    "type": "array"
+                }
+            },
+            "type": "object"
+        },
+        "ITerm": {
+            "properties": {
+                "CustomProperties": {
+                    "$ref": "#/definitions/Record%3Cstring%2Cstring%3E"
+                },
+                "Id": {
+                    "type": "string"
+                },
+                "Name": {
+                    "type": "string"
+                },
+                "SortOrder": {
+                    "type": "number"
+                }
+            },
+            "type": "object"
+        },
+        "ITermGroup": {
+            "properties": {
+                "Id": {
+                    "type": "string"
+                },
+                "Name": {
+                    "type": "string"
+                }
+            },
+            "type": "object"
+        },
+        "ITermSet": {
+            "properties": {
+                "Description": {
+                    "type": "string"
+                },
+                "Id": {
+                    "type": "string"
+                },
+                "IsOpenForTermCreation": {
+                    "type": "boolean"
+                },
+                "Name": {
+                    "type": "string"
+                },
+                "Terms": {
+                    "items": {
+                        "$ref": "#/definitions/ITerm"
+                    },
+                    "type": "array"
+                },
+                "UpdateExistingTerms": {
+                    "description": "When true, terms that already exist (matched by Id) get any **missing**\nentries from {@link ITerm.CustomProperties} added. A property that already\nexists on the term is left as-is even if its value differs from the\ntemplate (existing values are never overwritten); the term's name/labels\nare also left untouched. Without this flag existing terms are not modified\nat all. Use it to backfill custom properties (e.g. PhaseSubText /\nPhaseDescription) onto a term set provisioned before those properties\nexisted.",
+                    "type": "boolean"
+                }
+            },
             "type": "object"
         },
         "IWebPart": {
@@ -706,10 +815,10 @@
             "type": "object"
         },
         "IWebSecurity": {
-            "description": "Web security: site groups, and role inheritance and role assignments on the web itself. Mirrors the PnP provisioning schema Security element. The members inherited from IListSecurity behave as they do for lists, but apply to the web; the root web of a site collection always has unique permissions, so it takes role assignments without BreakRoleInheritance.",
+            "description": "Web security: site groups, and role inheritance and role assignments on the\nweb itself. Mirrors the PnP provisioning schema `Security` element. The\nmembers inherited from {@link IListSecurity} behave as they do for lists, but\napply to the web; the root web of a site collection always has unique\npermissions, so it takes role assignments without `BreakRoleInheritance`.",
             "properties": {
                 "BreakRoleInheritance": {
-                    "description": "Break role inheritance before adding role assignments. Only done while it still inherits, so on a re-run CopyRoleAssignments and ClearSubscopes do nothing.",
+                    "description": "Break role inheritance before adding role assignments. Only done while it still inherits, so on\na re-run `CopyRoleAssignments` and `ClearSubscopes` do nothing.",
                     "type": "boolean"
                 },
                 "ClearSubscopes": {
@@ -721,13 +830,14 @@
                     "type": "boolean"
                 },
                 "RoleAssignments": {
+                    "description": "Role assignments to add. Requires `BreakRoleInheritance`, since SharePoint\nrejects role assignments on a list that still inherits permissions;\ninherited assignments are kept only with `CopyRoleAssignments`.",
                     "items": {
                         "$ref": "#/definitions/IRoleAssignment"
                     },
                     "type": "array"
                 },
                 "SiteGroups": {
-                    "description": "Site groups to create or update. They are provisioned before Lists, so list Security can grant permissions to them.",
+                    "description": "Site groups to create or update. They are provisioned before `Lists`, so\nlist `Security` can grant permissions to them.",
                     "items": {
                         "$ref": "#/definitions/ISiteGroup"
                     },
@@ -774,14 +884,6 @@
             },
             "type": "object"
         },
-        "ReadableStream<Uint8Array>": {
-            "properties": {
-                "locked": {
-                    "type": "boolean"
-                }
-            },
-            "type": "object"
-        },
         "Record<string,string>": {
             "type": "object"
         }
@@ -791,12 +893,10 @@
             "items": {
                 "$ref": "#/definitions/IClientSidePage"
             },
-            "title": "Client Side Pages",
             "type": "array"
         },
         "ComposedLook": {
-            "$ref": "#/definitions/IComposedLook",
-            "title": "Composed Look"
+            "$ref": "#/definitions/IComposedLook"
         },
         "ContentTypes": {
             "items": {
@@ -838,7 +938,7 @@
             "$ref": "#/definitions/INavigation"
         },
         "Parameters": {
-            "$ref": "#/definitions/Record<string,string>"
+            "$ref": "#/definitions/Record%3Cstring%2Cstring%3E"
         },
         "PropertyBagEntries": {
             "items": {
@@ -850,11 +950,14 @@
             "$ref": "#/definitions/IWebSecurity"
         },
         "SiteFields": {
-            "description": "Site columns as schema XML, matched by internal name (Name). A missing one is created; one the web has gets the template merged onto its stored schema, written only when that changes something, so what the template leaves out (an index, a formatter, a description) survives. A widening type change is applied, another type change is a warning and leaves it as it is. A new target (a lookup's list, a taxonomy column's term set or term store) is a warning that keeps the stored one, unless the column was made in this setup. A column SharePoint refuses is logged as an error and the others still run. Changes do not reach the column's existing list copies.",
+            "description": "Site columns as schema XML, matched by internal name (`Name`). A missing one is created; one the\nweb has gets the template merged onto its stored schema, written only when that changes\nsomething, so what the template leaves out (an index, a formatter, a description) survives. A\nwidening type change is applied, another type change is a warning and leaves it as it is. A new\ntarget (a lookup's list, a taxonomy column's term set or term store) is a warning that keeps the\nstored one, unless the column was made in this setup. A column SharePoint refuses is logged as\nan error and the others still run. Changes do not reach the column's existing list copies.",
             "items": {
                 "type": "string"
             },
             "type": "array"
+        },
+        "Taxonomy": {
+            "$ref": "#/definitions/ITaxonomy"
         },
         "Version": {
             "type": "string"
@@ -865,4 +968,3 @@
     },
     "type": "object"
 }
-

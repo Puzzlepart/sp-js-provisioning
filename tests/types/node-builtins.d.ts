@@ -86,6 +86,9 @@ declare module 'node:fs' {
     options?: { recursive?: boolean; force?: boolean }
   ): void
   export function realpathSync(path: string): string
+  export function existsSync(path: string): boolean
+  export function readdirSync(path: string): string[]
+  export function statSync(path: string): { isDirectory(): boolean }
 }
 
 declare module 'node:path' {

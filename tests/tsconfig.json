@@ -16,6 +16,7 @@
   },
   "include": [
     "unit/**/*.ts",
+    "contract/**/*.ts",
     "helpers/**/*.ts",
     "fixtures/**/*.ts",
     "integration/**/*.ts",
