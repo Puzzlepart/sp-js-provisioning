@@ -33,6 +33,17 @@ For releases older than 1.3.6, see the git history.
   `--exact`; the `parameters` suite covers `{parameter:}`. A DataRows unit test sends DateTime
   values the same in Europe/Oslo, UTC and Asia/Tokyo. `provision` and `verify` fill a fixture's
   `@@user@@`. The `spjs-handlers` and `spjs-release` skills; the coverage floors rise to 80/84/79.
+- Integration testing Phase 3, tenant CI: the `Integration` workflow
+  (`.github/workflows/integration.yml`) runs the suites against the reserved site with
+  prosjektportalen365's CI app. It starts only by hand from `main`, in the protected environment
+  `tenant` (approval, the certificate, the user and the site as its secrets), one run at a time,
+  with inputs for the suites, the hosting packages and keeping the scratch webs.
+  `npm run test:integration:ci` also writes the HTML page (`test-results/integration/`), which a
+  second job publishes to the test report site as the project's Integration column. The log and
+  the artifact of a public repository are public, so `redact()` now also replaces certificates,
+  `onmicrosoft.com` domains, the site in a `/sites/...` path, e-mail addresses and logins, the
+  configured user, app and tenant, and every GUID that is not in the repository's own files, and
+  `npm run check:reports` fails the job before the upload when a report still holds such a value.
 - prettier also checks `debug/lib`: `.prettierignore`'s `lib/` (the build output) matched it too,
   so `npm run lint:check` never looked at the harness. The pattern is `/lib/` and the files are
   formatted.

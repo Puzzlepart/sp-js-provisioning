@@ -194,7 +194,8 @@ so the certificate secret and the cookie file serve both repositories.
 | `lib/logs.ts` | Collects log lines by handler for `--strict` and the tests |
 | `lib/scratch.ts` | Scratch webs for the integration tests: names, create, delete with their groups |
 | `lib/cleanup.ts` | What `cleanup` finds: scratch leftovers by age, prefixed artefacts |
-| `lib/redact.ts` | Removes cookies, tokens and tenant hosts from what is printed |
+| `lib/redact.ts` | The one rule for what a run prints or writes where others can read it: without secrets, the tenant, its site, users or ids (`redact`, `redactXml`, `describeError`); `unredacted()` finds what a report still holds (`npm run check:reports`) |
+| `lib/placeholders.ts` | The fixtures' `@@user@@` and `@@hookUrl@@`: who the user is, and filling them in |
 | `lib/readback/<handler>.ts` | What a handler provisioned, read back for the integration tests |
 | `lib/readback/site.ts` | The readers `verify` and `inspect` share: any template's lists, fields, content types, groups and the rest |
 | `stubs/spfx-jsom.ts` | Node stand-in for `spfx-jsom` |

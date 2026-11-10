@@ -56,6 +56,7 @@
     "build": "tsc",
     "build:schema": "node .tasks/generate-schema.js",
     "check:schema": "node .tasks/generate-schema.js --check",
+    "check:reports": "tsx --tsconfig tests/tsconfig.json tests/reporters/check-reports.ts",
     "build:fixtures": "tsx --tsconfig tests/tsconfig.json tests/fixtures/compose.ts",
     "watch": "tsc --watch",
     "lint": "eslint --ext .ts ./src --color --fix && prettier '**/*.ts*' --write --loglevel silent",

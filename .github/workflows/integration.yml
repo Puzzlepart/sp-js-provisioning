@@ -1,0 +1,180 @@
+# The integration tests against the reserved site (docs/specs/integration-testing.md, Phase 3, D5):
+# the handler suites, and on request `everything` and the hosting packages, on scratch webs below
+# INTEGRATION_SITE_URL. Started by hand only, and only from main: the job runs in the protected
+# environment `tenant`, whose reviewers approve each run and whose secrets (the certificate, the
+# site, the user) no other job or branch can read. It signs in as prosjektportalen365's CI app
+# (CI_TENANT, CI_CLIENT_ID, CI_CERT_BASE64) acting for INTEGRATION_USER, as PP365's own
+# integration tests do. One run at a time: the suites share the reserved site.
+#
+# The repository is public, and so are this workflow's log and artifact. Everything a run prints or
+# writes passes through redact() (debug/lib/redact.ts), and the reports are checked with the same
+# rule before they are uploaded or published (npm run check:reports): a value redact() missed
+# stops both and fails the job, naming the file, the line and the kind of value, never the value.
+name: Integration
+
+on:
+  workflow_dispatch:
+    inputs:
+      suites:
+        description: 'Suites: handlers (every handler suite), all (those and everything), none (only the packages), or names such as "Lists Security"'
+        required: false
+        default: handlers
+      packages:
+        description: 'The prosjektportalen-hosting packages: none, testprosjekt (the listed cases) or all (also every other package, reported)'
+        type: choice
+        options: [none, testprosjekt, all]
+        default: none
+      keep:
+        description: 'Keep the scratch webs (remove them later with npm run cleanup)'
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: spjs-integration
+  cancel-in-progress: false
+
+jobs:
+  integration:
+    name: Integration tests against the reserved site
+    if: ${{ github.ref == 'refs/heads/main' && github.repository == 'Puzzlepart/sp-js-provisioning' }}
+    runs-on: ubuntu-latest
+    environment: tenant
+    timeout-minutes: 45
+    outputs:
+      outcome: ${{ steps.suites.outcome }}
+      checked: ${{ steps.check.outcome }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      # Without lifecycle scripts: no dependency's install script runs in the job that is given the
+      # certificate. The secrets are in the environment of the steps that need them, not the job's.
+      - run: npm ci --ignore-scripts
+
+      # Public, and read as it is on its main branch: the packages suite's lists
+      # (tests/integration/packages.expected.ts) describe that state.
+      - name: prosjektportalen-hosting, for the packages suite
+        if: ${{ inputs.packages != 'none' }}
+        uses: actions/checkout@v7
+        with:
+          repository: Puzzlepart/prosjektportalen-hosting
+          path: hosting
+          persist-credentials: false
+
+      # GitHub masks a secret's whole value in the log; the site's host and path are parts of one.
+      - name: Mask the site's host and path in the log
+        run: |
+          node -e '
+            let url
+            try {
+              url = new URL(process.env.INTEGRATION_SITE_URL)
+            } catch {
+              console.error("INTEGRATION_SITE_URL is not set in the tenant environment, or is not a URL.")
+              process.exit(1)
+            }
+            console.log(`::add-mask::${url.host}`)
+            const path = url.pathname.replace(/\/+$/, "")
+            if (path.length > 1) console.log(`::add-mask::${path}`)
+          '
+        env:
+          INTEGRATION_SITE_URL: ${{ secrets.INTEGRATION_SITE_URL }}
+
+      # Reachability first (sign-in, the term store, custom script, a scratch web made and deleted,
+      # leftovers), as `npm run check:tenant` does; the suites run only when it passes. The inputs
+      # reach the command through the environment, never interpolated into it; `set -f` keeps a
+      # name from being expanded as a file pattern.
+      - name: Reachability, then the suites
+        id: suites
+        run: |
+          set -f
+          suites="${SUITES:-handlers}"
+          names=""
+          if [ "$suites" != "none" ]; then names="$suites"; fi
+          if [ "$PACKAGES" != "none" ]; then names="$names packages"; fi
+          if [ -z "${names// /}" ]; then
+            echo "Nothing to run: suites is none and packages is none."
+            exit 1
+          fi
+          npm run test:integration:ci -- $names
+        env:
+          SUITES: ${{ inputs.suites }}
+          PACKAGES: ${{ inputs.packages }}
+          INTEGRATION_PACKAGES: ${{ inputs.packages }}
+          INTEGRATION_KEEP: ${{ inputs.keep }}
+          INTEGRATION_HOSTING_DIR: ${{ github.workspace }}/hosting
+          CI_TENANT: ${{ secrets.CI_TENANT }}
+          CI_CLIENT_ID: ${{ secrets.CI_CLIENT_ID }}
+          CI_CERT_BASE64: ${{ secrets.CI_CERT_BASE64 }}
+          INTEGRATION_USER: ${{ secrets.INTEGRATION_USER }}
+          INTEGRATION_SITE_URL: ${{ secrets.INTEGRATION_SITE_URL }}
+
+      # With the run's own values in the environment, so the check knows exactly what must not be
+      # in a report. A finding fails the job here, before anything is uploaded or published.
+      - name: Check the reports for tenant values
+        id: check
+        if: ${{ !cancelled() }}
+        run: npm run check:reports -- test-results
+        env:
+          INTEGRATION_HOSTING_DIR: ${{ github.workspace }}/hosting
+          CI_TENANT: ${{ secrets.CI_TENANT }}
+          CI_CLIENT_ID: ${{ secrets.CI_CLIENT_ID }}
+          CI_CERT_BASE64: ${{ secrets.CI_CERT_BASE64 }}
+          INTEGRATION_USER: ${{ secrets.INTEGRATION_USER }}
+          INTEGRATION_SITE_URL: ${{ secrets.INTEGRATION_SITE_URL }}
+
+      - uses: actions/upload-artifact@v7
+        if: ${{ !cancelled() && steps.check.outcome == 'success' }}
+        with:
+          name: integration-results
+          path: test-results
+          retention-days: 7
+          if-no-files-found: ignore
+
+  # The integration report on the test report site, in its own column beside the unit report's
+  # (docs/specs/test-report-site.md). A job of its own, outside the `tenant` environment: the
+  # deploy key is never in the job that holds the certificate, and the certificate never in this
+  # one. It publishes only reports the check above passed.
+  publish-report:
+    name: Publish the integration report to the test report site
+    needs: integration
+    if: ${{ !cancelled() && needs.integration.outputs.checked == 'success' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+
+      # Missing when the run stopped before the tests; the next step then says so.
+      - uses: actions/download-artifact@v8
+        continue-on-error: true
+        with:
+          name: integration-results
+          path: test-results
+
+      # A failed publish is a warning and a line in the job summary, never a failed run.
+      - name: Publish the report to the test report site
+        continue-on-error: true
+        timeout-minutes: 8
+        run: node .tasks/publish-test-report.js --project sp-js-provisioning --suite integration --title Integration --report test-results/integration --outcome "$OUTCOME"
+        env:
+          OUTCOME: ${{ needs.integration.outputs.outcome }}
+          TEST_REPORTS_REPOSITORY: ${{ vars.TEST_REPORTS_REPOSITORY }}
+          TEST_REPORTS_URL: ${{ vars.TEST_REPORTS_URL }}
+          TEST_REPORTS_DEPLOY_KEY: ${{ secrets.TEST_REPORTS_DEPLOY_KEY }}
+          GITHUB_TOKEN: ${{ github.token }}

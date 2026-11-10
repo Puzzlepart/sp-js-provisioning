@@ -9,10 +9,11 @@
  *   npm run test:integration -- Lists Security       those suites (handler names, any case)
  *   npm run test:integration -- all                  every handler suite and `everything`
  *   npm run test:integration -- packages             the prosjektportalen-hosting packages
+ *   npm run test:integration -- handlers packages    every handler suite, then the packages
  *   npm run test:integration -- reachability         only the reachability checks
  *   npm run check:tenant                             the same, strict: a missing site fails
  *   npm run test:integration -- Lists --keep         keep the scratch webs for inspection
- *   npm run test:integration:ci                      strict, spec + JUnit to test-results/
+ *   npm run test:integration:ci                      strict; spec, JUnit and HTML to test-results/
  *
  * Other `--test-*` flags (e.g. `--test-name-pattern=...`) are passed to `node --test` for the
  * suites (not reachability). A pattern that skips the first test of Lists or Lists (DataRows)
@@ -25,7 +26,7 @@ import { mkdirSync } from 'node:fs'
 import * as path from 'path'
 import { connect, ISiteConnection } from '../../debug/lib/connect'
 import { env, ROOT, skipReason } from '../../debug/lib/env'
-import { describeError, redact } from '../../debug/lib/redact'
+import { describeError, redact, redactXml } from '../../debug/lib/redact'
 import {
   createScratchWeb,
   deleteScratchWeb,
@@ -54,19 +55,25 @@ export const OPT_IN_SUITES = ['everything', 'packages']
 /**
  * The suite files to run, reachability first.
  *
- * @param names - Suite or handler names, or `all`; none for every handler suite
+ * @param names - Suite or handler names, `handlers` (every handler suite) or `all` (those and
+ * `everything`); none for every handler suite
  * @param available - The suites there are
  */
 export function suiteFiles(names: string[], available: string[]): string[] {
   const handlerSuites = available.filter(
     (name) => name !== 'reachability' && !OPT_IN_SUITES.includes(name)
   )
-  if (names.some((name) => name.toLowerCase() === 'all'))
+  const keyword = (name: string) =>
+    ['all', 'handlers'].includes(name.toLowerCase())
+  if (names.some(keyword))
     return suiteFiles(
       [
-        ...names.filter((name) => name.toLowerCase() !== 'all'),
+        ...names.filter((name) => !keyword(name)),
         ...handlerSuites,
-        ...(available.includes('everything') ? ['everything'] : [])
+        ...(names.some((name) => name.toLowerCase() === 'all') &&
+        available.includes('everything')
+          ? ['everything']
+          : [])
       ],
       available
     )
@@ -124,21 +131,14 @@ export function redactReport(file: string): void {
   fs.writeFileSync(file, redactXml(xml))
 }
 
-/**
- * `redact()` for XML text: the placeholders it writes, escaped.
- *
- * @param xml - The XML
- */
-export function redactXml(xml: string): string {
-  return redact(xml).replace(/<(tenant|redacted)>/g, '&lt;$1&gt;')
-}
-
 async function main(): Promise<number> {
   const argv = process.argv.slice(2)
   const ci = argv.includes('--ci')
   const strict = ci || argv.includes('--strict')
   // On a CI runner (CI=true, as GitHub Actions sets it) also without --ci: check:tenant runs there.
   const redacting = ci || process.env.CI === 'true'
+  /** What the runner itself prints, redacted where the children's output is. */
+  const say = (text: string) => console.log(redacting ? redact(text) : text)
   const keep = argv.includes('--keep') || env.keep
   const passThrough = argv.filter((arg) => arg.startsWith('--test-'))
   const names = argv.filter((arg) => !arg.startsWith('--'))
@@ -147,20 +147,32 @@ async function main(): Promise<number> {
   const childEnv: Record<string, string> = { ...process.env } as any
   if (keep) childEnv.INTEGRATION_KEEP = 'true'
   if (strict) childEnv.INTEGRATION_STRICT = 'true'
-  const reporters = (junit: string) =>
+  // --ci: JUnit in test-results/, and the HTML page in test-results/integration/, the folder the
+  // test report site publishes (`index.html` the suites, `reachability.html` the checks before).
+  const htmlDir = path.join(ROOT, 'test-results', 'integration')
+  const reporters = (junit: string, html: string) =>
     ci
       ? [
           '--test-reporter=spec',
           '--test-reporter-destination=stdout',
           '--test-reporter=junit',
-          `--test-reporter-destination=test-results/${junit}`
+          `--test-reporter-destination=test-results/${junit}`,
+          '--test-reporter=./tests/reporters/html.cjs',
+          `--test-reporter-destination=test-results/integration/${html}`
         ]
       : ['--test-reporter=spec']
-  if (ci) mkdirSync(path.join(ROOT, 'test-results'), { recursive: true })
+  if (ci) mkdirSync(htmlDir, { recursive: true })
+  /** Without a page for the suites, the reachability page is the report. */
+  const reachabilityAsReport = () => {
+    const page = path.join(htmlDir, 'reachability.html')
+    if (ci && fs.existsSync(page))
+      fs.copyFileSync(page, path.join(htmlDir, 'index.html'))
+  }
   const tsxCli = require.resolve('tsx/cli')
   const run = async (
     testFiles: string[],
     junit: string,
+    html: string,
     extra: string[]
   ): Promise<number> => {
     const args = [
@@ -169,7 +181,7 @@ async function main(): Promise<number> {
       path.join(ROOT, 'tests', 'tsconfig.json'),
       '--test',
       '--test-concurrency=1',
-      ...reporters(junit),
+      ...reporters(junit, html),
       ...extra,
       ...testFiles
     ]
@@ -201,12 +213,21 @@ async function main(): Promise<number> {
 
   // Whole, and without the pass-through flags: a name pattern would filter its checks away.
   const [reachability, ...suites] = files
-  const reached = await run([reachability], 'reachability.xml', [])
+  const reached = await run(
+    [reachability],
+    'reachability.xml',
+    'reachability.html',
+    []
+  )
   if (reached !== 0) {
     console.error('reachability failed: the suites were not run.')
+    reachabilityAsReport()
     return reached
   }
-  if (!suites.length) return 0
+  if (!suites.length) {
+    reachabilityAsReport()
+    return 0
+  }
 
   // One scratch web for the whole run, when asked for and the site is reachable.
   let shared: IScratchWeb | undefined
@@ -217,15 +238,13 @@ async function main(): Promise<number> {
     childEnv.INTEGRATION_SCRATCH_WEB = shared.url
     childEnv.INTEGRATION_SCRATCH_STAMP = shared.stamp
     childEnv.INTEGRATION_SCRATCH_TITLE = shared.title
-    console.log(`Shared scratch web: ${shared.conn.webInfo.ServerRelativeUrl}`)
+    say(`Shared scratch web: ${shared.conn.webInfo.ServerRelativeUrl}`)
   }
 
-  const status = await run(suites, 'integration.xml', passThrough)
+  const status = await run(suites, 'integration.xml', 'index.html', passThrough)
   if (shared && parent) {
     if (keep)
-      console.log(
-        `Kept shared scratch web: ${shared.conn.webInfo.ServerRelativeUrl}`
-      )
+      say(`Kept shared scratch web: ${shared.conn.webInfo.ServerRelativeUrl}`)
     else await deleteScratchWeb(parent, shared)
   }
   return status

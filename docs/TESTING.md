@@ -11,7 +11,7 @@ the code disagree, the code wins and this page is fixed in the same change. The 
 | --- | --- | --- | --- |
 | Unit | `tests/unit/*.test.ts` (node:test through tsx; real PnPjs with fake webs or a recording web) | no | `npm test`, and in CI (`ci.yml`, job "Build and offline tests") with JUnit, an HTML report and coverage floors |
 | Contract | `tests/contract/*.test.ts` (real PnPjs, an in-process transport, `tests/helpers/transport.ts`: the requests a handler sends, and WebProvisioner's order) | no | `npm test`, CI |
-| Integration | `tests/integration/*.test.ts`, one suite per handler (and `parameters`), against scratch webs below the reserved site; each `applyTwice` also runs `verify` | yes | `npm run test:integration` locally; `integration.yml` (Phase 3, dispatched by hand behind a protected environment) |
+| Integration | `tests/integration/*.test.ts`, one suite per handler (and `parameters`), against scratch webs below the reserved site; each `applyTwice` also runs `verify` | yes | `npm run test:integration` locally; in CI the `Integration` workflow (`integration.yml`), started by hand from `main` behind the protected environment `tenant` (Tenant CI, below) |
 | Everything | `tests/integration/everything.test.ts`: `all.node.json`, every Node-capable fixture in one template, applied twice and verified with `--exact` | yes | `npm run test:integration -- all` (the handler suites and this) |
 | Packages | `tests/integration/packages.test.ts`: the prosjektportalen-hosting packages (`INTEGRATION_HOSTING_DIR`), each case on its own scratch web, against an exact list of what the Node run cannot do until the JSOM exit | yes | `npm run test:integration -- packages` |
 | Browser only | Taxonomy, ContentTypes, Files and PropertyBagEntries run through JSOM | yes, in a browser | their suites skip until the JSOM exit (spec, D3) |
@@ -44,7 +44,8 @@ the code disagree, the code wins and this page is fixed in the same change. The 
 | `npm run test:integration -- all` | Every handler suite and `everything` (`all.node.json`) |
 | `npm run test:integration -- packages` | The hosting packages (`INTEGRATION_PACKAGES=all` adds every package, reported) |
 | `npm run build:fixtures` | Writes `tests/fixtures/templates/all.node.json` from the handler fixtures (a unit test fails when it is stale) |
-| `npm run test:integration:ci` | Strict (a missing site or sign-in fails), spec + JUnit to `test-results/reachability.xml` and `test-results/integration.xml`; both, and the log, pass through `redact()` |
+| `npm run test:integration:ci` | Strict (a missing site or sign-in fails); spec, JUnit to `test-results/reachability.xml` and `test-results/integration.xml`, and the HTML page to `test-results/integration/` (`index.html` the suites, `reachability.html` the checks before them). The log and every report pass through `redact()` |
+| `npm run check:reports -- test-results` | Fails when a report still holds what `redact()` would replace; prints the file, the line and the kind of value, never the value. The workflow runs it before it uploads or publishes |
 | `npm run cleanup -- --webs` / `--prefix 'SPJS Itest'` | What a crashed run left behind (scratch webs and their groups older than 2 h / prefixed artefacts); a plan unless `--apply` |
 | `npm run cleanup -- --webs --older-than 0m` | The same right after a run or `--keep` (webs younger than 2 h are left for a run that may be active); only while no other run is |
 | `npm run provision -- --package <path> --twice --strict --verify` | Apply a template or package by hand, then compare it with the site (`debug/README.md`) |
@@ -58,7 +59,8 @@ the code disagree, the code wins and this page is fixed in the same change. The 
 | Unit, JUnit | `npm run test:ci`: `test-results/unit.xml` | CI artifact `test-results` (7 days) |
 | Unit, HTML | `npm run test:ci`: `test-results/unit/index.html` (`tests/reporters/html.ts`, every text through `redact()`) | the same artifact, and on each push to `main` the private test report site, `<site>/sp-js-provisioning/` (job `publish-report`; [spec](./specs/test-report-site.md)) |
 | Coverage | `npm run test:coverage` | the job log |
-| Integration, JUnit | `npm run test:integration:ci`: `test-results/reachability.xml`, `test-results/integration.xml` | local only until Phase 3 |
+| Integration, JUnit | `npm run test:integration:ci`: `test-results/reachability.xml`, `test-results/integration.xml` | the `Integration` workflow's artifact `integration-results` (7 days), once `check:reports` has passed |
+| Integration, HTML | `npm run test:integration:ci`: `test-results/integration/index.html` (the suites; the reachability page when they did not run) and `reachability.html` | the same artifact, and the test report site, `<site>/sp-js-provisioning/`, in the column Integration (job `publish-report` of the `Integration` workflow) |
 
 The test report site is a private GitHub Pages site shared with prosjektportalen365, readable by the
 organization's members after signing in to GitHub. Its address is the repository variable
@@ -81,6 +83,41 @@ organization's members after signing in to GitHub. Its address is the repository
   `check:tenant` reports it; the suites that need it (ScriptLink custom actions, property bag) skip
   with that reason. An SPO admin can allow it per site, but SharePoint blocks it again after a day.
 
+## Tenant CI
+
+The `Integration` workflow (`.github/workflows/integration.yml`) runs the suites in GitHub Actions
+against the reserved site, signed in as prosjektportalen365's CI app with its certificate. It
+never starts by itself:
+
+```sh
+gh workflow run integration.yml                                   # every handler suite
+gh workflow run integration.yml -f suites=all -f packages=testprosjekt
+gh workflow run integration.yml -f suites="Lists Security"
+gh workflow run integration.yml -f suites=none -f packages=all    # only the packages
+```
+
+| Input | Values |
+| --- | --- |
+| `suites` | `handlers` (default: every handler suite), `all` (those and `everything`), `none` (only the packages), or suite names |
+| `packages` | `none` (default), `testprosjekt` (the cases `packages.expected.ts` lists), `all` (also every other package, reported) |
+| `keep` | Keep the scratch webs; remove them later with `npm run cleanup -- --webs --apply` |
+
+- It runs from `main` only, in the environment `tenant`: a reviewer approves each run, and only
+  that environment holds the secrets `CI_TENANT`, `CI_CLIENT_ID`, `CI_CERT_BASE64` (the same as
+  PP365's), `INTEGRATION_USER` (the user the app acts for) and `INTEGRATION_SITE_URL` (a secret, not
+  a variable: GitHub prints a step's variables in the log). One run at a time.
+- The repository is public, and so are the workflow's log and artifact. `redact()`
+  (`debug/lib/redact.ts`) is the one rule for the log, the reports, the artifact and the report
+  site: it replaces cookies, tokens and certificates, the tenant's hosts and domains, the site in a
+  `/sites/...` path, e-mail addresses and logins, the configured user, app and tenant, and every
+  GUID that is not one of the repository's own. `npm run check:reports` applies the same rule to
+  the finished reports: a line it would still change fails the job before the upload, and nothing
+  is published. The test account's display name is not covered: use a dedicated account.
+- The integration report is published to the test report site by a second job, outside the
+  environment: the deploy key and the certificate are never in the same job.
+- The packages suite reads prosjektportalen-hosting as it is on its `main`: a package change must
+  be pushed there before `packages.expected.ts` describes it.
+
 ## The harness
 
 | Piece | File | Does |
@@ -92,6 +129,7 @@ organization's members after signing in to GitHub. Its address is the repository
 | Reading back | `debug/lib/readback/<handler>.ts` | What a handler provisioned, as plain data without ids or timestamps |
 | Suites | `tests/integration/helpers.ts` | `withScratchWeb`, `applyTwice`, `assertClean`, `assertVerified`, `skipReason`; `recording(conn, requests)`, a connection that records each request the engine sends, for "no write" or "no DELETE" assertions on a second apply |
 | Verify | `debug/lib/verify.ts`, `debug/lib/readback/site.ts` | `verify(conn, template, options)`: what any template should leave, with the engine's token rules, read back and diffed; `npm run verify` and `provision --verify` print it, `applyTwice` asserts it (unit-tested in `tests/unit/verify.test.ts`) |
+| Redaction | `debug/lib/redact.ts`, `tests/reporters/check-reports.ts` | `redact()`, `redactXml()` and `describeError()`: what a run prints or writes, without secrets, the tenant, its site, users or ids; `unredacted()` and `npm run check:reports` find what a report still holds |
 | Fixtures | `tests/fixtures/templates/*.json`, `tests/fixtures/fixtures.ts`, `debug/lib/placeholders.ts` | `loadFixture(name, { user, hookUrl })`; `composeAllNode()` (`all.node.json`); `fixtureUser(conn)`, the user `@@user@@` stands for, which `provision` and `verify` also fill in |
 | Runner | `tests/integration/run.ts` | Maps names to suite files (`everything` and `packages` only when asked for, `all` adds `everything`); runs reachability first in its own process (`node --test` sorts the files it is given), then the suites, one file at a time |
 
@@ -173,6 +211,8 @@ Measured on 2026-11-10 at the end of Phase 2, where every `applyTwice` also runs
 `npm run test:integration -- all`: reachability 6 of 6; the suites 55 tests, 54 pass, 0 `todo`, 1
 skipped (custom script blocked), 0 fail; about 12 minutes. `npm run test:integration -- packages`:
 9 cases, all as `packages.expected.ts` lists them; about 8 minutes. Nothing left behind.
+The same day as CI runs it (`npm run test:integration:ci -- all packages`, cookie mode): 64 tests,
+63 pass, 1 skipped, 0 fail, 19 minutes, and `npm run check:reports -- test-results` passed.
 
 | Handler | Suite | Fixture | Status | Pinned (`todo`) |
 | --- | --- | --- | --- | --- |

@@ -2,7 +2,8 @@
 
 Status: Ready (Phases 0a, 0b and 1 done 2026-10-21; `ci.yml` green on GitHub since 2026-10-29; the
 Lists, SiteFields and Navigation pins fixed by their specs, released in 1.5.0; Phase 2 done
-2026-11-10; Phase 3 next)
+2026-11-10; Phase 3 built the same day and waiting for the `tenant` environment and its first
+dispatch; Phase 4, the JSOM exit, gets its own spec, D3)
 
 Owner: Remi Blom-Ohlsen
 
@@ -516,6 +517,26 @@ Pinned only (`{ todo }` with the evidence), each for its own change:
   Secrets (`CI_*`, `INTEGRATION_USER`), the `INTEGRATION_SITE_URL` variable and the inputs reach
   the steps through `env:`, never interpolated into `run:`. Steps: `npm ci`, the hosting checkout
   when `packages` is not `none`, `check:tenant`, `test:integration:ci`, upload `test-results/`.
+  As built (Phase 3): the inputs are `suites` (`handlers`, `all`, `none` or names), `packages` and
+  `keep`; `timeout-minutes: 45`. `INTEGRATION_SITE_URL` is a secret of the environment, not a
+  variable: GitHub prints a step's variables in the public log and masks only secrets, and a step
+  masks the site's host and path as well. The secrets are in the `env:` of the steps that need
+  them, and `npm ci --ignore-scripts` runs no dependency's install script in that job. There is no
+  separate `check:tenant` step: `test:integration:ci` runs reachability first, and its page is the
+  report when the suites do not run. Then `npm run check:reports -- test-results`, the upload of
+  `test-results/` (`integration-results`, 7 days) only when it passed, and a second job outside
+  the environment that publishes `test-results/integration/` to the test report site as the
+  project's `Integration` column.
+- Redaction (Phase 3; decided with the report site): `redact()` is the one rule for the log, the
+  JUnit and HTML reports, the artifact and the site. Beside cookies, tokens and tenant hosts it
+  replaces certificates, `onmicrosoft.com` domains, the site in a `/sites/...` or `/teams/...`
+  path, e-mail addresses and logins, the values the run is configured with (`INTEGRATION_USER`,
+  `CI_CLIENT_ID`, `CI_TENANT`, the path of `INTEGRATION_SITE_URL`) and every GUID that is not in
+  the repository's own files (`tests/`, `src/`, the hosting packages). The documentation's hosts
+  (contoso, fabrikam) keep their paths. A redacted text is unchanged by redacting it again, so
+  `unredacted()` finds what a finished report still holds and `check:reports` stops the upload
+  and the publication, naming the file, the line and the kind of value. Not covered: the test
+  account's display name, and a site title (free text).
 
 ### Skills, AGENTS.md and docs
 
@@ -552,7 +573,7 @@ spike re-tests it.
 | 0b. Offline CI and log levels | `ci.yml`, lint fix, `test:ci` (mkdir), coverage floors, `npm pack` check; D4's log-level and `ProvisioningError` fixes (Lists/ClientSidePages levels, non-`Error` and `undefined` causes, Files/PropertyBagEntries `Error`s) plus two small logging guards (`ConsoleListener` once, `logging.prefix`); `tests/fixtures/templates/failures.json` (a list whose `Fields` holds a well-formed Lookup to a missing list, a `Files` entry, a `PropertyBagEntries` entry) | S-M | Done 2026-10-21: the CI sequence green locally (77 unit tests; source-mapped coverage 61.03/72.18/59.18, floors 60/71/58); the three `failures.json` runs exit 1 with the handler and a readable message; `smoke.json --twice --strict` green with each line printed once and both group owners read back as set (also the Security owner defect). `ci.yml` green on GitHub on every push to `main` since 2026-10-29 (`cdf7886`, `1381ca2`); `main` is protected by the ruleset "main: offline CI required" (the check required, no deletion, no force push). |
 | 1. Every Node-capable handler against a site | Site guard; scratch webs with associated groups; reachability with the NoScript probe; `apply`, readers, `verify`, `inspect`, `cleanup`; suites and fixtures for the ten Node-capable handlers, skipping suites for the four JSOM ones; D4's Phase 1 fixes; `AGENTS.md`, `docs/TESTING.md`, two skills, `check-skills` (in `ci.yml`); the gulp-era `.vscode/launch.json`, `.vscode/tasks.json` and `settings.example.js` removed; the Security spec's Verification Plan amended for D2 and Security Verified | M-L | Done 2026-10-21 (`verify` and `inspect` moved to Phase 2): `check:tenant` green; `npm run test:integration` 45 tests, 34 pass, 10 `todo`, 1 skipped, 0 fail, in about 9 minutes, nothing left behind (green on the final code and twice in a row before its last transport change; one run in between was throttled and green again on rerun); 15 suites (10 Node handlers in 11 suites, plus the JSOM four skipping) and reachability; the Security spec Verified. D4's four Phase 1 fixes done; the suites also found 10 engine defects the plan did not list, 6 fixed with tests and 4 pinned (D4); the closing reviews found 2 more, fixed with unit tests. The runs also found two harness defects, fixed: `node --test` sorts its files (reachability ran in alphabetical place), and a request that hung for 3 x 300 s left a scratch web behind. |
 | 2. Depth, packages, schema | DataRows value matrix (DateTime under `TZ` Europe/Oslo, UTC, Asia/Tokyo); `all.node.json`; contract tests; `--mode project`; `packages.test.ts`; `schema.json`; floors raised; two skills | M | Done 2026-11-10 in three parts. Part 1 (2026-11-06): `schema.json` generated from `src/schema.ts` and checked in CI, the schema and fixture-coverage tests, `tests/contract/`. Part 2: `verify`, `inspect`, `provision --verify` and `--mode project`, and `verify` in every suite's `applyTwice`. Part 3: `packages.test.ts` with `packages.expected.ts`, `all.node.json` with `everything.test.ts`, the `parameters` suite, the DateTime time zone test (a unit test: the handler sends a string as the template has it and a `Date` as UTC, in every zone), the `spjs-handlers` and `spjs-release` skills, floors 80/84/79. Tenant runs on 2026-11-10: `npm run test:integration -- all` 55 tests, 54 pass, 1 skipped (custom script), 0 fail, after a first full run that failed one test on a `verify` rule (the associated groups were not read for a list's permissions without a `Security` section); `-- packages` 9 of 9; `provision --package tests/fixtures/templates/all.node.json --twice --strict --verify` exit 0 without a finding; `verify` on a kept Lists web without a finding; nothing left behind. The packages suite found what the spec's "Not defects, recorded" lists. |
-| 3. Tenant CI | `integration.yml`, the `tenant` environment | S | |
+| 3. Tenant CI | `integration.yml`, the `tenant` environment | S | Built 2026-11-10: `integration.yml`, the stricter `redact()` with `check:reports`, the integration HTML page and its column on the test report site. Verified locally in cookie mode on 2026-11-10: `npm run test:integration:ci -- all packages` green (reachability 6 of 6; 64 tests, 63 pass, 1 skipped, 0 fail; 19 minutes), the second full green run of the handler suites and `everything` that day; `npm run check:reports -- test-results` passed on the two JUnit files and the two pages, and none of them, nor the log, holds the site's host, its path or an e-mail address; the publisher, against a local repository, gives the project's page the columns Integration and Unit. Waits for the `tenant` environment with its secrets and the first approved dispatch, which is also the first run in certificate mode. |
 | 4. JSOM exit | Own spec (D3) | S + L | |
 
 ## Acceptance Criteria
@@ -655,8 +676,9 @@ spike re-tests it.
   `/sites/spjs-itest`), `INTEGRATION_SITE_URL` in `.env`, and PP365's e2e user as an owner of it
   with a fresh session (`npx playwright test --project=setup` in PP365 `e2e/`); before Phase 1
   ends, that user as site collection administrator; before Phase 3, the certificate app's
-  permissions, `INTEGRATION_USER`, and the `tenant` environment with reviewers, secrets and
-  variable.
+  permissions, and the `tenant` environment (required reviewers, deployment branch `main`) with the
+  secrets `CI_TENANT`, `CI_CLIENT_ID`, `CI_CERT_BASE64`, `INTEGRATION_USER` and
+  `INTEGRATION_SITE_URL`.
 - An interrupted run leaves `spjs-itest-*` webs and `SPJS Itest` groups;
   `npm run cleanup -- --webs --apply` removes those older than 2 h; add `--all` when no other run
   is active.

@@ -41,6 +41,10 @@ the code disagree, the code wins and the doc is fixed. The plan: `docs/specs/int
   Tenant runs are serial: one run per reserved site at a time.
 - Lists and Lists (DataRows) tests build on the first test's lists: run those files whole, not
   with a `--test-name-pattern` that skips the first test.
+- As CI runs them: `npm run test:integration:ci -- all packages` (strict; JUnit and the HTML page
+  in `test-results/`), then `npm run check:reports -- test-results`. In GitHub the `Integration`
+  workflow does this; the user starts it (`gh workflow run integration.yml -f suites=...`) and
+  approves it in the environment `tenant`. Never start it yourself.
 
 ## Typical task: add or extend a handler suite
 
@@ -85,6 +89,14 @@ the code disagree, the code wins and the doc is fixed. The plan: `docs/specs/int
   and reach files through their list where you can.
 - SharePoint stores CAML normalised (`<FieldRef Name= "X"/>` becomes `<FieldRef Name="X" />`):
   compare a view query through `verify`, not as text.
+- `redact()` (`debug/lib/redact.ts`) is the one rule for the log, the reports, the artifact and
+  the report site, all public or shared: it replaces cookies, tokens, the tenant's hosts, the site
+  in a `/sites/...` path, users, the configured app and tenant, and every GUID that is not in the
+  repository's own files. So a GUID literal in a test is "the repository's own" and is kept: build
+  a stand-in for a tenant id at run time (`['3f2b9c1e', 'a7d4', ...].join('-')`), as the tests
+  build a tenant name. `check:reports` failing means a report holds a value `redact()` would
+  replace: find where the text reached the report without it (a file a suite wrote itself), never
+  loosen the rule.
 - The packages suite holds each case to an exact list (`tests/integration/packages.expected.ts`,
   what each list lacks). A new logged error or finding fails as `unexpected`, a fixed one as
   `missing` (remove its entry). One case: `npm run test:integration -- packages
@@ -110,4 +122,6 @@ the code disagree, the code wins and the doc is fixed. The plan: `docs/specs/int
   against a site other than `INTEGRATION_SITE_URL`.
 - Use `--allow-site` or `cleanup --apply --all` while another run may be active.
 - Delete an assertion, skip without a reason, add retries or lower a coverage floor to get green.
-- Print or commit a cookie, token, certificate or `.env`.
+- Print or commit a cookie, token, certificate or `.env`, or write a file into `test-results/`
+  that has not passed through `redact()`.
+- Start the `Integration` workflow: the user dispatches and approves it.

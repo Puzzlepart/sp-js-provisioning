@@ -57,6 +57,7 @@ code disagree, the code wins and the doc is fixed in the same change.
 | `npm run check:pack`, `npm run check:secrets`, `npm run check-skills`, `npm run check:schema` | Package contents, committed secrets, skills, `schema.json` up to date (`npm run build:schema` writes it) |
 | `npm run test:tasks` | The test report publisher's tests, against local bare repositories |
 | `npm run check:tenant` | Is the tenant ready for the integration suites |
+| `npm run test:integration:ci`, `npm run check:reports -- test-results` | The suites as CI runs them (strict; JUnit and HTML to `test-results/`), and the check that the reports hold nothing `redact()` would replace |
 | `npm run test:integration [-- <Handler ...> \| all \| packages] [--keep]` | Integration suites against scratch webs (`all` adds `everything`; `packages` the hosting packages) |
 | `npm run build:fixtures` | Writes `all.node.json` from the handler fixtures |
 | `npm run provision -- --package <path> [--mode hub\|cloud\|project] [--twice] [--strict] [--verify] [--dry-run]` | Apply a template or a PP365 package by hand |
@@ -70,7 +71,10 @@ Unit tests run offline in seconds; write one for any logic and for what a handle
 integration suites apply a fixture to a scratch web twice, read the result back, compare and run
 `verify`; they need the tenant set up as `docs/TESTING.md` describes (reserved site in `.env`, subsites enabled,
 the account a site collection admin). Run them only when the user has asked for tenant work: they
-write to the tenant. The `spjs-testing` skill has the details and the failure triage.
+write to the tenant. In GitHub they run only in the `Integration` workflow, which the user starts
+by hand from `main` and approves (environment `tenant`); its log and artifact are public, so
+everything a run prints or writes goes through `redact()` (`debug/lib/redact.ts`). The
+`spjs-testing` skill has the details and the failure triage.
 
 ## Skills
 
@@ -86,6 +90,9 @@ Skills live only in `.claude/skills/<name>/SKILL.md` (`npm run check-skills` fai
 
 ## Do not
 
-- Run `provision`, `cleanup --apply` or the integration suites against a site the user did not name.
+- Run `provision`, `cleanup --apply` or the integration suites against a site the user did not name,
+  or start the `Integration` workflow: the user dispatches and approves it.
+- Write a file into `test-results/` that has not passed through `redact()`: the folder becomes a
+  public artifact and a page on the report site (`check:reports` stops both when it finds one).
 - Delete an assertion, skip a test without a reason, or lower a coverage floor to get green.
 - Commit or push unless the user asks; give the user a commit message instead when they prefer that.

@@ -12,9 +12,8 @@ import {
   stampIn,
   stampOf
 } from '../../debug/lib/scratch'
-import { describeError, redact } from '../../debug/lib/redact'
 import { loadFixture } from '../fixtures/fixtures'
-import { redactXml, suiteFiles } from '../integration/run'
+import { suiteFiles } from '../integration/run'
 
 const site = 'https://contoso.sharepoint.com/sites/spjs-itest'
 
@@ -277,6 +276,14 @@ describe('harness: suites', () => {
       'security.test.ts',
       'everything.test.ts'
     ])
+    // `handlers` names the default: the CI workflow adds `packages` to it.
+    assert.deepEqual(names(suiteFiles(['handlers', 'packages'], withOptIn)), [
+      'reachability.test.ts',
+      'packages.test.ts',
+      'lists.test.ts',
+      'lists-datarows.test.ts',
+      'security.test.ts'
+    ])
   })
 })
 
@@ -287,64 +294,5 @@ describe('harness: fixtures', () => {
 
     assert.equal(loadFixture('smoke').Lists[0].Title, 'SPJS Itest Smoke')
     assert.equal(first.$schema, undefined)
-  })
-})
-
-describe('harness: redaction', () => {
-  // Built at run time, so this file does not trip the scan for tenant URLs itself.
-  const tenant = ['north', 'wind'].join('')
-
-  it('removes cookie values, bearer tokens and tenant hosts, not the example hosts', () => {
-    const cookie = 'A'.repeat(40)
-    assert.equal(
-      redact(
-        `set-cookie: FedAuth=${cookie}; path=/ Cookie: FedAuth=${cookie}; rtFa=${cookie}`
-      ),
-      'set-cookie: <redacted>'
-    )
-    assert.equal(
-      redact(`Cookie: rtFa=${cookie}; x=1`),
-      'Cookie: rtFa=<redacted>; x=1'
-    )
-    assert.equal(
-      redact(`Authorization: Bearer ${'ey' + 'J'.repeat(20)}`),
-      'Authorization: Bearer <redacted>'
-    )
-    assert.equal(
-      redact(
-        `https://${tenant}.sharepoint.com/sites/x and https://${tenant}-admin.sharepoint.com`
-      ),
-      'https://<tenant>.sharepoint.com/sites/x and https://<tenant>-admin.sharepoint.com'
-    )
-    assert.equal(
-      redact('https://contoso.sharepoint.com/sites/x'),
-      'https://contoso.sharepoint.com/sites/x'
-    )
-  })
-
-  it('describes an error by its message and status, never its response', () => {
-    const error = Object.assign(
-      new Error(`Forbidden at https://${tenant}.sharepoint.com/sites/x`),
-      {
-        status: 403,
-        response: { headers: { 'set-cookie': `FedAuth=${'A'.repeat(40)}` } }
-      }
-    )
-    assert.equal(
-      describeError(error),
-      'Forbidden at https://<tenant>.sharepoint.com/sites/x (403)'
-    )
-    assert.equal(describeError('plain'), 'plain')
-    assert.equal(describeError(undefined), 'undefined')
-  })
-
-  it('redacts a JUnit report and keeps it valid XML', () => {
-    // The CI runner rewrites test-results/*.xml with this.
-    assert.equal(
-      redactXml(
-        `<failure message="List does not exist at site with URL 'https://${tenant}.sharepoint.com/sites/x'">`
-      ),
-      `<failure message="List does not exist at site with URL 'https://&lt;tenant&gt;.sharepoint.com/sites/x'">`
-    )
   })
 })

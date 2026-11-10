@@ -40,7 +40,7 @@ folder under `runs/` that holds neither of them.
 ## Non-Goals
 
 - The integration report. It comes with Phase 3 (`integration.yml`), under one redaction policy for
-  the log, the artifact and the site.
+  the log, the artifact and the site. (Built 2026-11-10: see the last Rollout Note.)
 - Coverage as a report (it stays in the job log), and reports of pull requests.
 - One table for both repositories (a project column or section on the front page): every new
   project would need a lockstep change in both copies, and any version skew would make the shared
@@ -104,8 +104,10 @@ loads `html.ts` through tsx's API, and `test:ci` names that file:
 --test-reporter=./tests/reporters/html.cjs --test-reporter-destination=test-results/unit/index.html
 ```
 
-`test-results/unit.xml` stays where it was. The integration runner (`tests/integration/run.ts`) is
-not wired: its report is Phase 3 and comes with that phase's redaction.
+`test-results/unit.xml` stays where it was. The integration runner (`tests/integration/run.ts`)
+was wired in Phase 3 (2026-11-10): `npm run test:integration:ci` writes the suites' page to
+`test-results/integration/index.html` and the reachability checks' to `reachability.html` beside
+it, with that phase's redaction.
 
 ### The publisher
 
@@ -298,6 +300,8 @@ After the setup and the next push to `main`:
 
 - None for the unit report. For Phase 3: the stronger `redact()` (configured values, UPNs, GUIDs,
   tenant and app id) and a pre-publish leak check, before the integration report is published.
+  Answered 2026-11-10 by `debug/lib/redact.ts` and `npm run check:reports`
+  ([integration testing](./integration-testing.md), "Offline layers and CI").
 
 ## Rollout Notes
 
@@ -312,4 +316,8 @@ After the setup and the next push to `main`:
 - A report is about 100 KB, so 7 days of pushes to `main` stay far below the 100 MB budget.
 - The integration report (Phase 3) uses the same job step in `integration.yml`, with
   `--suite integration --title Integration --report test-results/integration`, once the reporter is
-  wired into `run.ts` and the redaction is extended.
+  wired into `run.ts` and the redaction is extended. Built 2026-11-10: the `Integration` workflow's
+  `publish-report` job, outside the `tenant` environment, publishes the report only when
+  `check:reports` passed in the job that made it. The project's page then has two columns, Unit
+  (each push to `main`) and Integration (each approved dispatch); a run fills one of them. The
+  first publish waits for the `tenant` environment and the first dispatch.

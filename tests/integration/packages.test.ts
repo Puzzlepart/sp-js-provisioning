@@ -176,9 +176,9 @@ function stepsOf(
 /**
  * The prosjektportalen-hosting packages (docs/specs/integration-testing.md, Fixtures): each case
  * applies a package twice to its own scratch web the way PP365 would in that mode, then verifies
- * it. Until the JSOM exit (`docs/specs/jsom-exit.md`) the runner skips Taxonomy, ContentTypes,
- * Files and PropertyBagEntries in Node, so what depends on them is an explicit list per case.
- * Runs with `npm run test:integration -- packages`, not by default.
+ * it. Until the JSOM exit (D3 in the spec) the runner skips Taxonomy, ContentTypes, Files and
+ * PropertyBagEntries in Node, so what depends on them is an explicit list per case
+ * (`packages.expected.ts`). Runs with `npm run test:integration -- packages`, not by default.
  */
 describe('Packages', { skip: packagesSkipReason() }, () => {
   const cases = fs.existsSync(path.join(HOSTING_DIR, 'packages'))

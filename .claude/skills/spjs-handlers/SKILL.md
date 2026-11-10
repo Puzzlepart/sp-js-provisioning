@@ -84,7 +84,9 @@ list), `debug/lib/cli.ts` `NODE_UNSUPPORTED` if it cannot run in Node, a reader 
   recreate a field, a view or a node; act on what this setup created (`context.created*`) when the
   template asks to remove.
 - ContentTypes, Taxonomy, PropertyBagEntries and the Files web parts are JSOM (`spfx-jsom`): they do
-  not run in Node, their suites skip, and the JSOM exit (`docs/specs/jsom-exit.md`) replaces them.
+  not run in Node, their suites skip, and the JSOM exit replaces them (D3 in
+  `docs/specs/integration-testing.md`; its own spec, `docs/specs/jsom-exit.md`, is still to be
+  written).
 - Handlers mutate their input (WebSettings writes values back, ContentTypes sorts in place): a
   caller that applies twice passes a fresh copy.
 - `@pnp/*` is a peer dependency and one physical copy (`tests/unit/package.test.ts`).

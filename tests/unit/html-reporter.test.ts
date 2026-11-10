@@ -312,11 +312,11 @@ describe('the HTML reporter', () => {
     assert.ok(!html.includes(ROOT))
   })
 
-  it('redacts cookies, tokens and the tenant from every text on the page', () => {
+  it('redacts cookies, tokens, the tenant and its site from every text on the page', () => {
     // Built at run time, so this file does not trip the scan for tenant URLs itself.
     const tenant = ['north', 'wind'].join('')
     const cookie = 'A'.repeat(40)
-    const site = `https://${tenant}.sharepoint.com/sites/x`
+    const site = `https://${tenant}.sharepoint.com/sites/hemmelig`
     const collector = createReportCollector(ROOT, ROOT)
     const at = { nesting: 0, line: 1, column: 1, file: FILE, entryFile: FILE }
     collector.add({
@@ -349,10 +349,13 @@ describe('the HTML reporter', () => {
     })
     const html = renderReport(collector.report(), CONTEXT)
     assert.ok(!html.includes(tenant))
+    assert.ok(!html.includes('hemmelig'))
     assert.ok(!html.includes(cookie))
     assert.ok(!html.includes('eyJJ'))
     assert.ok(
-      html.includes('reads https://&lt;tenant&gt;.sharepoint.com/sites/x')
+      html.includes(
+        'reads https://&lt;tenant&gt;.sharepoint.com/sites/&lt;site&gt;'
+      )
     )
     assert.ok(html.includes('FedAuth=&lt;redacted&gt;'))
     assert.ok(html.includes('Bearer &lt;redacted&gt;'))
