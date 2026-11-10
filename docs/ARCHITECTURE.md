@@ -72,7 +72,7 @@ Current order:
 | 2 | `Features` | Activates or deactivates web features before list and page work. |
 | 2.5 | `Security` | Creates site groups and applies web permissions; runs right before `Lists` so list `Security` can grant permissions to those groups. |
 | 3 | `Lists` | Creates lists, binds content types, adds list fields, field refs, and views. |
-| 4 | `Files` | Uploads files and classic pages, can add web parts and list view web parts. |
+| 4 | `Files` | Uploads files into folders and libraries the lists made, and sets their item properties. |
 | 5 | `CustomActions` | Adds user custom actions after base structures exist. |
 | 6 | `ComposedLook` | Applies theme assets, usually after files are available. |
 | 7 | `ClientSidePages` | Creates modern pages and page controls. |
@@ -347,21 +347,16 @@ File: `src/handlers/files.ts`
 
 Responsibilities:
 
-- Uploads files from configured source URLs.
-- Replaces URL tokens and context tokens in file sources.
-- Fetches file contents with browser `fetch`.
-- Adds files with `addUsingPath`.
-- Updates list item properties for uploaded files.
-- Removes and adds classic web parts through JSOM.
-- Loads web part XML from inline contents or `FileSrc`.
-- Applies web part property overrides.
-- Configures page list view web parts.
+- Replaces context tokens and URL tokens in `Src`.
+- Reads the source as bytes: on the web's origin (or server-relative) through the web's PnPjs pipeline, signed in as the web is; on any other origin with a plain `fetch` and no credentials (a public URL).
+- Uploads it with `addUsingPath` into `Folder`, unless the file there already holds the same bytes; leaves an existing file as it is with `Overwrite: false`.
+- Sets the `Properties` on the file's list item, only those whose value differs.
 
-Runtime limitations:
+Key contracts:
 
-- Throws when `config.spfxContext` is present.
-- Uses browser APIs such as `fetch`, `Blob`, `document`, `window`, and global `SP`.
-- Classic web part operations depend on JSOM.
+- A file that fails (its source, its folder, its upload, its properties) is logged with `log_error`, naming it, and the next file is tried; the handler throws only when the web cannot be read.
+- Runs in Node and under an SPFx context alike.
+- Classic web parts (`WebParts`, `RemoveExistingWebParts`, a web part's `ListView`) are no longer supported since 1.6.0: a file that has them is provisioned and an error says they were left out (`docs/specs/jsom-exit.md`, J7).
 
 ### `ClientSidePages`
 
@@ -433,19 +428,15 @@ File: `src/handlers/propertybagentries.ts`
 
 Responsibilities:
 
-- Sets web property bag entries.
-- Optionally indexes property bag keys by updating `vti_indexedpropertykeys`.
+- Reads the web's property bag (REST, keys decoded from `_xNNNN_`).
+- Writes, PnP's way, in one CSOM request (`AllProperties.SetFieldValue`, `Web.Update`): an entry whose key the web lacks; an existing one only with `Overwrite: true` and another value.
+- `Indexed` adds the key to `vti_indexedpropertykeys`, keeping the keys there (base64 of UTF-16LE, each followed by `|`, by `base64EncodeString`).
 
-Runtime limitations:
+Key contracts:
 
-- Not supported in Node.
-- Not supported in SPFx mode.
-- Uses browser/global JSOM `SP.ClientContext`.
-
-Important behavior:
-
-- Only entries with `Overwrite` truthy are processed.
-- Indexed property keys are base64 encoded as UTF-16LE-style strings by `base64EncodeString`.
+- Nothing to write: no request.
+- SharePoint refuses the write on a site that blocks custom script (`DenyAddAndCustomizePages`, the default on modern sites, whichever API asks): logged with `log_error`, naming the cause, and the template goes on. Any other failure is logged too; the handler never throws.
+- Runs in Node and under an SPFx context alike.
 
 ### `Navigation`
 
@@ -518,10 +509,9 @@ CSOM over HTTP is used where REST cannot do what a template asks: an XML request
 - term groups, term sets and terms with the template's ids, custom properties and sort order (`Taxonomy`): the term store's REST API refuses writes from a browser session on "OAuth only" tenants
 - a site group as another group's owner (`Security`)
 
-JSOM is used where neither covers the needed behavior yet (the JSOM exit moves these to CSOM over HTTP or REST):
+- web property bag entries and their indexed keys (`PropertyBagEntries`)
 
-- classic web parts on files/pages
-- property bag indexing
+No handler uses JSOM any more; `Lists` still imports `spfx-jsom` without using it until the JSOM exit's last step removes the dependency.
 
 Several modules assume browser globals (`src/util/index.ts` no longer does: it reaches them through `browserWindow()`):
 

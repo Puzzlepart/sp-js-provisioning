@@ -84,11 +84,10 @@ list), `debug/lib/cli.ts` `NODE_UNSUPPORTED` if it cannot run in Node, a reader 
   recreate a field, a view or a node; act on what this setup created (`context.created*`) when the
   template asks to remove.
 - What REST cannot do goes through CSOM over HTTP (`src/util/csom.ts`: `CsomRequest`,
-  `executeQuery`, `CsomError`), not JSOM: ContentTypes, Taxonomy and the Security group owner do
-  already. PropertyBagEntries and the Files web parts are still JSOM (`SP.ClientContext`), do not
-  run in Node and their suites skip until the JSOM exit moves them (`docs/specs/jsom-exit.md`).
-  Taxonomy writes to the tenant-wide term store: tests write only to the group `SPJS Itest` and
-  never delete from the store. Unit-test a
+  `executeQuery`, `CsomError`), not JSOM: ContentTypes, Taxonomy, PropertyBagEntries and the
+  Security group owner do; no handler uses JSOM (`docs/specs/jsom-exit.md`). Taxonomy writes to the
+  tenant-wide term store: tests write only to the group `SPJS Itest` and never delete from the
+  store. Unit-test a
   CSOM request with `FakeCsom` and `parseCsom` (`tests/helpers/csom.ts`): assert the actions as
   lines, not the XML.
 - CSOM answers 200 with the error in the body, and stops at the first failing action without

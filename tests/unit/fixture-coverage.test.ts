@@ -10,8 +10,8 @@ import { describe, it } from 'node:test'
  * fixture uses it or a reason is given.
  */
 
-const JSOM =
-  'JSOM handler, browser-only until the JSOM exit (integration-testing.md D3)'
+const WEB_PARTS =
+  'classic web parts are no longer supported (1.6.0, jsom-exit.md J7): a file that has them is provisioned and an error says so (tests/unit/files.test.ts, the Files suite)'
 const PASS_THROUGH =
   'passed to SharePoint unchanged with the other settings; the fixtures cover the path with other keys'
 
@@ -19,22 +19,21 @@ const NOT_COVERED: Record<string, string> = {
   'Schema.Version': 'metadata: the engine has no handler for it and skips it',
   'Schema.Parameters':
     'the {parameter:} token is covered by tests/unit (runner, csom); a parameters.json fixture comes with the depth part of Phase 2',
-  'IFileObject.Properties': JSOM,
-  'IFileObject.RemoveExistingWebParts': JSOM,
-  'IFileObject.WebParts': JSOM,
-  'IWebPart.Contents': JSOM,
-  'IWebPart.ListView': JSOM,
-  'IWebPart.ListView.List': JSOM,
-  'IWebPart.ListView.View': JSOM,
-  'IWebPart.Order': JSOM,
-  'IWebPart.PropertyOverrides': JSOM,
-  'IWebPart.Title': JSOM,
-  'IWebPart.Zone': JSOM,
-  'IWebPartContents.FileSrc': JSOM,
-  'IWebPartContents.Xml': JSOM,
-  'IWebPartPropertyOverride.name': JSOM,
-  'IWebPartPropertyOverride.type': JSOM,
-  'IWebPartPropertyOverride.value': JSOM,
+  'IFileObject.RemoveExistingWebParts': WEB_PARTS,
+  'IFileObject.WebParts': WEB_PARTS,
+  'IWebPart.Contents': WEB_PARTS,
+  'IWebPart.ListView': WEB_PARTS,
+  'IWebPart.ListView.List': WEB_PARTS,
+  'IWebPart.ListView.View': WEB_PARTS,
+  'IWebPart.Order': WEB_PARTS,
+  'IWebPart.PropertyOverrides': WEB_PARTS,
+  'IWebPart.Title': WEB_PARTS,
+  'IWebPart.Zone': WEB_PARTS,
+  'IWebPartContents.FileSrc': WEB_PARTS,
+  'IWebPartContents.Xml': WEB_PARTS,
+  'IWebPartPropertyOverride.name': WEB_PARTS,
+  'IWebPartPropertyOverride.type': WEB_PARTS,
+  'IWebPartPropertyOverride.value': WEB_PARTS,
   'IListInstance.RemoveExistingViews':
     'inline templates in tests/integration/lists.test.ts (it acts only on lists made in the same setup)',
   'IListInstanceFieldReference.AdditionalProperties':

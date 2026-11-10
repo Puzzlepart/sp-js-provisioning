@@ -1,7 +1,7 @@
 # Spec: The JSOM Exit
 
 Status: Ready (2026-11-10; the spike below is done, implementation follows in the order of
-"Steps": 1 to 3 are done, see the status under "Steps")
+"Steps": 1 to 4 are done, see the status under "Steps")
 
 Owner: Remi Blom-Ohlsen
 
@@ -173,10 +173,12 @@ Per file: read the source (J7), `files.addUsingPath` with `Overwrite` (default `
 
 One commit per step; the suites run against the reserved site at each.
 
-Status, 2026-11-10: steps 1 to 3 are implemented, documented and green offline and against the
-reserved site (`npm run test:integration -- contenttypes taxonomy`: 4 and 2 tests). The runner
-still leaves ContentTypes out by default (`NODE_UNSUPPORTED`) until step 5 regenerates the packages
-list with it, and leaves Taxonomy out for good (J5); their suites name their handlers.
+Status, 2026-11-10: steps 1 to 4 are implemented, documented and green offline and against the
+reserved site (`npm run test:integration -- contenttypes taxonomy files propertybagentries`: 4, 2,
+3 and 1 tests, and 1 skipped: the site blocks custom script, so the property bag write can only be
+seen refused there). No handler uses JSOM. The runner still leaves ContentTypes, Files and
+PropertyBagEntries out by default (`NODE_UNSUPPORTED`) until step 5 regenerates the packages list
+with them, and leaves Taxonomy out for good (J5); their suites name their handlers.
 
 What the ContentTypes suite showed on SharePoint:
 
@@ -190,6 +192,18 @@ What the ContentTypes suite showed on SharePoint:
   `Microsoft.SharePoint.SPException`), and the handler stops with them.
 - `verify` asked SharePoint for content type ids with `0X` for `0x` and found none; fixed in
   `readContentType`.
+
+What the Files and PropertyBagEntries runs showed:
+
+- A web's document library is `Delte dokumenter` on a Norwegian site, and SharePoint answers a
+  folder that is not there with 403 ("Ingen tilgang"), not 404: the Files fixture uses
+  `SiteAssets`, which has that URL in every language.
+- A text file with æøå and CRLF and a binary file come through byte for byte, from the web (read
+  through its pipeline) and from another origin (a local server, no credentials).
+- The property bag write is refused on the reserved site, as the spike found:
+  `System.UnauthorizedAccessException` ("Access is denied", `E_ACCESSDENIED`); the handler logs it
+  with the cause and the template goes on. Where custom script is allowed is proven by the unit
+  tests only.
 
 What the Taxonomy runs showed (the signed-in user, cookies):
 

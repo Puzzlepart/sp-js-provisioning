@@ -115,40 +115,96 @@ describe('WebProvisioner: handler failures', () => {
     }
   }
 
-  it('stops at Files with an SPFx context, naming the handler and the reason', async () => {
-    const { error, ran } = await apply(
-      {
-        Files: [{ Folder: '', Src: '', Url: 'a.txt' }],
-        Navigation: { QuickLaunch: [] }
-      },
-      { spfxContext: { pageContext: { site: {}, web: {} } } }
+  it('runs Files with an SPFx context; a file that fails is logged and the next handler runs (1.6.0)', async () => {
+    // Files refused to run whenever an SPFx context was set, which every consumer sets: the
+    // template stopped there.
+    const urls: string[] = []
+    const web = createRecordingWeb(urls, (url) => {
+      if (url.includes('/_api/web?'))
+        return {
+          ServerRelativeUrl: '/sites/demo',
+          Url: 'https://contoso.sharepoint.com/sites/demo'
+        }
+      if (url.includes('$value') || url.endsWith('/SiteAssets/missing.txt'))
+        throw Object.assign(new Error('Not Found'), { status: 404 })
+      if (url.includes('/navigation/')) return []
+    })
+    const ran: string[] = []
+    const { entries } = await captureLogs(() =>
+      new WebProvisioner(web)
+        .setup({
+          spfxContext: {
+            pageContext: {
+              site: {
+                absoluteUrl: 'https://contoso.sharepoint.com/sites/demo',
+                serverRelativeUrl: '/sites/demo'
+              },
+              web: { absoluteUrl: 'https://contoso.sharepoint.com/sites/demo' }
+            }
+          }
+        })
+        .applyTemplate(
+          {
+            Files: [
+              {
+                Folder: 'SiteAssets',
+                Src: '{sitecollection}/SiteAssets/missing.txt',
+                Url: 'a.txt'
+              }
+            ],
+            Navigation: { QuickLaunch: [] }
+          },
+          undefined,
+          (handler) => ran.push(handler)
+        )
     )
 
-    assert.ok(error instanceof ProvisioningError)
-    assert.equal(error.handler, 'Files')
-    assert.match(
-      error.message,
-      /Files handler is not supported with an SPFx context/
+    assert.deepEqual(ran, ['Files', 'Navigation'])
+    assert.equal(
+      levelOf(
+        entries,
+        /Failed to provision file SiteAssets\/a\.txt: Not Found/
+      ),
+      LogLevel.Error
     )
-    // The handlers after it do not run.
-    assert.deepEqual(ran, ['Files'])
   })
 
-  it('stops at PropertyBagEntries in Node with a readable message', async () => {
-    const { error } = await apply(
-      {
-        PropertyBagEntries: [
-          { Key: 'k', Value: 'v', Indexed: false, Overwrite: true }
+  it('runs PropertyBagEntries in Node; a refused write is logged and the next handler runs (1.6.0)', async () => {
+    const urls: string[] = []
+    const web = createRecordingWeb(urls, (url) => {
+      if (url.endsWith('/_api/web/allproperties')) return {}
+      if (url.endsWith('/_vti_bin/client.svc/ProcessQuery'))
+        return [
+          {
+            ErrorInfo: {
+              ErrorMessage: 'Access denied.',
+              ErrorTypeName: 'System.UnauthorizedAccessException'
+            }
+          }
         ]
-      },
-      {}
+      if (url.includes('/navigation/')) return []
+    })
+    const ran: string[] = []
+    const { entries } = await captureLogs(() =>
+      new WebProvisioner(web).setup({}).applyTemplate(
+        {
+          PropertyBagEntries: [
+            { Key: 'k', Value: 'v', Indexed: false, Overwrite: true }
+          ],
+          Navigation: { QuickLaunch: [] }
+        },
+        undefined,
+        (handler) => ran.push(handler)
+      )
     )
 
-    assert.ok(error instanceof ProvisioningError)
-    assert.equal(error.handler, 'PropertyBagEntries')
-    assert.match(
-      error.message,
-      /PropertyBagEntries handler is not supported in Node/
+    assert.deepEqual(ran, ['PropertyBagEntries', 'Navigation'])
+    assert.equal(
+      levelOf(
+        entries,
+        /Property bag entries k were not written: .*custom script .*Access denied\./
+      ),
+      LogLevel.Error
     )
   })
 

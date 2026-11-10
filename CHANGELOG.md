@@ -29,6 +29,26 @@ For releases older than 1.3.6, see the git history.
     and committed on every run. A term set's writes are one commit, all or nothing.
   - A term store that cannot be read stops the template with the reason. A failed read used to be
     taken for a missing term set or term, which it then tried to create.
+- `Files` runs under an SPFx context and in Node: it used to stop every template that had it
+  whenever `config.spfxContext` was set, as PP365 always sets it (a `pp-testprosjekt` hub import
+  stopped there). The source is read as bytes, so a binary file is no longer corrupted, and a
+  source on another origin is fetched without credentials, as a public URL such as
+  raw.githubusercontent.com requires. A file that already holds the source's bytes is not uploaded
+  again, a property is written only when it differs, and `Overwrite: false` leaves an existing file
+  (and its properties) as it is. A file that fails is logged as an error, naming it, and the next
+  is tried.
+- `PropertyBagEntries` runs under an SPFx context and in Node, and writes PnP's way: an entry whose
+  key the web lacks is written even without `Overwrite` (it used to be written only with
+  `Overwrite: true`), an existing one only with `Overwrite` and another value, and `Indexed` adds
+  the key to the web's indexed keys instead of replacing them. SharePoint refuses the write on a
+  site that blocks custom script (modern sites do by default): that is logged as an error naming
+  the cause, and the template goes on instead of stopping.
+
+### Removed
+
+- Classic web parts in `Files` (`WebParts`, `RemoveExistingWebParts`, a web part's `ListView`): no
+  template of PP365 or prosjektportalen-hosting uses them, and they need a classic page and custom
+  script. A file that has them is provisioned, and an error says they were left out.
 
 ### Development
 
@@ -64,6 +84,13 @@ For releases older than 1.3.6, see the git history.
   CSOM request, B's changes reaching the child and the bound list, a missing column, a refused
   name. `verify` asked SharePoint for content type ids with `0X` and found none; fixed. The runner
   still leaves ContentTypes out by default until the packages list counts it (step 5).
+- The JSOM exit, step 4: the Files suite uploads a text and a binary file byte for byte from the
+  scratch web and from a local server (another origin), sets a property, uploads nothing on a
+  second apply, uploads a changed source again, leaves `Overwrite: false` alone and logs a failing
+  source and classic web parts. The PropertyBagEntries suite proves, on the reserved site, which
+  blocks custom script, one error naming the cause and nothing written; where custom script is
+  allowed it applies twice and reads the entries back (it skips here). `failures.json`'s file
+  source now fails on the site itself instead of on example.org.
 - The JSOM exit, step 3: the Taxonomy suite runs against the tenant's term store, in a term group of
   its own (`SPJS Itest`, `taxonomy.json` and `.b.json`), created by its first run and left in place:
   nothing is deleted from the term store. It proves the ids, custom properties and sort order, a

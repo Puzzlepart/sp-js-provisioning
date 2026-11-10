@@ -18,7 +18,7 @@
   "Files": [
     {
       "Folder": "SiteAssets",
-      "Src": "https://example.org/spjs-itest.txt",
+      "Src": "{sitecollection}/SPJS Itest does not exist/spjs-itest.txt",
       "Url": "spjs-itest.txt",
       "Overwrite": true
     }

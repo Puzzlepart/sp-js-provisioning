@@ -786,7 +786,8 @@ describe('verify: features, property bag and web settings', () => {
       ],
       PropertyBagEntries: [
         { Key: 'spjs_a', Value: '1', Overwrite: true, Indexed: true },
-        { Key: 'spjs_b', Value: '2' }
+        { Key: 'spjs_b', Value: '2' },
+        { Key: 'spjs_c', Value: '3', Indexed: true }
       ],
       WebSettings: {
         WelcomePage: 'SitePages/Home.aspx',
@@ -797,20 +798,28 @@ describe('verify: features, property bag and web settings', () => {
       features: ['aaaa0000-0000-0000-0000-000000000001'],
       propertyBag: {
         spjs_a: '1',
-        vti_indexedpropertykeys: `${base64EncodeString('spjs_a')}|`
+        spjs_c: 'set by an admin',
+        vti_indexedpropertykeys: `${base64EncodeString(
+          'spjs_a'
+        )}|${base64EncodeString('spjs_c')}|`
       },
       webSettings: {
         WelcomePage: 'sitepages/home.aspx',
         QuickLaunchEnabled: true
       }
     }
+    // A missing key is written whatever Overwrite says; an existing one without Overwrite is kept.
     assert.deepEqual(findings(template, web), [
-      'PropertyBagEntries spjs_b: "a value" -> null'
+      'PropertyBagEntries spjs_b: "2" -> null'
+    ])
+    assert.deepEqual(findings(template, web, { exact: true }), [
+      'PropertyBagEntries spjs_b: "2" -> null',
+      'PropertyBagEntries spjs_c: "3" -> "set by an admin"'
     ])
     assert.deepEqual(
       findings(template, {
         features: ['aaaa0000-0000-0000-0000-000000000002'],
-        propertyBag: { spjs_a: '0', spjs_b: 'x' },
+        propertyBag: { spjs_a: '0', spjs_b: 'x', spjs_c: '3' },
         webSettings: {
           WelcomePage: 'SitePages/Other.aspx',
           QuickLaunchEnabled: false
@@ -821,6 +830,7 @@ describe('verify: features, property bag and web settings', () => {
         'Features aaaa0000-0000-0000-0000-000000000002: "inactive" -> "active"',
         'PropertyBagEntries spjs_a: "1" -> "0"',
         'PropertyBagEntries spjs_a/Indexed: true -> false',
+        'PropertyBagEntries spjs_c/Indexed: true -> false',
         'WebSettings WelcomePage: "SitePages/Home.aspx" -> "SitePages/Other.aspx"',
         'WebSettings QuickLaunchEnabled: true -> false'
       ]

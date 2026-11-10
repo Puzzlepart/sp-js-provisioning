@@ -1,0 +1,15 @@
+{
+  "$schema": "../../../schema.json",
+  "PropertyBagEntries": [
+    {
+      "Key": "SPJSItestPbNew",
+      "Value": "ny verdi",
+      "Indexed": true
+    },
+    {
+      "Key": "SPJSItestPbOverwrite",
+      "Value": "fra malen",
+      "Overwrite": true
+    }
+  ]
+}

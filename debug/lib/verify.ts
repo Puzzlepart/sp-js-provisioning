@@ -2245,24 +2245,15 @@ export function diff(
     }
   }
 
+  // PnP's way (1.6.0): a missing key is written, an existing one only with Overwrite (or on a
+  // fresh web, exact), and Indexed adds the key to the indexed keys.
   for (const entry of expected.propertyBag || []) {
     const bag = actual.propertyBag || {}
     const have = bag[entry.key]
-    if (absent(have)) {
-      f.add(
-        'PropertyBagEntries',
-        entry.key,
-        entry.overwrite ? entry.value : 'a value',
-        null,
-        entry.overwrite
-          ? undefined
-          : 'the handler writes only Overwrite: true entries'
-      )
-      continue
-    }
-    if (entry.overwrite && String(have) !== entry.value)
+    if (absent(have)) f.add('PropertyBagEntries', entry.key, entry.value, null)
+    else if ((entry.overwrite || exact) && String(have) !== entry.value)
       f.add('PropertyBagEntries', entry.key, entry.value, have)
-    if (entry.overwrite && entry.indexed) {
+    if (entry.indexed) {
       const indexed = String(bag.vti_indexedpropertykeys || '').split('|')
       if (!indexed.includes(base64EncodeString(entry.key)))
         f.add('PropertyBagEntries', `${entry.key}/Indexed`, true, false)

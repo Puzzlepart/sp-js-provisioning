@@ -36,11 +36,10 @@ code disagree, the code wins and the doc is fixed in the same change.
    prototype. Tests and the runner run `src/` through tsx (esbuild), so they can pass while
    `npm run build` fails: run both.
 5. `spfx-jsom` cannot load in Node; `tests/tsconfig.json` and `debug/tsconfig.json` map it to
-   `debug/stubs/spfx-jsom.ts`. Files and PropertyBagEntries use JSOM and are browser-only until the
-   JSOM exit (`docs/specs/jsom-exit.md`). What REST cannot do goes through CSOM over HTTP
-   (`src/util/csom.ts`), which runs in Node: ContentTypes and Taxonomy do since the exit's steps 2
-   and 3. Taxonomy writes to the tenant-wide term store: only to the group `SPJS Itest` in tests,
-   and nothing is ever deleted from the store.
+   `debug/stubs/spfx-jsom.ts` until the JSOM exit removes it (`docs/specs/jsom-exit.md`); no
+   handler uses JSOM. What REST cannot do goes through CSOM over HTTP (`src/util/csom.ts`), which
+   runs in Node: ContentTypes, Taxonomy and PropertyBagEntries. Taxonomy writes to the tenant-wide
+   term store: only to the group `SPJS Itest` in tests, and nothing is ever deleted from the store.
 6. `npm version` publishes immediately (`postversion: tsc && npm publish`). Never run it unless
    asked.
 7. `.env` holds the tenant configuration and is gitignored; never commit it or print a cookie,

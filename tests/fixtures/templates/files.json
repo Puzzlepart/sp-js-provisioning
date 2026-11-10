@@ -1,0 +1,25 @@
+{
+  "$schema": "../../../schema.json",
+  "Files": [
+    {
+      "Folder": "SiteAssets",
+      "Src": "{parameter:SPJSItestFilesWeb}/SiteAssets/SPJS Itest kilder/spjs-itest-kilde.txt",
+      "Url": "SPJS Itest tekst.txt",
+      "Overwrite": true,
+      "Properties": {
+        "Title": "SPJS Itest tekstfil"
+      }
+    },
+    {
+      "Folder": "SiteAssets",
+      "Src": "{parameter:SPJSItestFilesServer}/spjs-itest-bilde.png",
+      "Url": "SPJS Itest bilde.png"
+    },
+    {
+      "Folder": "SiteAssets",
+      "Src": "{parameter:SPJSItestFilesServer}/spjs-itest-tekst.txt",
+      "Url": "SPJS Itest beholdt.txt",
+      "Overwrite": false
+    }
+  ]
+}

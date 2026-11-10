@@ -24,7 +24,6 @@ the code disagree, the code wins and the doc is fixed. The plan: `docs/specs/int
 | Integration | `tests/integration/<handler>.test.ts` | `npm run test:integration -- <Handler>` | yes: scratch webs below `INTEGRATION_SITE_URL` |
 | Everything | `tests/integration/everything.test.ts` (`all.node.json`, `verify --exact`) | `npm run test:integration -- all` | yes |
 | Packages | `tests/integration/packages.test.ts` (prosjektportalen-hosting, an exact list of what Node cannot do) | `npm run test:integration -- packages` | yes |
-| Browser only | Files, PropertyBagEntries | suites skip until the JSOM exit (ContentTypes and Taxonomy run since its steps 2 and 3) | — |
 
 ## Running
 

@@ -8,7 +8,17 @@ export interface Schema {
   WebSettings?: IWebSettings
   Features?: IFeature[]
   Lists?: IListInstance[]
+  /**
+   * Files uploaded into a folder of the web from a source URL, byte for byte, with their item
+   * properties. A file that holds the source's bytes is not uploaded again; a file that fails is
+   * logged as an error and the next one is tried.
+   */
   Files?: IFileObject[]
+  /**
+   * Web property bag entries, written PnP's way: a missing key is written, an existing one only
+   * with `Overwrite`. SharePoint refuses the write on a site that blocks custom script (modern
+   * sites do by default): logged as an error, and the template goes on.
+   */
   PropertyBagEntries?: IPropertyBagEntry[]
   ClientSidePages?: IClientSidePage[]
   /**
@@ -170,12 +180,29 @@ export interface IFeature {
 }
 
 export interface IFileObject {
+  /** The folder, relative to the web (`SiteAssets`, `SiteAssets/Images`). */
   Folder: string
+  /**
+   * Where the file comes from, with tokens (`{site}`, `{sitecollection}`, `{hosturl}`,
+   * `{parameter:}`). On the web's origin it is read signed in; any other origin must allow it
+   * without credentials (a public URL).
+   */
   Src: string
+  /** The file's name in the folder. */
   Url: string
+  /** `false`: a file that exists is left as it is. Default `true`. */
   Overwrite?: boolean
+  /**
+   * @deprecated Classic web parts are no longer supported (1.6.0): a file that asks is provisioned
+   * and an error says they were left out.
+   */
   RemoveExistingWebParts?: boolean
+  /**
+   * @deprecated Classic web parts are no longer supported (1.6.0): a file that has them is
+   * provisioned and an error says they were left out.
+   */
   WebParts?: IWebPart[]
+  /** Values for the file's list item, by internal name; only those that differ are written. */
   Properties?: { [key: string]: string | number }
 }
 
@@ -541,6 +568,8 @@ export interface IListView {
 export interface IPropertyBagEntry {
   Key: string
   Value: string
+  /** Adds the key to the web's indexed keys (`vti_indexedpropertykeys`), keeping the others. */
   Indexed?: boolean
+  /** Write the value also when the web has the key with another value. */
   Overwrite?: boolean
 }
