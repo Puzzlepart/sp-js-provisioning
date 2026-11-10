@@ -73,10 +73,17 @@ export interface IInspection {
  * @param prefix - The prefix
  * @param names - The names to try
  */
-export function matchesPrefix(prefix: string | undefined, ...names: any[]): boolean {
+export function matchesPrefix(
+  prefix: string | undefined,
+  ...names: any[]
+): boolean {
   if (!prefix) return true
   const wanted = prefix.toLowerCase()
-  return names.some((name) => String(name ?? '').toLowerCase().startsWith(wanted))
+  return names.some((name) =>
+    String(name ?? '')
+      .toLowerCase()
+      .startsWith(wanted)
+  )
 }
 
 /**
@@ -96,7 +103,9 @@ export async function inspectWeb(
     web().fields.select(...FIELD_MEMBERS, 'Group')<any[]>(),
     web().contentTypes.select('Id', 'Name', 'Group')<any[]>(),
     web().siteGroups.select('Title')<Array<{ Title: string }>>(),
-    web().lists.filter('Hidden eq false').select('Title')<Array<{ Title: string }>>(),
+    web().lists.filter('Hidden eq false').select('Title')<
+      Array<{ Title: string }>
+    >(),
     web()
       .getFolderByServerRelativePath(
         `${conn.webInfo.ServerRelativeUrl.replace(/\/$/, '')}/SitePages`
@@ -110,7 +119,10 @@ export async function inspectWeb(
       (prefix || !field.Hidden) &&
       matchesPrefix(prefix, field.InternalName, field.Title, field.Group)
     )
-      siteFields[field.InternalName] = { ...fieldStateOf(field), Group: field.Group ?? '' }
+      siteFields[field.InternalName] = {
+        ...fieldStateOf(field),
+        Group: field.Group ?? ''
+      }
   const ownContentTypes: IInspection['contentTypes'] = {}
   for (const ct of contentTypes.filter((candidate) =>
     matchesPrefix(prefix, candidate.Name, candidate.Group)
@@ -144,7 +156,9 @@ export async function inspectWeb(
       Title: conn.webInfo.Title,
       Url: conn.webInfo.Url,
       ServerRelativeUrl: conn.webInfo.ServerRelativeUrl,
-      ...(conn.webInfo.Language !== undefined ? { Language: conn.webInfo.Language } : {})
+      ...(conn.webInfo.Language !== undefined
+        ? { Language: conn.webInfo.Language }
+        : {})
     },
     ...(prefix ? { prefix } : {}),
     siteFields,

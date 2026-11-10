@@ -7,15 +7,18 @@
  */
 export function redact(text: string): string {
   return String(text)
-    .replace(/\b(FedAuth|rtFa|SIMI|EdgeAccessCookie)=[^;\s"',]*/gi, '$1=<redacted>')
+    .replace(
+      /\b(FedAuth|rtFa|SIMI|EdgeAccessCookie)=[^;\s"',]*/gi,
+      '$1=<redacted>'
+    )
     .replace(/(set-cookie['"]?\s*[:=]\s*['"]?)[^'"\n]*/gi, '$1<redacted>')
     .replace(/Bearer\s+[A-Za-z0-9._~+/=-]+/g, 'Bearer <redacted>')
     .replace(
       /\b([a-z0-9]+(?:-(?!(?:admin|my)\.sharepoint\.com)[a-z0-9]+)*)((?:-admin|-my)?)\.sharepoint\.com/gi,
       (match, host, suffix) =>
-      /^(contoso|fabrikam)$/i.test(host)
-        ? match
-        : `<tenant>${suffix}.sharepoint.com`
+        /^(contoso|fabrikam)$/i.test(host)
+          ? match
+          : `<tenant>${suffix}.sharepoint.com`
     )
 }
 
@@ -30,5 +33,9 @@ export function describeError(error: any): string {
   const status = error.status ?? (error.cause && error.cause.status)
   const message =
     typeof error === 'string' ? error : error.message || String(error)
-  return redact(status && !message.includes(`[${status}]`) ? `${message} (${status})` : message)
+  return redact(
+    status && !message.includes(`[${status}]`)
+      ? `${message} (${status})`
+      : message
+  )
 }

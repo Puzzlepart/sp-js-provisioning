@@ -127,7 +127,10 @@ export function parseExtensions(value: string): IArgs['extensions'] {
  * @param argv - The arguments after `npm run <command> --`
  * @param command - The command they are for
  */
-export function parseArgs(argv: string[], command: Command = 'provision'): IArgs {
+export function parseArgs(
+  argv: string[],
+  command: Command = 'provision'
+): IArgs {
   const out: IArgs = {
     package: '',
     mode: 'hub',
@@ -144,7 +147,9 @@ export function parseArgs(argv: string[], command: Command = 'provision'): IArgs
   for (let i = 0; i < argv.length; i++) {
     const arg = argv[i]
     if (COMMAND_ONLY[arg] && COMMAND_ONLY[arg] !== command)
-      throw new UsageError(`${arg} is an option of npm run ${COMMAND_ONLY[arg]}`)
+      throw new UsageError(
+        `${arg} is an option of npm run ${COMMAND_ONLY[arg]}`
+      )
     const next = () => {
       const value = argv[++i]
       if (value === undefined || value.startsWith('--'))
@@ -404,7 +409,9 @@ function withoutNavigation(
   const navigation = { ...schema.Navigation }
   for (const collection of collections) delete navigation[collection]
   const { Navigation, ...rest } = schema
-  return Object.keys(navigation).length > 0 ? { ...rest, Navigation: navigation } : rest
+  return Object.keys(navigation).length > 0
+    ? { ...rest, Navigation: navigation }
+    : rest
 }
 
 /**
@@ -458,7 +465,9 @@ export function projectSteps(
       ...hooksOf('template hooks', template),
       ...extensions.reduce<IStep[]>(
         (steps, extension) =>
-          steps.concat(hooksOf(`extension ${extension.id} hooks`, extension.schema)),
+          steps.concat(
+            hooksOf(`extension ${extension.id} hooks`, extension.schema)
+          ),
         []
       )
     ]
@@ -478,7 +487,10 @@ export function verifyTargets(steps: IStep[]): IStep[] {
       step.schema,
       steps
         .slice(index + 1)
-        .reduce<string[]>((menus, later) => menus.concat(declaredMenus(later.schema)), [])
+        .reduce<string[]>(
+          (menus, later) => menus.concat(declaredMenus(later.schema)),
+          []
+        )
     )
   }))
 }
@@ -583,7 +595,8 @@ export interface IResolvedTemplate {
  * @param args - The arguments
  */
 export function resolveTemplate(
-  args: Pick<IArgs, 'package' | 'lang'> & Partial<Pick<IArgs, 'mode' | 'extensions'>>
+  args: Pick<IArgs, 'package' | 'lang'> &
+    Partial<Pick<IArgs, 'mode' | 'extensions'>>
 ): IResolvedTemplate {
   const stat = fs.statSync(args.package)
   if (stat.isFile() && /\.(pppkg|zip)$/i.test(args.package)) {
@@ -631,8 +644,12 @@ export function selectExtensions(
   if (selection === 'none') return []
   if (selection === 'all') return available
   if (!selection)
-    return available.filter((extension) => extension.defaultSelected || extension.locked)
-  const unknown = selection.filter((id) => !available.some((extension) => extension.id === id))
+    return available.filter(
+      (extension) => extension.defaultSelected || extension.locked
+    )
+  const unknown = selection.filter(
+    (id) => !available.some((extension) => extension.id === id)
+  )
   if (unknown.length)
     throw new UsageError(
       `Unknown extension(s): ${unknown.join(', ')}. The package has: ${
@@ -664,7 +681,9 @@ function readPackage(
   const key = project ? 'template' : 'hubTemplate'
   const file = manifest.provisioning?.[key]
   if (!file)
-    throw new UsageError(`manifest.provisioning.${key} missing in ${manifestPath}`)
+    throw new UsageError(
+      `manifest.provisioning.${key} missing in ${manifestPath}`
+    )
   return {
     schema: readTemplate(path.join(dir, file)),
     label: `${manifest.name ?? manifest.id} -> ${file}`,
@@ -704,7 +723,10 @@ export function describeSchema(schema: Record<string, any>): string {
  * @param handlers - The engine's handlers, in run order
  * @param command - The command
  */
-export function usage(handlers: string[], command: Command = 'provision'): string {
+export function usage(
+  handlers: string[],
+  command: Command = 'provision'
+): string {
   const provision = command === 'provision'
   return [
     provision
@@ -717,7 +739,9 @@ export function usage(handlers: string[], command: Command = 'provision'): strin
     '',
     '  --site <url>          Target site (default: INTEGRATION_SITE_URL from .env)',
     ...(provision
-      ? ['  --allow-site <url>    Write to a site outside INTEGRATION_SITE_URL (repeat the target)']
+      ? [
+          '  --allow-site <url>    Write to a site outside INTEGRATION_SITE_URL (repeat the target)'
+        ]
       : []),
     '  --package <path>      Package folder, .pppkg/.zip, or template JSON',
     '  --lang <locale>       Localized template (e.g. en-US). Default: the package default.',

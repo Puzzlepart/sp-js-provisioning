@@ -131,26 +131,33 @@ export async function prefixedArtefacts(
   const starts = (value: string | undefined, start: string) =>
     !!value && value.toLowerCase().startsWith(start.toLowerCase())
   const { web } = conn
-  const [lists, contentTypes, fields, actions, quickLaunch, topNav, groups] =
-    await Promise.all([
-      web.lists.select('Id', 'Title')<Array<{ Id: string; Title: string }>>(),
-      web.contentTypes.select('Id', 'Name', 'Group')<
-        Array<{ Id: { StringValue: string }; Name: string; Group: string }>
-      >(),
-      web.fields.select('Id', 'InternalName', 'Group')<
-        Array<{ Id: string; InternalName: string; Group: string }>
-      >(),
-      web.userCustomActions.select('Id', 'Title')<
-        Array<{ Id: string; Title: string }>
-      >(),
-      web.navigation.quicklaunch.select('Id', 'Title')<
-        Array<{ Id: number; Title: string }>
-      >(),
-      web.navigation.topNavigationBar.select('Id', 'Title')<
-        Array<{ Id: number; Title: string }>
-      >(),
-      web.siteGroups.select('Id', 'Title')<Array<{ Id: number; Title: string }>>()
-    ])
+  const [
+    lists,
+    contentTypes,
+    fields,
+    actions,
+    quickLaunch,
+    topNav,
+    groups
+  ] = await Promise.all([
+    web.lists.select('Id', 'Title')<Array<{ Id: string; Title: string }>>(),
+    web.contentTypes.select('Id', 'Name', 'Group')<
+      Array<{ Id: { StringValue: string }; Name: string; Group: string }>
+    >(),
+    web.fields.select('Id', 'InternalName', 'Group')<
+      Array<{ Id: string; InternalName: string; Group: string }>
+    >(),
+    web.userCustomActions.select('Id', 'Title')<
+      Array<{ Id: string; Title: string }>
+    >(),
+    web.navigation.quicklaunch.select('Id', 'Title')<
+      Array<{ Id: number; Title: string }>
+    >(),
+    web.navigation.topNavigationBar.select('Id', 'Title')<
+      Array<{ Id: number; Title: string }>
+    >(),
+    web.siteGroups.select('Id', 'Title')<Array<{ Id: number; Title: string }>>()
+  ])
   const pages = await web.lists
     .filter('BaseTemplate eq 119')
     .select('Id')<Array<{ Id: string }>>()
@@ -219,8 +226,7 @@ export async function prefixedArtefacts(
   // titled `SPJS Itest` has `SPJS Itest Owners`.
   const associated = await associatedGroupIds(conn)
   for (const group of groups.filter(
-    (g) =>
-      starts(g.Title, prefix) && !stampIn(g.Title) && !associated.has(g.Id)
+    (g) => starts(g.Title, prefix) && !stampIn(g.Title) && !associated.has(g.Id)
   ))
     items.push({
       kind: 'site group',

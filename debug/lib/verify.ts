@@ -1,7 +1,12 @@
 import { SPInstance } from '@pnp/sp/presets/all'
 import { DefaultHandlerSort } from '../../src/handlers/exports'
 import { ProvisioningContext } from '../../src/provisioningcontext'
-import { base64EncodeString, makeUrlRelative, mapStrings, replaceUrlTokens } from '../../src/util'
+import {
+  base64EncodeString,
+  makeUrlRelative,
+  mapStrings,
+  replaceUrlTokens
+} from '../../src/util'
 import { declaredType, fieldTarget, guidOf } from '../../src/util/fieldxml'
 import { normaliseNavigationUrl } from '../../src/util/navigationurl'
 import { TokenHelper } from '../../src/util/tokenhelper'
@@ -133,10 +138,10 @@ export function tokensOf(context: IVerifyContext): ITokens {
   provisioning.listViews = { ...context.listViews }
   const config = {
     parameters: context.parameters || {},
-    spfxContext: spfxContext(
-      context.site,
-      { Language: 0, ...context.web } as any
-    )
+    spfxContext: spfxContext(context.site, {
+      Language: 0,
+      ...context.web
+    } as any)
   }
   const helper = new TokenHelper(provisioning, config)
   const t = (text: string) => helper.replaceTokens(text)
@@ -250,7 +255,9 @@ export interface IExpectedPage {
   title: string
   layout: string
   commentsDisabled: boolean
-  sections: Array<{ columns: Array<{ factor: number; controls: IExpectedControl[] }> }>
+  sections: Array<{
+    columns: Array<{ factor: number; controls: IExpectedControl[] }>
+  }>
   verticalSection: IExpectedControl[] | null
 }
 
@@ -268,7 +275,12 @@ export interface IExpectedContentType {
   name: string
   description?: string
   group?: string
-  fieldRefs: Array<{ id: string; name?: string; required?: boolean; hidden?: boolean }>
+  fieldRefs: Array<{
+    id: string
+    name?: string
+    required?: boolean
+    hidden?: boolean
+  }>
 }
 
 /**
@@ -280,7 +292,11 @@ export interface IExpected {
   handlers: string[]
   taxonomy?: {
     group?: { id: string; name: string }
-    sets: Array<{ id: string; name: string; terms: Array<{ id: string; name: string }> }>
+    sets: Array<{
+      id: string
+      name: string
+      terms: Array<{ id: string; name: string }>
+    }>
   }
   siteFields?: IExpectedField[]
   contentTypes?: IExpectedContentType[]
@@ -291,8 +307,16 @@ export interface IExpected {
   customActions?: Array<{ title: string; action: Record<string, any> }>
   composedLook?: { palette: string; fontScheme?: string; background?: string }
   pages?: IExpectedPage[]
-  propertyBag?: Array<{ key: string; value: string; overwrite: boolean; indexed: boolean }>
-  navigation?: { QuickLaunch?: IExpectedNode[]; TopNavigationBar?: IExpectedNode[] }
+  propertyBag?: Array<{
+    key: string
+    value: string
+    overwrite: boolean
+    indexed: boolean
+  }>
+  navigation?: {
+    QuickLaunch?: IExpectedNode[]
+    TopNavigationBar?: IExpectedNode[]
+  }
   webSettings?: Record<string, any>
   /** What is declared but not compared, and why. */
   notes: INote[]
@@ -383,15 +407,24 @@ function folderPaths(folders: any[], parent = ''): string[] {
  * @param row - The row
  * @param tokens - Token replacement
  */
-function resolvedRow(row: Record<string, any>, tokens: ITokens): Record<string, any> {
+function resolvedRow(
+  row: Record<string, any>,
+  tokens: ITokens
+): Record<string, any> {
   const resolved: Record<string, any> = {}
   for (const name of Object.keys(row)) {
     const value = row[name]
     if (typeof value === 'string') resolved[name] = tokens.t(value)
-    else if (value && typeof value === 'object' && typeof value.Url === 'string')
+    else if (
+      value &&
+      typeof value === 'object' &&
+      typeof value.Url === 'string'
+    )
       resolved[name] = {
         Url: tokens.t(value.Url),
-        ...(value.Description ? { Description: tokens.t(value.Description) } : {})
+        ...(value.Description
+          ? { Description: tokens.t(value.Description) }
+          : {})
       }
     else resolved[name] = value
   }
@@ -409,7 +442,8 @@ const TEXT_IDS = ['Text', 'PageText']
  * @param tokens - Token replacement
  */
 function controlOf(control: any, tokens: ITokens): IExpectedControl {
-  if (TEXT_IDS.includes(control.Id)) return { type: 'text', text: control.Text ?? '' }
+  if (TEXT_IDS.includes(control.Id))
+    return { type: 'text', text: control.Text ?? '' }
   const content = control.ServerProcessedContent || {}
   const filled = Object.keys(content).filter(
     (key) => content[key] && Object.keys(content[key]).length > 0
@@ -474,7 +508,9 @@ export function expectations(
       note(
         handler,
         path,
-        `${left.join(', ')} has no value on this web (pass --parameters for {parameter:}); compared as it stands`
+        `${left.join(
+          ', '
+        )} has no value on this web (pass --parameters for {parameter:}); compared as it stands`
       )
   }
 
@@ -484,7 +520,12 @@ export function expectations(
       case 'Taxonomy':
         expected.taxonomy = {
           ...(section.TermGroup && section.TermGroup.Id
-            ? { group: { id: bareGuid(section.TermGroup.Id), name: section.TermGroup.Name } }
+            ? {
+                group: {
+                  id: bareGuid(section.TermGroup.Id),
+                  name: section.TermGroup.Name
+                }
+              }
             : {}),
           sets: (section.TermSets || []).map((set: any) => ({
             id: bareGuid(set.Id),
@@ -502,14 +543,22 @@ export function expectations(
           try {
             expected.siteFields.push(fieldOf(xml, tokens))
           } catch (error) {
-            note(handler, '?', `the field XML could not be read: ${error && error.message}`)
+            note(
+              handler,
+              '?',
+              `the field XML could not be read: ${error && error.message}`
+            )
           }
         break
       case 'ContentTypes':
         expected.contentTypes = []
         for (const ct of section) {
           if (!ct.ID) {
-            note(handler, ct.Name, 'a content type without ID (matched by name by the handler) is not compared')
+            note(
+              handler,
+              ct.Name,
+              'a content type without ID (matched by name by the handler) is not compared'
+            )
             continue
           }
           expected.contentTypes.push({
@@ -546,14 +595,24 @@ export function expectations(
             ])
               if (group[key] !== undefined)
                 properties[key] =
-                  typeof group[key] === 'string' ? tokens.t(group[key]) : group[key]
-            unresolvedNote(handler, `groups/${group.Title}`, JSON.stringify(group))
+                  typeof group[key] === 'string'
+                    ? tokens.t(group[key])
+                    : group[key]
+            unresolvedNote(
+              handler,
+              `groups/${group.Title}`,
+              JSON.stringify(group)
+            )
             return {
               title: tokens.t(group.Title),
               properties,
-              members: (group.Members || []).map((member: string) => tokens.t(member)),
+              members: (group.Members || []).map((member: string) =>
+                tokens.t(member)
+              ),
               clearExisting: !!group.ClearExistingMembers,
-              ...(group.Owner ? { owner: principalOf(group.Owner, tokens) } : {})
+              ...(group.Owner
+                ? { owner: principalOf(group.Owner, tokens) }
+                : {})
             }
           }),
           web: securableOf(section, tokens)
@@ -569,7 +628,9 @@ export function expectations(
           const list: IExpectedList = {
             title: lc.Title,
             ...(lc.Template !== undefined ? { template: lc.Template } : {}),
-            ...(lc.Description !== undefined ? { description: lc.Description } : {}),
+            ...(lc.Description !== undefined
+              ? { description: lc.Description }
+              : {}),
             ...(lc.ContentTypesEnabled !== undefined
               ? { contentTypesEnabled: lc.ContentTypesEnabled }
               : {}),
@@ -583,10 +644,14 @@ export function expectations(
             fieldRefs: (lc.FieldRefs || []).map((ref: any) => ({
               id: bareGuid(ref.ID),
               ...(ref.Name ? { name: ref.Name } : {}),
-              ...(ref.DisplayName !== undefined ? { displayName: ref.DisplayName } : {}),
+              ...(ref.DisplayName !== undefined
+                ? { displayName: ref.DisplayName }
+                : {}),
               ...(ref.Required !== undefined ? { required: ref.Required } : {}),
               ...(ref.Hidden !== undefined ? { hidden: ref.Hidden } : {}),
-              ...(ref.AdditionalProperties ? { additional: ref.AdditionalProperties } : {})
+              ...(ref.AdditionalProperties
+                ? { additional: ref.AdditionalProperties }
+                : {})
             })),
             views,
             removeExistingViews: !!lc.RemoveExistingViews && !!lc.Views,
@@ -596,7 +661,11 @@ export function expectations(
             try {
               list.fields.push(fieldOf(xml, tokens))
             } catch (error) {
-              note(handler, `${lc.Title}/Fields`, `a field XML could not be read: ${error && error.message}`)
+              note(
+                handler,
+                `${lc.Title}/Fields`,
+                `a field XML could not be read: ${error && error.message}`
+              )
             }
           const rows = lc.DataRows
           if (rows && rows.Rows && rows.Rows.length > 0) {
@@ -621,7 +690,11 @@ export function expectations(
                 `${lc.Title}/DataRows`,
                 'without a KeyColumn the handler adds every row on every run: each row must match an item, duplicates are not reported'
               )
-            unresolvedNote(handler, `${lc.Title}/DataRows`, JSON.stringify(rows.Rows))
+            unresolvedNote(
+              handler,
+              `${lc.Title}/DataRows`,
+              JSON.stringify(rows.Rows)
+            )
           }
           if (lc.Security) list.security = securableOf(lc.Security, tokens)
           return list
@@ -634,7 +707,11 @@ export function expectations(
             .filter(Boolean)
             .join('/')}`
         }))
-        note(handler, '*', 'only that each file exists: its contents, properties and web parts are not compared')
+        note(
+          handler,
+          '*',
+          'only that each file exists: its contents, properties and web parts are not compared'
+        )
         break
       case 'CustomActions':
         expected.customActions = (section as any[]).map((action) => ({
@@ -649,7 +726,11 @@ export function expectations(
             ? { fontScheme: makeUrlRelative(tokens.u(section.FontSchemeUrl)) }
             : {}),
           ...(section.BackgroundImageUrl
-            ? { background: makeUrlRelative(tokens.u(section.BackgroundImageUrl)) }
+            ? {
+                background: makeUrlRelative(
+                  tokens.u(section.BackgroundImageUrl)
+                )
+              }
             : {})
         }
         break
@@ -669,7 +750,9 @@ export function expectations(
             }))
           })),
           verticalSection: page.VerticalSection
-            ? page.VerticalSection.map((control: any) => controlOf(control, tokens))
+            ? page.VerticalSection.map((control: any) =>
+                controlOf(control, tokens)
+              )
             : null
         }))
         break
@@ -685,18 +768,24 @@ export function expectations(
         expected.navigation = {}
         for (const collection of ['QuickLaunch', 'TopNavigationBar'] as const)
           if (Array.isArray(section[collection]))
-            expected.navigation[collection] = section[collection].map((node: any) =>
-              nodeOf(node, tokens, exact)
-            )
+            expected.navigation[collection] = section[
+              collection
+            ].map((node: any) => nodeOf(node, tokens, exact))
         break
       case 'WebSettings':
         expected.webSettings = {}
         for (const key of Object.keys(section))
           expected.webSettings[key] =
-            typeof section[key] === 'string' ? tokens.u(section[key]) : section[key]
+            typeof section[key] === 'string'
+              ? tokens.u(section[key])
+              : section[key]
         break
       case 'Hooks':
-        note(handler, '*', 'hooks call a URL and leave nothing on the web to read')
+        note(
+          handler,
+          '*',
+          'hooks call a URL and leave nothing on the web to read'
+        )
         break
     }
   }
@@ -712,29 +801,38 @@ export function queryOf(expected: IExpected): ISiteQuery {
   const query: ISiteQuery = {}
   if (expected.taxonomy)
     query.taxonomy = {
-      ...(expected.taxonomy.group ? { groupId: expected.taxonomy.group.id } : {}),
+      ...(expected.taxonomy.group
+        ? { groupId: expected.taxonomy.group.id }
+        : {}),
       sets: expected.taxonomy.sets.map((set) => ({
         id: set.id,
         terms: set.terms.map((term) => term.id)
       }))
     }
-  if (expected.siteFields) query.siteFields = expected.siteFields.map((f) => f.name)
-  if (expected.contentTypes) query.contentTypes = expected.contentTypes.map((ct) => ct.id)
+  if (expected.siteFields)
+    query.siteFields = expected.siteFields.map((f) => f.name)
+  if (expected.contentTypes)
+    query.contentTypes = expected.contentTypes.map((ct) => ct.id)
   if (expected.features) query.features = true
   if (expected.security)
-    query.security = { groups: expected.security.groups.map((group) => group.title) }
+    query.security = {
+      groups: expected.security.groups.map((group) => group.title)
+    }
   else if (
     (expected.lists || []).some(
       (list) =>
         list.security &&
-        list.security.assignments.some((assignment) => assignment.principal.kind === 'associated')
+        list.security.assignments.some(
+          (assignment) => assignment.principal.kind === 'associated'
+        )
     )
   )
     query.associatedGroups = true
   if (expected.lists)
     query.lists = expected.lists.map((list) => {
       const viewSettings: Record<string, string[]> = {}
-      for (const view of list.views) viewSettings[view.title] = Object.keys(view.settings)
+      for (const view of list.views)
+        viewSettings[view.title] = Object.keys(view.settings)
       const columns: string[] = []
       for (const row of list.rows ? list.rows.rows : [])
         for (const name of Object.keys(row.raw))
@@ -758,7 +856,8 @@ export function queryOf(expected: IExpected): ISiteQuery {
   if (expected.pages) query.pages = expected.pages.map((page) => page.name)
   if (expected.propertyBag) query.propertyBag = true
   if (expected.navigation) query.navigation = true
-  if (expected.webSettings) query.webSettings = Object.keys(expected.webSettings)
+  if (expected.webSettings)
+    query.webSettings = Object.keys(expected.webSettings)
   return query
 }
 
@@ -798,12 +897,19 @@ export function deepEqual(a: any, b: any): boolean {
   if (typeof a !== typeof b || a === null || b === null) return false
   if (Array.isArray(a) !== Array.isArray(b)) return false
   if (Array.isArray(a))
-    return a.length === b.length && a.every((item, index) => deepEqual(item, b[index]))
+    return (
+      a.length === b.length &&
+      a.every((item, index) => deepEqual(item, b[index]))
+    )
   if (typeof a === 'object') {
     const keys = Object.keys(a)
     return (
       keys.length === Object.keys(b).length &&
-      keys.every((key) => Object.prototype.hasOwnProperty.call(b, key) && deepEqual(a[key], b[key]))
+      keys.every(
+        (key) =>
+          Object.prototype.hasOwnProperty.call(b, key) &&
+          deepEqual(a[key], b[key])
+      )
     )
   }
   return false
@@ -842,7 +948,10 @@ export function projected(actual: any, expected: any): any {
  * @param principal - The user
  * @param login - The template's login
  */
-export function loginMatches(principal: IPrincipalState | null, login: string): boolean {
+export function loginMatches(
+  principal: IPrincipalState | null,
+  login: string
+): boolean {
   if (!principal) return false
   const wanted = String(login).trim().toLowerCase()
   const name = (principal.LoginName || '').toLowerCase()
@@ -881,7 +990,10 @@ export function principalMatches(
  * @param assignment - The assignment
  * @param role - The template's role definition
  */
-export function grantsRole(assignment: IAssignmentState, role: string): boolean {
+export function grantsRole(
+  assignment: IAssignmentState,
+  role: string
+): boolean {
   const wanted = role.trim().toLowerCase()
   return assignment.roles.some(
     (binding) =>
@@ -924,8 +1036,20 @@ function sameSetting(expected: any, actual: any): boolean {
 class Findings {
   public list: IFinding[] = []
   constructor(public notes: INote[]) {}
-  public add(handler: string, path: string, expected: any, actual: any, message?: string) {
-    this.list.push({ handler, path, expected, actual, ...(message ? { message } : {}) })
+  public add(
+    handler: string,
+    path: string,
+    expected: any,
+    actual: any,
+    message?: string
+  ) {
+    this.list.push({
+      handler,
+      path,
+      expected,
+      actual,
+      ...(message ? { message } : {})
+    })
   }
   public note(handler: string, path: string, reason: string) {
     this.notes.push({ handler, path, reason })
@@ -951,7 +1075,9 @@ function diffField(
   actual: IFieldState
 ): void {
   const message = expected.unresolved.length
-    ? `the template's ${expected.unresolved.join(', ')} has no value on this web`
+    ? `the template's ${expected.unresolved.join(
+        ', '
+      )} has no value on this web`
     : undefined
   if (expected.id && actual.Id !== expected.id)
     f.add(handler, `${path}/ID`, expected.id, actual.Id)
@@ -983,15 +1109,30 @@ function diffField(
     if (want !== have) f.add(handler, `${path}/@${name}`, want, have, message)
   }
   for (const part of ['Default', 'Formula', 'Choices', 'FieldRefs'] as const)
-    if (expected.schema[part] !== undefined && !deepEqual(expected.schema[part], stored[part]))
-      f.add(handler, `${path}/${part}`, expected.schema[part], stored[part], message)
+    if (
+      expected.schema[part] !== undefined &&
+      !deepEqual(expected.schema[part], stored[part])
+    )
+      f.add(
+        handler,
+        `${path}/${part}`,
+        expected.schema[part],
+        stored[part],
+        message
+      )
   if (taxonomy)
     for (const target of ['TermSetId', 'SspId']) {
       const want = fieldTarget(expected.xml, target)
       if (want === undefined) continue
       const have = fieldTarget(actual.SchemaXml, target)
       if ((guidOf(want) || want) !== (guidOf(have) || have))
-        f.add(handler, `${path}/${target}`, guidOf(want) || want, guidOf(have) || have, message)
+        f.add(
+          handler,
+          `${path}/${target}`,
+          guidOf(want) || want,
+          guidOf(have) || have,
+          message
+        )
     }
 }
 
@@ -1018,20 +1159,40 @@ function diffSecurable(
     f.add(handler, `${path}/HasUniqueRoleAssignments`, true, false)
   for (const assignment of expected.assignments) {
     const where = `${path}/RoleAssignments/${assignment.principal.text}`
-    if (assignment.principal.kind === 'associated' && !associated[assignment.principal.which]) {
-      f.add(handler, where, assignment.role, null, `the web has no associated ${assignment.principal.which} group of its own`)
+    if (
+      assignment.principal.kind === 'associated' &&
+      !associated[assignment.principal.which]
+    ) {
+      f.add(
+        handler,
+        where,
+        assignment.role,
+        null,
+        `the web has no associated ${assignment.principal.which} group of its own`
+      )
       continue
     }
     const held = actual.roleAssignments.filter((candidate) =>
       principalMatches(assignment.principal, candidate.member, associated)
     )
-    if (held.length === 0) f.add(handler, where, assignment.role, null, 'the principal has no role assignment')
+    if (held.length === 0)
+      f.add(
+        handler,
+        where,
+        assignment.role,
+        null,
+        'the principal has no role assignment'
+      )
     else if (!held.some((candidate) => grantsRole(candidate, assignment.role)))
       f.add(
         handler,
         where,
         assignment.role,
-        held.reduce((roles: string[], candidate) => roles.concat(candidate.roles.map((r) => r.Name)), [])
+        held.reduce(
+          (roles: string[], candidate) =>
+            roles.concat(candidate.roles.map((r) => r.Name)),
+          []
+        )
       )
   }
 }
@@ -1062,17 +1223,33 @@ export function compareValue(
     const texts: string[] = []
     for (const value of many(raw)) {
       if (typeof value === 'number') ids.push(value)
-      else if (value && typeof value === 'object' && value.lookupId !== undefined) ids.push(Number(value.lookupId))
+      else if (
+        value &&
+        typeof value === 'object' &&
+        value.lookupId !== undefined
+      )
+        ids.push(Number(value.lookupId))
       else if (typeof value === 'string') texts.push(value)
-      else if (value && typeof value === 'object' && value.lookupValue !== undefined) texts.push(String(value.lookupValue))
+      else if (
+        value &&
+        typeof value === 'object' &&
+        value.lookupValue !== undefined
+      )
+        texts.push(String(value.lookupValue))
     }
-    if (texts.length > 0 && !expanded) return { unchecked: 'lookup values by text need the lookup expanded, which SharePoint refused' }
+    if (texts.length > 0 && !expanded)
+      return {
+        unchecked:
+          'lookup values by text need the lookup expanded, which SharePoint refused'
+      }
     const have = actual || { ids: [], texts: [] }
     const ok =
       have.ids.length === ids.length + texts.length &&
       ids.every((id) => have.ids.includes(id)) &&
       texts.every((text) => (have.texts || []).includes(text))
-    return ok ? undefined : differs([...ids, ...texts], expanded ? have.texts : have.ids)
+    return ok
+      ? undefined
+      : differs([...ids, ...texts], expanded ? have.texts : have.ids)
   }
   if (/^User/.test(type)) {
     const ids: number[] = []
@@ -1080,21 +1257,33 @@ export function compareValue(
     for (const value of many(raw)) {
       if (typeof value === 'number') ids.push(value)
       else if (typeof value === 'string') logins.push(value)
-      else if (value && (value.login || value.email)) logins.push(value.login || value.email)
+      else if (value && (value.login || value.email))
+        logins.push(value.login || value.email)
     }
-    if (logins.length > 0 && !expanded) return { unchecked: 'users by login need the column expanded, which SharePoint refused' }
+    if (logins.length > 0 && !expanded)
+      return {
+        unchecked:
+          'users by login need the column expanded, which SharePoint refused'
+      }
     const have = actual || { ids: [], logins: [], emails: [] }
-    const users: IPrincipalState[] = (have.ids || []).map((id: number, index: number) => ({
-      Id: id,
-      Title: '',
-      LoginName: (have.logins || [])[index] || '',
-      Email: (have.emails || [])[index] || ''
-    }))
+    const users: IPrincipalState[] = (have.ids || []).map(
+      (id: number, index: number) => ({
+        Id: id,
+        Title: '',
+        LoginName: (have.logins || [])[index] || '',
+        Email: (have.emails || [])[index] || ''
+      })
+    )
     const ok =
       users.length === ids.length + logins.length &&
       ids.every((id) => users.some((user) => user.Id === id)) &&
       logins.every((login) => users.some((user) => loginMatches(user, login)))
-    return ok ? undefined : differs([...ids, ...logins], users.map((user) => user.LoginName || user.Id))
+    return ok
+      ? undefined
+      : differs(
+          [...ids, ...logins],
+          users.map((user) => user.LoginName || user.Id)
+        )
   }
   if (/^TaxonomyFieldType/.test(type)) {
     const ids = many(raw)
@@ -1107,12 +1296,22 @@ export function compareValue(
   }
   if (type === 'URL') {
     const want =
-      typeof resolved === 'string' ? { Url: resolved } : { Url: resolved.Url, Description: resolved.Description ?? resolved.Url }
+      typeof resolved === 'string'
+        ? { Url: resolved }
+        : {
+            Url: resolved.Url,
+            Description: resolved.Description ?? resolved.Url
+          }
     const have = actual || {}
     const ok =
       have.Url === want.Url &&
       (want.Description === undefined || have.Description === want.Description)
-    return ok ? undefined : differs(want, actual && { Url: have.Url, Description: have.Description })
+    return ok
+      ? undefined
+      : differs(
+          want,
+          actual && { Url: have.Url, Description: have.Description }
+        )
   }
   if (type === 'MultiChoice') {
     const want = many(raw).map(String).sort()
@@ -1125,17 +1324,27 @@ export function compareValue(
   }
   if (type === 'DateTime') {
     if (typeof raw !== 'string' || !/(Z|[+-]\d\d:?\d\d)$/i.test(raw))
-      return { unchecked: 'a DateTime without a time zone is stored in the web\'s time zone; not compared' }
-    return actual && Date.parse(actual) === Date.parse(raw) ? undefined : differs(raw, actual)
+      return {
+        unchecked:
+          "a DateTime without a time zone is stored in the web's time zone; not compared"
+      }
+    return actual && Date.parse(actual) === Date.parse(raw)
+      ? undefined
+      : differs(raw, actual)
   }
   if (['Number', 'Currency', 'Integer', 'Counter'].includes(type))
-    return Number(resolved) === Number(actual) ? undefined : differs(resolved, actual)
+    return Number(resolved) === Number(actual)
+      ? undefined
+      : differs(resolved, actual)
   if (type === 'Note') {
     const want = textOfHtml(resolved)
     return want === textOfHtml(actual) ? undefined : differs(resolved, actual)
   }
-  const want = typeof resolved === 'object' ? JSON.stringify(resolved) : String(resolved)
-  return want === String(absent(actual) ? '' : actual) ? undefined : differs(resolved, actual)
+  const want =
+    typeof resolved === 'object' ? JSON.stringify(resolved) : String(resolved)
+  return want === String(absent(actual) ? '' : actual)
+    ? undefined
+    : differs(resolved, actual)
 }
 
 /**
@@ -1157,15 +1366,38 @@ function diffRows(
   exact: boolean
 ): void {
   for (const name of items.missing)
-    f.add('Lists', `${title}/DataRows/${name}`, 'a column of the list', 'no such column', 'a row names it')
-  const rowDifferences = (row: IExpectedRow, item: { values: Record<string, any> }, path: string) => {
+    f.add(
+      'Lists',
+      `${title}/DataRows/${name}`,
+      'a column of the list',
+      'no such column',
+      'a row names it'
+    )
+  const rowDifferences = (
+    row: IExpectedRow,
+    item: { values: Record<string, any> },
+    path: string
+  ) => {
     const differences: IFinding[] = []
     for (const name of Object.keys(row.raw)) {
       if (!items.types[name]) continue
-      const result = compareValue(items.types[name], row.raw[name], row.resolved[name], item.values[name], items.expanded)
+      const result = compareValue(
+        items.types[name],
+        row.raw[name],
+        row.resolved[name],
+        item.values[name],
+        items.expanded
+      )
       if (!result) continue
-      if ('unchecked' in result) f.note('Lists', `${path}/${name}`, result.unchecked)
-      else differences.push({ handler: 'Lists', path: `${path}/${name}`, expected: result.expected, actual: result.actual })
+      if ('unchecked' in result)
+        f.note('Lists', `${path}/${name}`, result.unchecked)
+      else
+        differences.push({
+          handler: 'Lists',
+          path: `${path}/${name}`,
+          expected: result.expected,
+          actual: result.actual
+        })
     }
     return differences
   }
@@ -1185,12 +1417,21 @@ function diffRows(
         continue
       }
       if (matches.length > 1)
-        f.add('Lists', where, '1 item', `${matches.length} items`, 'the handler updates only the first')
+        f.add(
+          'Lists',
+          where,
+          '1 item',
+          `${matches.length} items`,
+          'the handler updates only the first'
+        )
       if (!rows.skip || exact)
-        for (const difference of rowDifferences(row, matches[0], where)) f.list.push(difference)
+        for (const difference of rowDifferences(row, matches[0], where))
+          f.list.push(difference)
       continue
     }
-    const differences = items.items.map((item) => rowDifferences(row, item, path))
+    const differences = items.items.map((item) =>
+      rowDifferences(row, item, path)
+    )
     if (!differences.some((list) => list.length === 0))
       f.add('Lists', path, row.resolved, 'no item holds these values')
   }
@@ -1215,30 +1456,69 @@ function diffList(
 ): void {
   const title = expected.title
   const properties = actual.properties
-  if (expected.template !== undefined && properties.BaseTemplate !== expected.template)
-    f.add('Lists', `${title}/Template`, expected.template, properties.BaseTemplate)
-  if (expected.description !== undefined && (properties.Description ?? '') !== expected.description)
-    f.add('Lists', `${title}/Description`, expected.description, properties.Description)
+  if (
+    expected.template !== undefined &&
+    properties.BaseTemplate !== expected.template
+  )
+    f.add(
+      'Lists',
+      `${title}/Template`,
+      expected.template,
+      properties.BaseTemplate
+    )
+  if (
+    expected.description !== undefined &&
+    (properties.Description ?? '') !== expected.description
+  )
+    f.add(
+      'Lists',
+      `${title}/Description`,
+      expected.description,
+      properties.Description
+    )
   if (
     expected.contentTypesEnabled !== undefined &&
     properties.ContentTypesEnabled !== expected.contentTypesEnabled
   )
-    f.add('Lists', `${title}/ContentTypesEnabled`, expected.contentTypesEnabled, properties.ContentTypesEnabled)
+    f.add(
+      'Lists',
+      `${title}/ContentTypesEnabled`,
+      expected.contentTypesEnabled,
+      properties.ContentTypesEnabled
+    )
   for (const key of Object.keys(expected.settings)) {
     if (properties[key] === undefined) continue
     if (!sameSetting(expected.settings[key], properties[key]))
-      f.add('Lists', `${title}/AdditionalSettings/${key}`, expected.settings[key], properties[key])
+      f.add(
+        'Lists',
+        `${title}/AdditionalSettings/${key}`,
+        expected.settings[key],
+        properties[key]
+      )
   }
-  const bound = (id: string, binding: string) => id.toUpperCase().indexOf(binding) === 0
+  const bound = (id: string, binding: string) =>
+    id.toUpperCase().indexOf(binding) === 0
   for (const binding of expected.bindings)
     if (!actual.contentTypes.some((ct) => bound(ct.Id, binding)))
-      f.add('Lists', `${title}/ContentTypeBindings/${binding}`, 'bound', 'not bound')
+      f.add(
+        'Lists',
+        `${title}/ContentTypeBindings/${binding}`,
+        'bound',
+        'not bound'
+      )
   if (expected.removeExistingContentTypes) {
     const extra = actual.contentTypes.filter(
-      (ct) => !expected.bindings.some((binding) => bound(ct.Id, binding)) && !bound(ct.Id, '0X0120')
+      (ct) =>
+        !expected.bindings.some((binding) => bound(ct.Id, binding)) &&
+        !bound(ct.Id, '0X0120')
     )
     if (extra.length > 0)
-      f.add('Lists', `${title}/ContentTypes`, 'only the bound content types (RemoveExistingContentTypes)', extra.map((ct) => ct.Name))
+      f.add(
+        'Lists',
+        `${title}/ContentTypes`,
+        'only the bound content types (RemoveExistingContentTypes)',
+        extra.map((ct) => ct.Name)
+      )
   }
   for (const field of expected.fields) {
     const path = `${title}/Fields/${field.name}`
@@ -1246,13 +1526,19 @@ function diffList(
       ? actual.fields.find((candidate) => candidate.Id === field.id)
       : actual.fields.find((candidate) => candidate.InternalName === field.name)
     if (!stored) {
-      const sameName = actual.fields.find((candidate) => candidate.InternalName === field.name)
+      const sameName = actual.fields.find(
+        (candidate) => candidate.InternalName === field.name
+      )
       f.add(
         'Lists',
         path,
         'a field',
         sameName ? `a field with another id (${sameName.Id})` : 'none',
-        field.unresolved.length ? `the template's ${field.unresolved.join(', ')} has no value on this web` : undefined
+        field.unresolved.length
+          ? `the template's ${field.unresolved.join(
+              ', '
+            )} has no value on this web`
+          : undefined
       )
       continue
     }
@@ -1280,7 +1566,13 @@ function diffList(
       }
       const wanted = fieldSchema(
         `<Field ${Object.keys(ref.additional)
-          .map((key) => `${key}="${String(ref.additional[key]).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;')}"`)
+          .map(
+            (key) =>
+              `${key}="${String(ref.additional[key])
+                .replace(/&/g, '&amp;')
+                .replace(/"/g, '&quot;')
+                .replace(/</g, '&lt;')}"`
+          )
           .join(' ')} />`
       ).attributes
       for (const key of Object.keys(wanted))
@@ -1290,7 +1582,9 @@ function diffList(
   }
   for (const view of expected.views) {
     const path = `${title}/views/${view.title}`
-    const stored = actual.views.find((candidate) => candidate.Title === view.title)
+    const stored = actual.views.find(
+      (candidate) => candidate.Title === view.title
+    )
     if (!stored) {
       f.add('Lists', path, 'a view', 'none')
       continue
@@ -1302,7 +1596,9 @@ function diffList(
       if (have === undefined) continue
       const want = view.settings[key]
       const same =
-        key === 'ViewQuery' ? compact(want) === compact(have) : sameSetting(want, have)
+        key === 'ViewQuery'
+          ? compact(want) === compact(have)
+          : sameSetting(want, have)
       if (!same) f.add('Lists', `${path}/${key}`, want, have)
     }
   }
@@ -1314,17 +1610,37 @@ function diffList(
         !named.has(view.Title) &&
         !view.PersonalView &&
         !view.DefaultView &&
-        !(view.Hidden && view.ServerRelativeUrl.toLowerCase().indexOf(root) !== 0)
+        !(
+          view.Hidden &&
+          view.ServerRelativeUrl.toLowerCase().indexOf(root) !== 0
+        )
     )
     if (extra.length > 0)
-      f.add('Lists', `${title}/views`, 'only the template\'s views (RemoveExistingViews)', extra.map((view) => view.Title))
+      f.add(
+        'Lists',
+        `${title}/views`,
+        "only the template's views (RemoveExistingViews)",
+        extra.map((view) => view.Title)
+      )
   }
   for (const folder of expected.folders)
-    if (!actual.folders.some((stored) => stored.toLowerCase() === folder.toLowerCase()))
+    if (
+      !actual.folders.some(
+        (stored) => stored.toLowerCase() === folder.toLowerCase()
+      )
+    )
       f.add('Lists', `${title}/Folders/${folder}`, 'a folder', 'none')
-  if (expected.rows && actual.items) diffRows(f, title, expected.rows, actual.items, exact)
+  if (expected.rows && actual.items)
+    diffRows(f, title, expected.rows, actual.items, exact)
   if (expected.security)
-    diffSecurable(f, 'Lists', `${title}/Security`, expected.security, actual, associated)
+    diffSecurable(
+      f,
+      'Lists',
+      `${title}/Security`,
+      expected.security,
+      actual,
+      associated
+    )
 }
 
 /**
@@ -1335,27 +1651,66 @@ function diffList(
  * @param expected - The template's control
  * @param actual - The page's
  */
-function diffControl(f: Findings, path: string, expected: IExpectedControl, actual: any): void {
+function diffControl(
+  f: Findings,
+  path: string,
+  expected: IExpectedControl,
+  actual: any
+): void {
   if (!actual) {
-    f.add('ClientSidePages', path, expected.type === 'text' ? 'a text control' : `web part ${expected.id}`, 'none')
+    f.add(
+      'ClientSidePages',
+      path,
+      expected.type === 'text' ? 'a text control' : `web part ${expected.id}`,
+      'none'
+    )
     return
   }
   if (expected.type === 'text') {
-    if (actual.type !== 'text' || compact(actual.text) !== compact(expected.text))
-      f.add('ClientSidePages', path, expected.text, actual.type === 'text' ? actual.text : actual.webPartId)
+    if (
+      actual.type !== 'text' ||
+      compact(actual.text) !== compact(expected.text)
+    )
+      f.add(
+        'ClientSidePages',
+        path,
+        expected.text,
+        actual.type === 'text' ? actual.text : actual.webPartId
+      )
     return
   }
-  if (actual.type !== 'webpart' || !String(actual.webPartId || '').includes(expected.id)) {
-    f.add('ClientSidePages', path, `web part ${expected.id}`, actual.type === 'webpart' ? `web part ${actual.webPartId}` : actual.type)
+  if (
+    actual.type !== 'webpart' ||
+    !String(actual.webPartId || '').includes(expected.id)
+  ) {
+    f.add(
+      'ClientSidePages',
+      path,
+      `web part ${expected.id}`,
+      actual.type === 'webpart' ? `web part ${actual.webPartId}` : actual.type
+    )
     return
   }
   const properties = projected(actual.properties || {}, expected.properties)
   if (!deepEqual(properties, expected.properties))
-    f.add('ClientSidePages', `${path}/properties`, expected.properties, properties)
+    f.add(
+      'ClientSidePages',
+      `${path}/properties`,
+      expected.properties,
+      properties
+    )
   if (expected.serverProcessedContent) {
-    const content = projected(actual.serverProcessedContent || {}, expected.serverProcessedContent)
+    const content = projected(
+      actual.serverProcessedContent || {},
+      expected.serverProcessedContent
+    )
     if (!deepEqual(content, expected.serverProcessedContent))
-      f.add('ClientSidePages', `${path}/serverProcessedContent`, expected.serverProcessedContent, content)
+      f.add(
+        'ClientSidePages',
+        `${path}/serverProcessedContent`,
+        expected.serverProcessedContent,
+        content
+      )
   }
 }
 
@@ -1381,16 +1736,25 @@ function diffNodes(
   if (!deepEqual(want, have)) f.add('Navigation', path, want, have)
   const used = actual.map(() => false)
   for (const node of expected) {
-    const index = actual.findIndex((stored, at) => !used[at] && stored.Title === node.title)
+    const index = actual.findIndex(
+      (stored, at) => !used[at] && stored.Title === node.title
+    )
     if (index === -1) continue
     used[index] = true
     const stored = actual[index]
     if (
       node.checkUrl &&
-      normaliseNavigationUrl(node.url, base) !== normaliseNavigationUrl(stored.Url, base)
+      normaliseNavigationUrl(node.url, base) !==
+        normaliseNavigationUrl(stored.Url, base)
     )
       f.add('Navigation', `${path}/${node.title}/Url`, node.url, stored.Url)
-    diffNodes(f, `${path}/${node.title}`, node.children, stored.children || [], base)
+    diffNodes(
+      f,
+      `${path}/${node.title}`,
+      node.children,
+      stored.children || [],
+      base
+    )
   }
 }
 
@@ -1409,28 +1773,48 @@ export function diff(
   const f = new Findings(notes)
   const exact = expected.exact
   const associated =
-    (actual.security && actual.security.associated) || actual.associatedGroups || {}
+    (actual.security && actual.security.associated) ||
+    actual.associatedGroups ||
+    {}
 
   if (expected.taxonomy && actual.taxonomy) {
     const store = actual.taxonomy
     if (store.unavailable) f.note('Taxonomy', '*', store.unavailable)
     else {
       const group = expected.taxonomy.group
-      if (group && !store.group) f.add('Taxonomy', `TermGroup/${group.name}`, 'a term group', 'none')
+      if (group && !store.group)
+        f.add('Taxonomy', `TermGroup/${group.name}`, 'a term group', 'none')
       else if (group && store.group.Name !== group.name)
-        f.add('Taxonomy', `TermGroup/${group.id}/Name`, group.name, store.group.Name)
+        f.add(
+          'Taxonomy',
+          `TermGroup/${group.id}/Name`,
+          group.name,
+          store.group.Name
+        )
       for (const set of expected.taxonomy.sets) {
         const stored = store.sets[set.id]
         if (!stored) {
           f.add('Taxonomy', `TermSets/${set.name}`, 'a term set', 'none')
           continue
         }
-        if (!stored.names.includes(set.name)) f.add('Taxonomy', `TermSets/${set.id}/Name`, set.name, stored.names)
+        if (!stored.names.includes(set.name))
+          f.add('Taxonomy', `TermSets/${set.id}/Name`, set.name, stored.names)
         for (const term of set.terms) {
           const storedTerm = stored.terms[term.id]
-          if (!storedTerm) f.add('Taxonomy', `TermSets/${set.name}/Terms/${term.name}`, 'a term', 'none')
+          if (!storedTerm)
+            f.add(
+              'Taxonomy',
+              `TermSets/${set.name}/Terms/${term.name}`,
+              'a term',
+              'none'
+            )
           else if (!storedTerm.labels.includes(term.name))
-            f.add('Taxonomy', `TermSets/${set.name}/Terms/${term.id}/Name`, term.name, storedTerm.labels)
+            f.add(
+              'Taxonomy',
+              `TermSets/${set.name}/Terms/${term.id}/Name`,
+              term.name,
+              storedTerm.labels
+            )
         }
       }
     }
@@ -1444,11 +1828,16 @@ export function diff(
         field.name,
         'a site column',
         'none',
-        field.unresolved.length ? `the template's ${field.unresolved.join(', ')} has no value on this web` : undefined
+        field.unresolved.length
+          ? `the template's ${field.unresolved.join(
+              ', '
+            )} has no value on this web`
+          : undefined
       )
       continue
     }
-    if (exact && !stored.onWeb) f.add('SiteFields', field.name, 'on this web', 'only in a parent web')
+    if (exact && !stored.onWeb)
+      f.add('SiteFields', field.name, 'on this web', 'only in a parent web')
     diffField(f, 'SiteFields', field.name, field, stored)
   }
 
@@ -1459,10 +1848,17 @@ export function diff(
       continue
     }
     const path = `${ct.name} (${ct.id})`
-    if (exact && !stored.onWeb) f.add('ContentTypes', path, 'on this web', 'only in a parent web')
-    if (stored.Name !== ct.name) f.add('ContentTypes', `${path}/Name`, ct.name, stored.Name)
+    if (exact && !stored.onWeb)
+      f.add('ContentTypes', path, 'on this web', 'only in a parent web')
+    if (stored.Name !== ct.name)
+      f.add('ContentTypes', `${path}/Name`, ct.name, stored.Name)
     if (ct.description !== undefined && stored.Description !== ct.description)
-      f.add('ContentTypes', `${path}/Description`, ct.description, stored.Description)
+      f.add(
+        'ContentTypes',
+        `${path}/Description`,
+        ct.description,
+        stored.Description
+      )
     if (ct.group !== undefined && stored.Group !== ct.group)
       f.add('ContentTypes', `${path}/Group`, ct.group, stored.Group)
     const positions: number[] = []
@@ -1482,7 +1878,12 @@ export function diff(
       if (ref.hidden !== undefined && link.Hidden !== ref.hidden)
         f.add('ContentTypes', `${where}/Hidden`, ref.hidden, link.Hidden)
     }
-    if (exact && positions.some((position, index) => index > 0 && position < positions[index - 1]))
+    if (
+      exact &&
+      positions.some(
+        (position, index) => index > 0 && position < positions[index - 1]
+      )
+    )
       f.add(
         'ContentTypes',
         `${path}/FieldRefs`,
@@ -1495,7 +1896,12 @@ export function diff(
   for (const feature of expected.features || []) {
     const active = (actual.features || []).includes(feature.id)
     if (active !== feature.active)
-      f.add('Features', feature.id, feature.active ? 'active' : 'inactive', active ? 'active' : 'inactive')
+      f.add(
+        'Features',
+        feature.id,
+        feature.active ? 'active' : 'inactive',
+        active ? 'active' : 'inactive'
+      )
   }
 
   if (expected.security && actual.security) {
@@ -1508,18 +1914,37 @@ export function diff(
       }
       for (const key of Object.keys(group.properties))
         if (!sameSetting(group.properties[key], (stored as any)[key]))
-          f.add('Security', `${path}/${key}`, group.properties[key], (stored as any)[key])
+          f.add(
+            'Security',
+            `${path}/${key}`,
+            group.properties[key],
+            (stored as any)[key]
+          )
       for (const member of group.members)
         if (!stored.members.some((user) => loginMatches(user, member)))
-          f.add('Security', `${path}/members/${member}`, 'a member', 'not a member')
+          f.add(
+            'Security',
+            `${path}/members/${member}`,
+            'a member',
+            'not a member'
+          )
       if (group.clearExisting) {
         const extra = stored.members.filter(
           (user) => !group.members.some((member) => loginMatches(user, member))
         )
         if (extra.length > 0)
-          f.add('Security', `${path}/members`, group.members, stored.members.map((user) => user.LoginName), 'ClearExistingMembers: only the template\'s members')
+          f.add(
+            'Security',
+            `${path}/members`,
+            group.members,
+            stored.members.map((user) => user.LoginName),
+            "ClearExistingMembers: only the template's members"
+          )
       }
-      if (group.owner && !principalMatches(group.owner, stored.Owner, associated))
+      if (
+        group.owner &&
+        !principalMatches(group.owner, stored.Owner, associated)
+      )
         f.add(
           'Security',
           `${path}/Owner`,
@@ -1530,7 +1955,14 @@ export function diff(
             : undefined
         )
     }
-    diffSecurable(f, 'Security', 'web', expected.security.web, actual.security.web, associated)
+    diffSecurable(
+      f,
+      'Security',
+      'web',
+      expected.security.web,
+      actual.security.web,
+      associated
+    )
   }
 
   for (const list of expected.lists || []) {
@@ -1543,16 +1975,25 @@ export function diff(
   }
 
   for (const file of expected.files || [])
-    if (!(actual.files || {})[file.url]) f.add('Files', file.url, 'a file', 'none')
+    if (!(actual.files || {})[file.url])
+      f.add('Files', file.url, 'a file', 'none')
 
   for (const action of expected.customActions || []) {
-    const stored = (actual.customActions || []).filter((candidate) => candidate.Title === action.title)
+    const stored = (actual.customActions || []).filter(
+      (candidate) => candidate.Title === action.title
+    )
     if (stored.length === 0) {
       f.add('CustomActions', action.title, 'a custom action', 'none')
       continue
     }
     if (stored.length > 1)
-      f.add('CustomActions', action.title, '1 custom action', `${stored.length}`, 'the handler adds an action whose title is not there')
+      f.add(
+        'CustomActions',
+        action.title,
+        '1 custom action',
+        `${stored.length}`,
+        'the handler adds an action whose title is not there'
+      )
     if (!exact) continue
     const text = (value: any) => (absent(value) ? '' : String(value))
     for (const key of [
@@ -1571,10 +2012,16 @@ export function diff(
       const want = action.action[key]
       if (want === undefined) continue
       const have = (stored[0] as any)[key]
-      let same = key === 'ClientSideComponentId' ? text(want).toLowerCase() === text(have) : sameSetting(text(want), text(have))
+      let same =
+        key === 'ClientSideComponentId'
+          ? text(want).toLowerCase() === text(have)
+          : sameSetting(text(want), text(have))
       if (!same && key === 'ClientSideComponentProperties')
         try {
-          same = deepEqual(JSON.parse(text(want) || '{}'), JSON.parse(text(have) || '{}'))
+          same = deepEqual(
+            JSON.parse(text(want) || '{}'),
+            JSON.parse(text(have) || '{}')
+          )
         } catch {
           // not JSON: compared as text
         }
@@ -1584,17 +2031,46 @@ export function diff(
 
   if (expected.composedLook && actual.composedLook) {
     const look = actual.composedLook
-    if (!look.theme.themedCssFolderUrl) f.add('ComposedLook', 'ThemedCssFolderUrl', 'a theme', 'none')
-    if (look.unreadable) f.note('ComposedLook', 'files', `the palette or font scheme could not be read: ${look.unreadable}`)
+    if (!look.theme.themedCssFolderUrl)
+      f.add('ComposedLook', 'ThemedCssFolderUrl', 'a theme', 'none')
+    if (look.unreadable)
+      f.note(
+        'ComposedLook',
+        'files',
+        `the palette or font scheme could not be read: ${look.unreadable}`
+      )
     for (const name of SHADE_NAMES)
-      if (look.palette && look.palette[name] !== undefined && look.theme.shades[name] !== look.palette[name])
-        f.add('ComposedLook', `shades/${name}`, look.palette[name], look.theme.shades[name])
+      if (
+        look.palette &&
+        look.palette[name] !== undefined &&
+        look.theme.shades[name] !== look.palette[name]
+      )
+        f.add(
+          'ComposedLook',
+          `shades/${name}`,
+          look.palette[name],
+          look.theme.shades[name]
+        )
     for (const slot of FONT_SLOTS)
-      if (look.fonts && look.fonts[slot] !== undefined && look.theme.fonts[slot] !== look.fonts[slot])
-        f.add('ComposedLook', `fonts/${slot}`, look.fonts[slot], look.theme.fonts[slot])
+      if (
+        look.fonts &&
+        look.fonts[slot] !== undefined &&
+        look.theme.fonts[slot] !== look.fonts[slot]
+      )
+        f.add(
+          'ComposedLook',
+          `fonts/${slot}`,
+          look.fonts[slot],
+          look.theme.fonts[slot]
+        )
     const background = !!look.theme.backgroundImageUri
     if (background !== !!expected.composedLook.background)
-      f.add('ComposedLook', 'BackgroundImageUrl', expected.composedLook.background || null, look.theme.backgroundImageUri)
+      f.add(
+        'ComposedLook',
+        'BackgroundImageUrl',
+        expected.composedLook.background || null,
+        look.theme.backgroundImageUri
+      )
   }
 
   for (const page of expected.pages || []) {
@@ -1604,35 +2080,77 @@ export function diff(
       continue
     }
     if (!page.overwrite && !exact) continue
-    if (stored.title !== page.title) f.add('ClientSidePages', `${page.name}/Title`, page.title, stored.title)
-    if (stored.layout !== page.layout) f.add('ClientSidePages', `${page.name}/PageLayoutType`, page.layout, stored.layout)
+    if (stored.title !== page.title)
+      f.add('ClientSidePages', `${page.name}/Title`, page.title, stored.title)
+    if (stored.layout !== page.layout)
+      f.add(
+        'ClientSidePages',
+        `${page.name}/PageLayoutType`,
+        page.layout,
+        stored.layout
+      )
     if (stored.commentsDisabled !== page.commentsDisabled)
-      f.add('ClientSidePages', `${page.name}/CommentsDisabled`, page.commentsDisabled, stored.commentsDisabled)
+      f.add(
+        'ClientSidePages',
+        `${page.name}/CommentsDisabled`,
+        page.commentsDisabled,
+        stored.commentsDisabled
+      )
     if (stored.sections.length !== page.sections.length)
-      f.add('ClientSidePages', `${page.name}/Sections`, page.sections.length, stored.sections.length, 'sections')
+      f.add(
+        'ClientSidePages',
+        `${page.name}/Sections`,
+        page.sections.length,
+        stored.sections.length,
+        'sections'
+      )
     page.sections.forEach((section, s) => {
       const storedSection = stored.sections[s]
       if (!storedSection) return
       const path = `${page.name}/Sections/${s}`
       const factors = section.columns.map((column) => column.factor)
       const storedFactors = storedSection.columns.map((column) => column.factor)
-      if (!deepEqual(factors, storedFactors)) f.add('ClientSidePages', `${path}/Columns`, factors, storedFactors)
+      if (!deepEqual(factors, storedFactors))
+        f.add('ClientSidePages', `${path}/Columns`, factors, storedFactors)
       section.columns.forEach((column, c) => {
         const storedColumn = storedSection.columns[c]
         if (!storedColumn) return
         if (storedColumn.controls.length !== column.controls.length)
-          f.add('ClientSidePages', `${path}/Columns/${c}/Controls`, column.controls.length, storedColumn.controls.length, 'controls')
+          f.add(
+            'ClientSidePages',
+            `${path}/Columns/${c}/Controls`,
+            column.controls.length,
+            storedColumn.controls.length,
+            'controls'
+          )
         column.controls.forEach((control, k) =>
-          diffControl(f, `${path}/Columns/${c}/Controls/${k}`, control, storedColumn.controls[k])
+          diffControl(
+            f,
+            `${path}/Columns/${c}/Controls/${k}`,
+            control,
+            storedColumn.controls[k]
+          )
         )
       })
     })
     if (page.verticalSection || stored.verticalSection) {
       const want = page.verticalSection || []
       const have = stored.verticalSection || []
-      if (!page.verticalSection || !stored.verticalSection || want.length !== have.length)
-        f.add('ClientSidePages', `${page.name}/VerticalSection`, page.verticalSection ? want.length : null, stored.verticalSection ? have.length : null, 'controls')
-      want.forEach((control, k) => diffControl(f, `${page.name}/VerticalSection/${k}`, control, have[k]))
+      if (
+        !page.verticalSection ||
+        !stored.verticalSection ||
+        want.length !== have.length
+      )
+        f.add(
+          'ClientSidePages',
+          `${page.name}/VerticalSection`,
+          page.verticalSection ? want.length : null,
+          stored.verticalSection ? have.length : null,
+          'controls'
+        )
+      want.forEach((control, k) =>
+        diffControl(f, `${page.name}/VerticalSection/${k}`, control, have[k])
+      )
     }
   }
 
@@ -1640,10 +2158,19 @@ export function diff(
     const bag = actual.propertyBag || {}
     const have = bag[entry.key]
     if (absent(have)) {
-      f.add('PropertyBagEntries', entry.key, entry.overwrite ? entry.value : 'a value', null, entry.overwrite ? undefined : 'the handler writes only Overwrite: true entries')
+      f.add(
+        'PropertyBagEntries',
+        entry.key,
+        entry.overwrite ? entry.value : 'a value',
+        null,
+        entry.overwrite
+          ? undefined
+          : 'the handler writes only Overwrite: true entries'
+      )
       continue
     }
-    if (entry.overwrite && String(have) !== entry.value) f.add('PropertyBagEntries', entry.key, entry.value, have)
+    if (entry.overwrite && String(have) !== entry.value)
+      f.add('PropertyBagEntries', entry.key, entry.value, have)
     if (entry.overwrite && entry.indexed) {
       const indexed = String(bag.vti_indexedpropertykeys || '').split('|')
       if (!indexed.includes(base64EncodeString(entry.key)))
@@ -1654,7 +2181,13 @@ export function diff(
   if (expected.navigation && actual.navigation)
     for (const collection of ['QuickLaunch', 'TopNavigationBar'] as const)
       if (expected.navigation[collection])
-        diffNodes(f, collection, expected.navigation[collection], actual.navigation[collection], actual.navigation.base)
+        diffNodes(
+          f,
+          collection,
+          expected.navigation[collection],
+          actual.navigation[collection],
+          actual.navigation.base
+        )
 
   if (expected.webSettings && actual.webSettings)
     for (const key of Object.keys(expected.webSettings)) {
@@ -1663,9 +2196,11 @@ export function diff(
       const want = expected.webSettings[key]
       const same =
         key === 'WelcomePage'
-          ? String(want).replace(/^\/+/, '').toLowerCase() === String(have).replace(/^\/+/, '').toLowerCase()
+          ? String(want).replace(/^\/+/, '').toLowerCase() ===
+            String(have).replace(/^\/+/, '').toLowerCase()
           : /Url$/.test(key) && typeof want === 'string'
-          ? makeUrlRelative(want).toLowerCase() === makeUrlRelative(String(have ?? '')).toLowerCase()
+          ? makeUrlRelative(want).toLowerCase() ===
+            makeUrlRelative(String(have ?? '')).toLowerCase()
           : sameSetting(want, have)
       if (!same) f.add('WebSettings', key, want, have)
     }
@@ -1696,7 +2231,9 @@ export async function verifyContext(
   if (/{(sitecollectiontermstoreid|termstoreid)}/.test(text))
     try {
       termStoreId = (
-        await SPInstance([conn.web, conn.url], '_api/v2.1/termstore').select('id')<{
+        await SPInstance([conn.web, conn.url], '_api/v2.1/termstore').select(
+          'id'
+        )<{
           id: string
         }>()
       ).id
@@ -1773,16 +2310,18 @@ export function formatResult(result: IVerifyResult): string[] {
   const lines: string[] = []
   for (const finding of result.findings)
     lines.push(
-      `FINDING [${finding.handler}]${finding.source ? ` (${finding.source})` : ''} ${finding.path}: expected ${shown(
-        finding.expected
-      )}, found ${shown(finding.actual)}${finding.message ? ` (${finding.message})` : ''}`
+      `FINDING [${finding.handler}]${
+        finding.source ? ` (${finding.source})` : ''
+      } ${finding.path}: expected ${shown(finding.expected)}, found ${shown(
+        finding.actual
+      )}${finding.message ? ` (${finding.message})` : ''}`
     )
   for (const note of result.notes)
     lines.push(`not checked [${note.handler}] ${note.path}: ${note.reason}`)
   lines.push(
-    `${result.findings.length} finding(s) in ${result.handlers.join(', ') || '(no sections)'}${
-      result.notes.length ? `; ${result.notes.length} not checked` : ''
-    }.`
+    `${result.findings.length} finding(s) in ${
+      result.handlers.join(', ') || '(no sections)'
+    }${result.notes.length ? `; ${result.notes.length} not checked` : ''}.`
   )
   return lines
 }

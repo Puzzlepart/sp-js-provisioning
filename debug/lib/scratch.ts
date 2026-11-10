@@ -175,9 +175,11 @@ async function createAssociatedGroups(
   )
   if (groups.some((group) => !group || !group.includes(title)))
     throw new Error(
-      `The scratch web ${conn.webInfo.ServerRelativeUrl} has no associated groups of its own (${groups.join(
-        ', '
-      )})${refused ? `: ${describeError(refused)}` : ''}`
+      `The scratch web ${
+        conn.webInfo.ServerRelativeUrl
+      } has no associated groups of its own (${groups.join(', ')})${
+        refused ? `: ${describeError(refused)}` : ''
+      }`
     )
 }
 
@@ -209,8 +211,7 @@ export async function groupsOfScratchWeb(
  * @param web - The web
  */
 export async function deleteWebTree(web: IWeb): Promise<void> {
-  const children = await Web(web)
-    .webs.select('Url')<Array<{ Url: string }>>()
+  const children = await Web(web).webs.select('Url')<Array<{ Url: string }>>()
   for (const child of children) await deleteWebTree(Web([web, child.Url]))
   await Web(web).delete()
 }

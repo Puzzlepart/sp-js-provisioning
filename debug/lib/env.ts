@@ -152,7 +152,9 @@ export function normaliseSiteUrl(url: string): string | undefined {
     const parsed = new URL(url)
     if (parsed.protocol !== 'https:' && parsed.protocol !== 'http:')
       return undefined
-    return `${parsed.origin}${parsed.pathname}`.replace(/\/+$/, '').toLowerCase()
+    return `${parsed.origin}${parsed.pathname}`
+      .replace(/\/+$/, '')
+      .toLowerCase()
   } catch {
     return undefined
   }
@@ -168,5 +170,7 @@ export function normaliseSiteUrl(url: string): string | undefined {
 export function isWithinSite(url: string, siteUrl: string): boolean {
   const target = normaliseSiteUrl(url)
   const site = normaliseSiteUrl(siteUrl)
-  return !!target && !!site && (target === site || target.startsWith(`${site}/`))
+  return (
+    !!target && !!site && (target === site || target.startsWith(`${site}/`))
+  )
 }

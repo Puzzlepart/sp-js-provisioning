@@ -1,9 +1,6 @@
 import { ContentTypes, SPInstance } from '@pnp/sp/presets/all'
 import { ISiteConnection } from '../connect'
-import {
-  ICustomActionState,
-  CUSTOM_ACTION_MEMBERS
-} from './customactions'
+import { ICustomActionState, CUSTOM_ACTION_MEMBERS } from './customactions'
 import {
   IComposedLookState,
   readComposedLook,
@@ -203,7 +200,10 @@ export interface ISiteState {
    * The web's associated groups, read without `security` when only a list's permissions name them
    * (`{associatedownergroupid}` and the others).
    */
-  associatedGroups?: Record<'owner' | 'member' | 'visitor', IPrincipalState | null>
+  associatedGroups?: Record<
+    'owner' | 'member' | 'visitor',
+    IPrincipalState | null
+  >
   /** By title, `null` when the web has no such list. */
   lists?: Record<string, IListState | null>
   customActions?: ICustomActionState[]
@@ -654,14 +654,21 @@ export async function readListState(
         reason: `not readable through REST (${messageOf(error)})`
       })
     }
-  const [contentTypes, fields, root, folderItems, securable] = await Promise.all([
+  const [
+    contentTypes,
+    fields,
+    root,
+    folderItems,
+    securable
+  ] = await Promise.all([
     list().contentTypes.select('Id', 'Name')<any[]>(),
     list().fields.select(...FIELD_MEMBERS, 'LookupField')<any[]>(),
-    list().rootFolder.select('ServerRelativeUrl')<{ ServerRelativeUrl: string }>(),
-    list()
-      .items.filter('FSObjType eq 1')
-      .select('FileRef')
-      .top(5000)<Array<{ FileRef: string }>>(),
+    list().rootFolder.select('ServerRelativeUrl')<{
+      ServerRelativeUrl: string
+    }>(),
+    list().items.filter('FSObjType eq 1').select('FileRef').top(5000)<
+      Array<{ FileRef: string }>
+    >(),
     readSecurable(list)
   ])
   const views = await readViews(list)

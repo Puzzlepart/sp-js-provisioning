@@ -173,9 +173,9 @@ export function fetchWithRetry(
         const after = parseInt(response.headers.get('Retry-After') || '', 10)
         wait = after > 0 ? after * 1000 : wait * 2
         onRetry(
-          `${init.method || 'GET'} answered ${response.status}; waiting ${Math.round(
-            wait / 1000
-          )} s`
+          `${init.method || 'GET'} answered ${
+            response.status
+          }; waiting ${Math.round(wait / 1000)} s`
         )
         await delay(wait)
       }

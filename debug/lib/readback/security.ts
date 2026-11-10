@@ -81,9 +81,9 @@ export async function readSecurity(
   >()
   const roleAssignments: Record<string, string[]> = {}
   for (const assignment of assignments)
-    roleAssignments[assignment.Member.Title] = assignment.RoleDefinitionBindings.map(
-      (binding) => binding.Name
-    ).sort()
+    roleAssignments[
+      assignment.Member.Title
+    ] = assignment.RoleDefinitionBindings.map((binding) => binding.Name).sort()
   return {
     groups,
     hasUniqueRoleAssignments: HasUniqueRoleAssignments,

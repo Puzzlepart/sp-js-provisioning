@@ -73,8 +73,6 @@ export async function readHooks(
   const properties = await conn.web.allProperties<Record<string, any>>()
   const calls = requests
     .map(hookCall)
-    .sort((a, b) =>
-      `${a.url} ${a.method}` < `${b.url} ${b.method}` ? -1 : 1
-    )
+    .sort((a, b) => (`${a.url} ${a.method}` < `${b.url} ${b.method}` ? -1 : 1))
   return { calls, properties }
 }
