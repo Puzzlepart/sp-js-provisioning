@@ -10,20 +10,12 @@ import * as path from 'path'
  */
 
 /**
- * Handlers the runner leaves out unless `--handlers` names them:
- *  - Taxonomy writes to the tenant's term store, which every site shares (docs/specs/jsom-exit.md,
- *    J5); it runs in Node (CSOM over HTTP).
- *  - Files refuses whenever an SPFx context is set, which the runner always sets.
- *  - PropertyBagEntries rejects in Node.
- *  - ContentTypes runs in Node (CSOM over HTTP) but stays out until the packages suite's list
- *    counts it (docs/specs/jsom-exit.md, step 5).
+ * Handlers the runner applies only when asked (`--taxonomy`, or `--handlers` naming them). Every
+ * handler runs in Node; Taxonomy writes to the tenant's term store, which every site of the tenant
+ * shares, so a template applied to a test site must not reach it by default
+ * (docs/specs/jsom-exit.md, J5).
  */
-export const NODE_UNSUPPORTED = [
-  'Taxonomy',
-  'ContentTypes',
-  'Files',
-  'PropertyBagEntries'
-]
+export const OPT_IN_HANDLERS = ['Taxonomy']
 
 /**
  * What `--mode` applies: `hub` the hub template, `cloud` the part of it PP365 applies when a package
@@ -50,6 +42,8 @@ export interface IArgs {
   handlers?: string[]
   parameters: Record<string, string>
   skipTaxonomy: boolean
+  /** `--taxonomy`: also apply the Taxonomy section (the tenant's term store). */
+  taxonomy: boolean
   strict: boolean
   twice: boolean
   /** `provision --verify`: diff the template against the web after applying it. */
@@ -137,6 +131,7 @@ export function parseArgs(
     mode: 'hub',
     parameters: {},
     skipTaxonomy: false,
+    taxonomy: false,
     strict: false,
     twice: false,
     verify: false,
@@ -194,6 +189,9 @@ export function parseArgs(
         break
       case '--skip-taxonomy':
         out.skipTaxonomy = true
+        break
+      case '--taxonomy':
+        out.taxonomy = true
         break
       case '--strict':
         out.strict = true
@@ -318,25 +316,29 @@ export function handlerOrder(sort: Record<string, number>): string[] {
 
 /**
  * Which handlers to run. An explicit `--handlers` wins as-is; otherwise every handler the template
- * has a section for, except the ones that cannot run in Node.
+ * has a section for, except the ones applied only when asked ({@link OPT_IN_HANDLERS}).
  *
  * @param schema - The template
  * @param known - The engine's handlers, in run order
  * @param requested - `--handlers`
+ * @param include - Opt-in handlers to apply too (`--taxonomy`)
  */
 export function planHandlers(
   schema: Record<string, any>,
   known: string[],
-  requested?: string[]
+  requested?: string[],
+  include: string[] = []
 ): { run: string[]; skipped: string[] } {
   if (requested) {
     validateHandlers(requested, known)
     return { run: requested, skipped: [] }
   }
   const present = known.filter((name) => schema[name] !== undefined)
+  const left = (name: string) =>
+    OPT_IN_HANDLERS.includes(name) && !include.includes(name)
   return {
-    run: present.filter((name) => !NODE_UNSUPPORTED.includes(name)),
-    skipped: present.filter((name) => NODE_UNSUPPORTED.includes(name))
+    run: present.filter((name) => !left(name)),
+    skipped: present.filter(left)
   }
 }
 
@@ -753,9 +755,15 @@ export function usage(
     '  --extensions <ids>    --mode project: extension ids, all or none',
     '                        (default: the ones the setup selects to begin with)',
     provision
-      ? '  --handlers <csv>      Only run these handlers (also forces browser-only ones)'
+      ? '  --handlers <csv>      Only run these handlers (Taxonomy too, when named)'
       : '  --handlers <csv>      Only compare these sections (default: every section)',
     '  --parameters <k=v,…>  Values for {parameter:k} tokens',
+    ...(provision
+      ? [
+          "  --taxonomy            Also apply Taxonomy: it writes to the tenant's term store,",
+          '                        which every site of the tenant shares'
+        ]
+      : []),
     '  --skip-taxonomy       Drop the Taxonomy section',
     ...(provision
       ? [
@@ -772,7 +780,11 @@ export function usage(
     '',
     `  Handlers, in run order: ${handlers.join(', ')}`,
     ...(provision
-      ? [`  Skipped by default in Node: ${NODE_UNSUPPORTED.join(', ')}`]
+      ? [
+          `  Applied only when asked (--taxonomy, --handlers): ${OPT_IN_HANDLERS.join(
+            ', '
+          )}`
+        ]
       : [])
   ].join('\n')
 }

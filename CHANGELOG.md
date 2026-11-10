@@ -7,6 +7,15 @@ For releases older than 1.3.6, see the git history.
 
 ## [Unreleased]
 
+For 1.6.0 (the JSOM exit, [spec](./docs/specs/jsom-exit.md)): every handler runs in Node and under
+SPFx alike. ContentTypes, Taxonomy and PropertyBagEntries reach SharePoint through CSOM over HTTP,
+Files through REST, and the package no longer depends on `spfx-jsom`. In PP365 a hub import of a
+package with `Files` or `PropertyBagEntries` no longer stops there; a re-run of an unchanged
+template writes no content type, term set, file or property; a field ref to a missing column, a
+failing file and a property bag write a modern site refuses are logged errors that no longer stop
+the template. Classic web parts in `Files` are no longer supported (Removed). Templates written for
+1.5 work unchanged otherwise.
+
 ### Changed
 
 - `ContentTypes` no longer needs JSOM: it reaches SharePoint through CSOM over HTTP
@@ -46,6 +55,8 @@ For releases older than 1.3.6, see the git history.
 
 ### Removed
 
+- The `spfx-jsom` dependency, and with it the SharePoint Framework packages it pulled in: no
+  handler uses JSOM. PP365 keeps its own copy for its own tasks.
 - Classic web parts in `Files` (`WebParts`, `RemoveExistingWebParts`, a web part's `ListView`): no
   template of PP365 or prosjektportalen-hosting uses them, and they need a classic page and custom
   script. A file that has them is provisioned, and an error says they were left out.
@@ -84,6 +95,15 @@ For releases older than 1.3.6, see the git history.
   CSOM request, B's changes reaching the child and the bound list, a missing column, a refused
   name. `verify` asked SharePoint for content type ids with `0X` and found none; fixed. The runner
   still leaves ContentTypes out by default until the packages list counts it (step 5).
+- The JSOM exit, step 5: every handler runs in Node, so the runner applies all of them but
+  Taxonomy, which it applies only with `--taxonomy` (or `--handlers`): it writes to the tenant's
+  term store, which every site of the tenant shares. The packages suite never applies a package's
+  Taxonomy section, and its list (`packages.expected.ts`) now holds what a scratch web lacks that a
+  PP365 hub has, and what the reserved site refuses. `all.node.json` is `all.json`, with the
+  content types; `debug/stubs/spfx-jsom.ts`, its `paths` mappings and `@types/sharepoint` are gone.
+  The packages suite makes a package's missing parent content type first (PP365's `Prosjekt` for
+  `Prosjekt (Vei)`), as it makes menu targets, and `INTEGRATION_PACKAGES_REPORT=true` prints every
+  line to write the list anew. The coverage floors rise to 90/85/86.
 - The JSOM exit, step 4: the Files suite uploads a text and a binary file byte for byte from the
   scratch web and from a local server (another origin), sets a property, uploads nothing on a
   second apply, uploads a changed source again, leaves `Overwrite: false` alone and logs a failing

@@ -35,14 +35,17 @@ export function loadFixture(
 }
 
 /**
- * The fixtures `all.node.json` is made of, in the order their sections are joined: every
- * Node-capable handler fixture without the parts that need something only its own suite sets up
- * (docs/specs/integration-testing.md, Fixtures). Left out: `hooks.json` (a local listener),
- * `customactions-script.json` (custom script), `failures.json` and `smoke.json` (runner checks)
- * and the `.b` variants.
+ * The fixtures `all.json` is made of, in the order their sections are joined: every handler
+ * fixture without the parts that need something only its own suite sets up
+ * (docs/specs/integration-testing.md, Fixtures). Left out: `taxonomy.json` (the tenant's term
+ * store, docs/specs/jsom-exit.md J5), `files.json` (a local server and a source in the web, through
+ * `{parameter:}`), `propertybagentries.json` and `customactions-script.json` (custom script),
+ * `hooks.json` (a local listener), `failures.json` and `smoke.json` (runner checks) and the `.b`
+ * variants.
  */
-export const ALL_NODE_PARTS = [
+export const ALL_PARTS = [
   'sitefields',
+  'contenttypes',
   'features',
   'security',
   'lists',
@@ -56,7 +59,7 @@ export const ALL_NODE_PARTS = [
 
 /**
  * The list `sitefields.json`'s Lookup column points at. Its suite creates it before the first run;
- * `all.node.json` declares it, so WebProvisioner creates it before SiteFields.
+ * `all.json` declares it, so WebProvisioner creates it before SiteFields.
  */
 export const SITEFIELDS_SOURCE_LIST = {
   Title: 'SPJS Itest Sitefields Source',
@@ -68,6 +71,7 @@ export const SITEFIELDS_SOURCE_LIST = {
 /** The section order of a composed template: the engine's run order. */
 const SECTION_ORDER = [
   'SiteFields',
+  'ContentTypes',
   'Features',
   'Security',
   'Lists',
@@ -79,22 +83,22 @@ const SECTION_ORDER = [
 ]
 
 /**
- * `all.node.json` as the handler fixtures make it: array sections joined in `ALL_NODE_PARTS`
- * order, object sections taken from the one fixture that has them, the Lookup's source list added.
- * The placeholders stay, for `loadFixture` (or the runner) to fill.
+ * `all.json` as the handler fixtures make it: array sections joined in `ALL_PARTS` order, object
+ * sections taken from the one fixture that has them, the Lookup's source list added. The
+ * placeholders stay, for `loadFixture` (or the runner) to fill.
  */
-export function composeAllNode(): Record<string, any> {
+export function composeAll(): Record<string, any> {
   const composed: Record<string, any> = {
     $schema: '../../../schema.json'
   }
-  for (const name of ALL_NODE_PARTS) {
+  for (const name of ALL_PARTS) {
     const template = JSON.parse(
       fs.readFileSync(path.join(TEMPLATES, `${name}.json`), 'utf8')
     )
     for (const section of Object.keys(template)) {
       if (section === '$schema') continue
       if (!SECTION_ORDER.includes(section))
-        throw new Error(`${name}.json: ${section} is not in all.node.json`)
+        throw new Error(`${name}.json: ${section} is not in all.json`)
       const value = template[section]
       if (Array.isArray(value))
         composed[section] = [...(composed[section] || []), ...value]

@@ -35,8 +35,6 @@ debug/*
 !debug/inspect.ts
 !debug/README.md
 !debug/tsconfig.json
-!debug/stubs
-!debug/stubs/spfx-jsom.ts
 # local sign-in and run output — never commit
 .env
 test-results

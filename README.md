@@ -80,15 +80,15 @@ a dedicated handler, applied in this order:
 | ----- | -------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | 1     | `Taxonomy`           | Term groups, term sets and terms (ids, sort order, custom properties). `UpdateExistingTerms` fills missing custom properties onto existing terms                                                             |
 | 2     | `SiteFields`         | Site columns from field XML: created when missing, updated in place on a re-apply (see Re-applying site columns)                                                                                             |
-| 3     | `ContentTypes`       | Content types with fixed ids, field refs (by name) and field link order                                                                                                                                      |
+| 3     | `ContentTypes`       | Content types with fixed ids, field refs (by name) and field link order; only what differs is written (see Re-applying content types, term sets, files and the property bag)                                 |
 | 4     | `Features`           | Web feature activation and deactivation                                                                                                                                                                      |
 | 5     | `Security`           | Site groups (properties, owner, members) and role inheritance and role assignments on the web                                                                                                                |
 | 6     | `Lists`              | Lists and libraries: settings, content type bindings, list fields, field refs (site columns added to the list, by id), views, folder hierarchies, seeded rows (`DataRows`) and list permissions (`Security`) |
-| 7     | `Files`              | Files with web parts, properties and overwrite control                                                                                                                                                       |
+| 7     | `Files`              | Files from a source URL, byte for byte, with item properties and overwrite control                                                                                                                           |
 | 8     | `CustomActions`      | User custom actions, including SPFx extension registrations                                                                                                                                                  |
 | 9     | `ComposedLook`       | Theme (composed look)                                                                                                                                                                                        |
 | 10    | `ClientSidePages`    | Modern pages with sections and web parts                                                                                                                                                                     |
-| 11    | `PropertyBagEntries` | Property bag values                                                                                                                                                                                          |
+| 11    | `PropertyBagEntries` | Property bag values: written when missing, overwritten only with `Overwrite`                                                                                                                                 |
 | 12    | `Navigation`         | Quick Launch and top navigation nodes, reconciled in place: the template owns each collection it names                                                                                                       |
 | 13    | `WebSettings`        | Web properties such as welcome page and master page                                                                                                                                                          |
 | 14    | `Hooks`              | HTTP callbacks after provisioning                                                                                                                                                                            |
@@ -287,6 +287,27 @@ starts, and for a list the same template's `Lists` declares: `WebProvisioner` cr
 with its settings, before `SiteFields` (when both run and `SiteFields` comes first).
 `{listviewid:}` does not resolve before `Lists` (for example in `SiteFields`), except for views an
 earlier `applyTemplate` through the same provisioner processed.
+
+### Re-applying content types, term sets, files and the property bag
+
+Since 1.6.0 these four reach SharePoint through REST and CSOM over HTTP, never JSOM, and run in
+Node and under SPFx alike ([spec](./docs/specs/jsom-exit.md)):
+
+- A content type the web has gets only what differs: a name, description or group, a field link it
+  lacks, a changed `Required` or `Hidden`, a changed order. An unchanged one is not written, so a
+  re-run does not push it to every list and content type that inherits from it. A field ref whose
+  site column is not on the web is logged as an error and the others are linked; a link the
+  template does not name is never removed.
+- Taxonomy reads the term store once and writes a term set only when a term is missing, a term
+  lacks a custom property (`UpdateExistingTerms`, never overwriting one) or the sort order
+  differs. What the store has is not renamed or moved.
+- A file that already holds the source's bytes is not uploaded again; `Overwrite: false` leaves an
+  existing file as it is; a file that fails is logged and the next is tried. Classic web parts
+  (`WebParts`, `RemoveExistingWebParts`) are no longer supported: the file is provisioned and an
+  error says so.
+- A property bag entry is written when its key is missing, and overwritten only with `Overwrite`;
+  `Indexed` adds the key to the indexed ones. A site that blocks custom script (modern sites do by
+  default) refuses the write: one logged error, and the template goes on.
 
 ## Configuration
 

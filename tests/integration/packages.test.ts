@@ -2,6 +2,7 @@ import assert from 'node:assert/strict'
 import * as fs from 'fs'
 import * as path from 'path'
 import { describe, it } from 'node:test'
+import { ContentTypes, PermissionKind } from '@pnp/sp/presets/all'
 import { apply } from '../../debug/lib/apply'
 import {
   handlerOrder,
@@ -22,6 +23,7 @@ import {
   expectedOf,
   IPackageCase,
   PACKAGE_CASES,
+  parentContentTypeId,
   unlisted
 } from './packages.expected'
 
@@ -119,6 +121,71 @@ async function arrangeMenuTargets(
 }
 
 /**
+ * Makes the content types the templates' content types derive from, where neither the web nor the
+ * templates have them: a package's content type may be a child of one of PP365's own (`Prosjekt
+ * (Vei)` of PP365's `Prosjekt`), which a PP365 hub has and a scratch web does not, and SharePoint
+ * refuses a content type whose parent is not there. They are made through the engine, with the ids
+ * the children need and names of their own.
+ *
+ * @param conn - The scratch web
+ * @param schemas - The templates the case applies
+ * @returns The ids made, parents first
+ */
+async function arrangeParentContentTypes(
+  conn: ISiteConnection,
+  schemas: Array<Record<string, any>>
+): Promise<string[]> {
+  // `0x` and the hex digits in upper case: SharePoint matches ids whatever their case.
+  const norm = (id: string) => `0x${id.replace(/^0x/i, '').toUpperCase()}`
+  const declared = new Set<string>()
+  for (const schema of schemas)
+    for (const ct of schema.ContentTypes || [])
+      if (ct.ID) declared.add(norm(String(ct.ID)))
+  if (declared.size === 0) return []
+  const available = new Set(
+    (
+      await ContentTypes(conn.web, 'availablecontenttypes').select('Id')<
+        Array<{ Id: { StringValue: string } }>
+      >()
+    ).map((ct) => norm(ct.Id.StringValue))
+  )
+  const missing = new Set<string>()
+  for (const id of declared) {
+    let parent = parentContentTypeId(id)
+    while (
+      parent &&
+      !available.has(norm(parent)) &&
+      !declared.has(norm(parent))
+    ) {
+      missing.add(norm(parent))
+      parent = parentContentTypeId(parent)
+    }
+  }
+  if (missing.size === 0) return []
+  const ids = Array.from(missing).sort()
+  const run = await apply(
+    conn,
+    {
+      ContentTypes: ids.map((id) => ({
+        ID: id,
+        Name: `SPJS Itest parent ${id.slice(-12)}`,
+        Group: 'SPJS Itest'
+      }))
+    },
+    { handlers: ['ContentTypes'] }
+  )
+  if (run.error || run.errors.length)
+    throw new Error(
+      `Failed to make the parent content types ${ids.join(', ')}: ${
+        run.error
+          ? describeError(run.error)
+          : run.errors.map((entry) => entry.message).join('; ')
+      }`
+    )
+  return ids
+}
+
+/**
  * With `INTEGRATION_PACKAGES=all`: every other package's hub template and project template (with
  * the extensions the setup selects to begin with), reported and not asserted.
  */
@@ -159,7 +226,9 @@ function stepsOf(
   const resolved = resolveTemplate({ package: pkg, mode, lang, extensions })
   const schema = transformSchema(
     resolved.schema,
-    { mode, skipTaxonomy: false },
+    // Never the Taxonomy section: the hosting packages write to the tenant's own Prosjektportalen
+    // term group, which every site of the tenant shares (docs/specs/jsom-exit.md, J5).
+    { mode, skipTaxonomy: true },
     resolved.manifest
   )
   if (mode !== 'project') {
@@ -176,8 +245,9 @@ function stepsOf(
 /**
  * The prosjektportalen-hosting packages (docs/specs/integration-testing.md, Fixtures): each case
  * applies a package twice to its own scratch web the way PP365 would in that mode, then verifies
- * it. Until the JSOM exit (D3 in the spec) the runner skips Taxonomy, ContentTypes, Files and
- * PropertyBagEntries in Node, so what depends on them is an explicit list per case
+ * it. The Taxonomy section is dropped: it would write to the tenant's term store. What a scratch
+ * web lacks that a PP365 hub has (its own site columns and content types), and what the reserved
+ * site refuses (a property bag write, under NoScript), is an explicit list per case
  * (`packages.expected.ts`). Runs with `npm run test:integration -- packages`, not by default.
  */
 describe('Packages', { skip: packagesSkipReason() }, () => {
@@ -216,6 +286,17 @@ describe('Packages', { skip: packagesSkipReason() }, () => {
         )
         if (made.length)
           t.diagnostic(`made the menu's targets first: ${made.join(', ')}`)
+        const parents = await arrangeParentContentTypes(
+          conn,
+          steps.apply.map((step) => step.schema)
+        )
+        if (parents.length)
+          t.diagnostic(
+            `made the parent content types first: ${parents.join(', ')}`
+          )
+        const customScriptBlocked = !(await conn.web.currentUserHasPermissions(
+          PermissionKind.AddAndCustomizePages
+        ))
         const handlers = handlerOrder(DefaultHandlerSort)
         const errors: string[] = []
         for (const run of [1, 2])
@@ -248,15 +329,16 @@ describe('Packages', { skip: packagesSkipReason() }, () => {
               )
             )
         }
-        if (!testCase.lists) {
-          // INTEGRATION_PACKAGES=all: reported, the counts first.
+        if (!testCase.lists || process.env.INTEGRATION_PACKAGES_REPORT) {
+          // INTEGRATION_PACKAGES=all, or INTEGRATION_PACKAGES_REPORT=true to write the list anew:
+          // reported, the counts first.
           t.diagnostic(
             `${label}: ${errors.length} error(s), ${findings.length} finding(s)`
           )
           for (const line of [...errors, ...findings]) t.diagnostic(line)
           return
         }
-        const expected = expectedOf(testCase)
+        const expected = expectedOf(testCase, { customScriptBlocked })
         // One assertion for both, named after the case: every case shares this test's name.
         assert.deepEqual(
           {

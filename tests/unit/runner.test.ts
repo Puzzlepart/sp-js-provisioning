@@ -14,7 +14,7 @@ import {
   cloudHubSubset,
   handlerOrder,
   INSPECT_USAGE,
-  NODE_UNSUPPORTED,
+  OPT_IN_HANDLERS,
   parseArgs,
   parseInspectArgs,
   planHandlers,
@@ -330,8 +330,20 @@ describe('runner: handler plan', () => {
       handlers
     )
 
-    assert.deepEqual(plan.run, ['Security', 'Lists', 'WebSettings'])
-    assert.deepEqual(plan.skipped, ['Taxonomy', 'Files'])
+    assert.deepEqual(plan.run, ['Security', 'Lists', 'Files', 'WebSettings'])
+    // The term store is the tenant's: only when asked (docs/specs/jsom-exit.md, J5).
+    assert.deepEqual(plan.skipped, ['Taxonomy'])
+    assert.deepEqual(
+      planHandlers({ Taxonomy: {}, Lists: [] }, handlers, undefined, [
+        'Taxonomy'
+      ]),
+      { run: ['Taxonomy', 'Lists'], skipped: [] }
+    )
+  })
+
+  it('parses --taxonomy', () => {
+    assert.equal(parseArgs(['--package', 'p']).taxonomy, false)
+    assert.equal(parseArgs(['--package', 'p', '--taxonomy']).taxonomy, true)
   })
 
   it('validates --handlers against the engine', () => {
@@ -357,7 +369,7 @@ describe('runner: handler plan', () => {
 
     assert.deepEqual(plan.run, ['SiteFields', 'Security', 'Lists'])
     assert.deepEqual(plan.skipped, [])
-    for (const name of NODE_UNSUPPORTED) assert.equal(smoke[name], undefined)
+    for (const name of OPT_IN_HANDLERS) assert.equal(smoke[name], undefined)
   })
 })
 

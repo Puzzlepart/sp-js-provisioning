@@ -118,8 +118,8 @@ assignments as a superset (exact with `RemoveExistingViews`, `RemoveExistingCont
 `ClearExistingMembers`); data rows by their `KeyColumn`, the values of `Overwrite` rows only; pages
 with `Overwrite: false` and custom actions by existence; menus by their titles, in order, at every
 level, and a node's URL only with `IgnoreExisting`. `--exact` also compares the rest, for a web the
-template was just applied to. Unlike `provision`, it compares every section by default, browser-only
-ones included, so it also checks a site PP365 provisioned.
+template was just applied to. Unlike `provision`, it compares every section by default, Taxonomy
+included (it only reads), so it also checks a site PP365 provisioned.
 
 `inspect` reads the web's own site columns and content types, its site groups, permissions and
 associated groups, lists (with views, fields, folders and permissions), custom actions, theme,
@@ -141,22 +141,17 @@ web's own associated groups (a site titled `SPJS Itest` has `SPJS Itest Owners`)
 
 ## What runs in Node
 
-The engine uses three transports: `@pnp/sp` REST and CSOM over HTTP (`src/util/csom.ts`, posted to
-`_vti_bin/client.svc/ProcessQuery` through the same pipeline), which work in Node, and JSOM
-(`spfx-jsom` -> `SP.ClientContext`), which is browser-only and stubbed out here
-(`debug/stubs/spfx-jsom.ts`) until the JSOM exit (`docs/specs/jsom-exit.md`).
+Every handler runs in Node: the engine uses `@pnp/sp` REST and CSOM over HTTP
+(`src/util/csom.ts`, posted to `_vti_bin/client.svc/ProcessQuery` through the same pipeline), and
+no JSOM since 1.6.0 (`docs/specs/jsom-exit.md`).
 
 | Handler | Runner | Why |
 | --- | --- | --- |
-| SiteFields, Features, Security, Lists, CustomActions, ComposedLook, ClientSidePages, Navigation, WebSettings, Hooks | runs | REST |
-| ContentTypes | skipped by default | runs in Node (CSOM over HTTP); left out until the packages list counts it (JSOM exit, step 5) |
-| Taxonomy | skipped by default | runs in Node (CSOM over HTTP), but writes to the tenant's term store, which every site shares: name it with `--handlers` only for a template whose term group may be written |
-| Files | skipped by default | runs in Node (REST); left out until the packages list counts it (JSOM exit, step 5) |
-| PropertyBagEntries | skipped by default | runs in Node (CSOM over HTTP); left out until the packages list counts it (JSOM exit, step 5) |
+| Every handler but Taxonomy | runs | |
+| Taxonomy | only with `--taxonomy` (or `--handlers` naming it) | it writes to the tenant's term store, which every site of the tenant shares: apply it only with a template whose term group may be written |
 
-Skipped handlers are left out unless `--handlers` names them; a forced JSOM handler fails with
-"JSOM (spfx-jsom) is not available". Unless ContentTypes is forced, list content type bindings
-assume the content types already exist on the site.
+A Taxonomy section left out is listed as skipped in the plan. A site that blocks custom script
+(modern sites do) refuses `PropertyBagEntries`: that is one logged error, and with `--strict` exit 1.
 
 ## How it maps to PP365
 
@@ -201,4 +196,3 @@ so the certificate secret and the cookie file serve both repositories.
 | `lib/placeholders.ts` | The fixtures' `@@user@@` and `@@hookUrl@@`: who the user is, and filling them in |
 | `lib/readback/<handler>.ts` | What a handler provisioned, read back for the integration tests |
 | `lib/readback/site.ts` | The readers `verify` and `inspect` share: any template's lists, fields, content types, groups and the rest |
-| `stubs/spfx-jsom.ts` | Node stand-in for `spfx-jsom` |

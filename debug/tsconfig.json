@@ -1,9 +1,6 @@
 {
   "extends": "../tsconfig.json",
   "compilerOptions": {
-    "baseUrl": "..",
-    "paths": {
-      "spfx-jsom": ["debug/stubs/spfx-jsom.ts"]
-    }
+    "baseUrl": ".."
   }
 }

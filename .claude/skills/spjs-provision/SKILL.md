@@ -24,11 +24,12 @@ fixed.
 | `npm run provision -- --package <path> --dry-run` | The plan only: sections, handlers, skips; no sign-in, no site needed |
 | `npm run provision -- --package <path>` | Apply to `INTEGRATION_SITE_URL` |
 | `... --twice --strict` | Apply twice; exit 1 on any logged error |
-| `... --handlers SiteFields,Lists` | Only those (checked against the engine, exit 2 otherwise); also forces browser-only ones |
+| `... --handlers SiteFields,Lists` | Only those (checked against the engine, exit 2 otherwise); Taxonomy too, when named |
+| `... --taxonomy` | Also apply the Taxonomy section: it writes to the tenant's term store, which every site shares |
 | `... --mode cloud` | The subset PP365 applies when publishing a cloud template |
 | `... --mode project [--extensions <ids\|all\|none>]` | The project template and extensions, as the project setup's `ApplyTemplate` and `Hooks` steps apply them |
 | `... --verify [--exact]` | Then compare the template with the site (exit 1 on a finding) |
-| `npm run verify -- --package <path> [--exact] [--json]` | Compare a template with a site, read-only (every section, browser-only ones included) |
+| `npm run verify -- --package <path> [--exact] [--json]` | Compare a template with a site, read-only (every section, Taxonomy included) |
 | `npm run inspect -- [--prefix <text>] [--out <file>]` | What a web holds of what the handlers write, as JSON, read-only |
 | `... --lang en-US`, `--skip-taxonomy`, `--parameters k=v,...` | Locale, no Taxonomy, `{parameter:k}` values |
 | `... --site <url> --allow-site <url>` | A site outside `INTEGRATION_SITE_URL`: refused unless `--allow-site` repeats it |
@@ -40,13 +41,11 @@ usage error or refused site. `verify`: 0 no finding, 1 a finding.
 
 ## What runs in Node
 
-REST handlers run: SiteFields, Features, Security, Lists, CustomActions, ComposedLook,
-ClientSidePages, Navigation, WebSettings, Hooks. Skipped unless forced (`--handlers`): Taxonomy
-(it runs in Node, but writes to the tenant's term store, which every site shares: name it only for a
-template whose term group may be written), Files (refuses with an SPFx context), PropertyBagEntries,
-and ContentTypes, which runs in Node through CSOM over HTTP but is left out by default until the
-packages list counts it (JSOM exit, step 5); list content type bindings then assume the content
-types already exist.
+Every handler runs in Node (REST and CSOM over HTTP; no JSOM since 1.6.0). Taxonomy only with
+`--taxonomy` or `--handlers`: it writes to the tenant's term store, which every site of the tenant
+shares, so apply it only with a template whose term group may be written (never a hosting package's
+`Prosjektportalen` group on a shared tenant). A site that blocks custom script refuses
+`PropertyBagEntries`: one logged error, exit 1 with `--strict`.
 
 ## Reading the result
 

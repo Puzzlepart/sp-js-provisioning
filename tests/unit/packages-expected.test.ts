@@ -3,6 +3,7 @@ import { describe, it } from 'node:test'
 import {
   expectedOf,
   PACKAGE_CASES,
+  parentContentTypeId,
   unlisted
 } from '../integration/packages.expected'
 
@@ -121,5 +122,59 @@ describe('packages: what the Node run cannot do', () => {
         'project en-US'
       ]
     )
+  })
+})
+
+describe('packages: what a scratch web lacks besides the lists', () => {
+  const testCase = {
+    pkg: 'pp-example',
+    mode: 'hub' as const,
+    lists: {},
+    contentTypes: {
+      '0x0100AB': { name: 'Prosjekt (Test)', fieldRefs: ['GtA', 'GtB'] }
+    },
+    propertyBag: ['GtTestPackage']
+  }
+  const logged = [
+    '[ContentTypes] (ContentTypes): (processContentTypeFieldRefs): Field ref GtA of content type [Prosjekt (Test)] (0x0100AB) is left out: the web has no site column with that name.',
+    '[ContentTypes] (ContentTypes): (processContentTypeFieldRefs): Field ref GtB of content type [Prosjekt (Test)] (0x0100AB) is left out: the web has no site column with that name or id.',
+    '[PropertyBagEntries] (PropertyBagEntries): (ProvisionObjects): Property bag entries GtTestPackage, vti_indexedpropertykeys were not written: SharePoint refused the write, as it does on a site that blocks custom script (DenyAddAndCustomizePages; a SharePoint admin can allow it): Access is denied. (System.UnauthorizedAccessException)'
+  ]
+  const found = [
+    '[ContentTypes] Prosjekt (Test) (0X0100AB)/FieldRefs/GtA: expected "a field link", found "none"',
+    '[ContentTypes] Prosjekt (Test) (0X0100AB)/FieldRefs/GtB: expected "a field link", found "none"',
+    '[PropertyBagEntries] GtTestPackage: expected "pp-testprosjekt", found null',
+    '[PropertyBagEntries] GtTestPackage/Indexed: expected true, found false'
+  ]
+
+  it("derives the content types' left-out field refs and the refused property bag", () => {
+    const { errors, findings } = expectedOf(testCase)
+    assert.deepEqual(unlisted(logged, errors), { unexpected: [], missing: [] })
+    assert.deepEqual(unlisted(found, findings), { unexpected: [], missing: [] })
+  })
+
+  it('expects the property bag refused only where custom script is blocked', () => {
+    const { errors, findings } = expectedOf(testCase, {
+      customScriptBlocked: false
+    })
+    assert.equal(unlisted(logged, errors).unexpected.length, 1)
+    assert.equal(unlisted(found, findings).unexpected.length, 2)
+  })
+
+  it('finds the parent of a content type id', () => {
+    assert.equal(
+      parentContentTypeId('0x0100805E9E4FEAAB4F0EABAB2600D30DB70C0E'),
+      '0x0100805E9E4FEAAB4F0EABAB2600D30DB70C'
+    )
+    assert.equal(
+      parentContentTypeId('0x0100805E9E4FEAAB4F0EABAB2600D30DB70C'),
+      '0x01'
+    )
+    assert.equal(
+      parentContentTypeId('0x010100A0D1F01C823B33452A95A801640901B9'),
+      '0x0101'
+    )
+    assert.equal(parentContentTypeId('0x0101'), '0x01')
+    assert.equal(parentContentTypeId('0x01'), undefined)
   })
 })

@@ -1,11 +1,14 @@
 import { Mode } from '../../debug/lib/cli'
 
 /**
- * What the Node run of a hosting package cannot do, per case of `packages.test.ts`
- * (docs/specs/integration-testing.md, Fixtures). Each list says what it lacks afterwards; the suite
- * derives from it the errors the run must log and the differences `verify` must find, both exactly:
- * a new failure and a fixed one both fail the case. Generated from the runs of 2026-11-10 and kept
- * by hand since; remove an entry when what causes it is fixed (the JSOM exit, mostly).
+ * What a hosting package's run on a scratch web of the reserved site cannot do, per case of
+ * `packages.test.ts` (docs/specs/integration-testing.md, Fixtures): what a scratch web lacks that a
+ * PP365 hub or project site has (PP365's own site columns and content types), and what the reserved
+ * site refuses (a property bag write, which needs custom script). Each list says what it lacks
+ * afterwards; the suite derives from it the errors the run must log and the differences `verify`
+ * must find, both exactly: a new failure and a fixed one both fail the case. Generated from the
+ * runs of 2026-11-11 after the JSOM exit (`INTEGRATION_PACKAGES_REPORT=true` prints every line);
+ * remove an entry when what causes it is fixed.
  */
 
 /**
@@ -13,9 +16,8 @@ import { Mode } from '../../debug/lib/cli'
  */
 export interface IListGaps {
   /**
-   * Content type ids the list could not bind: the content type is not on the web. ContentTypes
-   * runs through JSOM, skipped in Node until the JSOM exit; other ids are PP365's own content
-   * types, which a PP365 site has and a scratch web does not.
+   * Content type ids the list could not bind: PP365's own content types, which a PP365 site has and
+   * a scratch web does not.
    */
   bindings?: string[]
   /**
@@ -40,7 +42,18 @@ export interface IExpected {
 }
 
 /**
- * A package, a mode, a locale and the extensions, with what the Node run cannot do. Without
+ * A content type whose field refs name columns a scratch web lacks (PP365's own site columns): they
+ * are left out, each with an error.
+ */
+export interface IContentTypeGaps {
+  /** The content type's name, as the error names it. */
+  name: string
+  /** The field refs left out, by name. */
+  fieldRefs: string[]
+}
+
+/**
+ * A package, a mode, a locale and the extensions, with what the run cannot do. Without
  * `lists` (`INTEGRATION_PACKAGES=all`) the errors and findings are reported, not asserted: the run
  * must only not stop.
  */
@@ -51,6 +64,13 @@ export interface IPackageCase {
   /** `--mode project`: the extensions (default: the ones the setup selects to begin with). */
   extensions?: string[]
   lists?: Record<string, IListGaps>
+  /** Content types whose field refs name columns a scratch web lacks, by content type id. */
+  contentTypes?: Record<string, IContentTypeGaps>
+  /**
+   * Property bag keys a site that blocks custom script refuses to write (the reserved site does):
+   * expected only there.
+   */
+  propertyBag?: string[]
   /** Expected errors beside the lists' gaps. */
   errors?: IExpected[]
   /** Expected `verify` findings beside the lists' gaps. */
@@ -68,42 +88,110 @@ export const PACKAGE_CASES: IPackageCase[] = [
     pkg: 'pp-testprosjekt',
     mode: 'hub',
     lists: {
-      Prosjekter: { bindings: ['0x0100CBEAE584066D4D87970DD5EDFDFE7F06'] },
       Testsjekkliste: {
-        bindings: ['0x0100FFE226AE6A8C4F38A2DAB5E451711F4E'],
+        rows: true,
         views: {
-          'Alle elementer': ['GtSortOrder', 'GtProjectPhase', 'GtTestText']
-        },
-        rows: true
+          'Alle elementer': ['GtSortOrder', 'GtProjectPhase']
+        }
       }
-    }
+    },
+    contentTypes: {
+      '0x0100CBEAE584066D4D87970DD5EDFDFE7F06': {
+        name: 'Prosjekt (Test)',
+        fieldRefs: [
+          'GtProjectNumber',
+          'GtProjectPhase',
+          'GtProjectManager',
+          'GtProjectOwner',
+          'GtStartDate',
+          'GtEndDate',
+          'GtProjectGoals'
+        ]
+      },
+      '0x0100FFE226AE6A8C4F38A2DAB5E451711F4E': {
+        name: 'Testsjekkpunkt',
+        fieldRefs: ['GtSortOrder', 'GtProjectPhase']
+      }
+    },
+    propertyBag: ['GtTestPackage']
   },
   {
     pkg: 'pp-testprosjekt',
     mode: 'hub',
     lang: 'en-US',
     lists: {
-      Projects: { bindings: ['0x0100CBEAE584066D4D87970DD5EDFDFE7F06'] },
       'Test Checklist': {
-        bindings: ['0x0100FFE226AE6A8C4F38A2DAB5E451711F4E'],
-        views: { 'All items': ['GtSortOrder', 'GtProjectPhase', 'GtTestText'] },
-        rows: true
+        rows: true,
+        views: {
+          'All items': ['GtSortOrder', 'GtProjectPhase']
+        }
+      }
+    },
+    contentTypes: {
+      '0x0100CBEAE584066D4D87970DD5EDFDFE7F06': {
+        name: 'Project (Test)',
+        fieldRefs: [
+          'GtProjectNumber',
+          'GtProjectPhase',
+          'GtProjectManager',
+          'GtProjectOwner',
+          'GtStartDate',
+          'GtEndDate',
+          'GtProjectGoals'
+        ]
+      },
+      '0x0100FFE226AE6A8C4F38A2DAB5E451711F4E': {
+        name: 'Test Checkpoint',
+        fieldRefs: ['GtSortOrder', 'GtProjectPhase']
+      }
+    },
+    propertyBag: ['GtTestPackage']
+  },
+  {
+    pkg: 'pp-testprosjekt',
+    mode: 'cloud',
+    lists: {},
+    contentTypes: {
+      '0x0100CBEAE584066D4D87970DD5EDFDFE7F06': {
+        name: 'Prosjekt (Test)',
+        fieldRefs: [
+          'GtProjectNumber',
+          'GtProjectPhase',
+          'GtProjectManager',
+          'GtProjectOwner',
+          'GtStartDate',
+          'GtEndDate',
+          'GtProjectGoals'
+        ]
+      },
+      '0x0100FFE226AE6A8C4F38A2DAB5E451711F4E': {
+        name: 'Testsjekkpunkt',
+        fieldRefs: ['GtSortOrder', 'GtProjectPhase']
       }
     }
   },
   {
     pkg: 'pp-testprosjekt',
     mode: 'cloud',
-    lists: {
-      Prosjekter: { bindings: ['0x0100CBEAE584066D4D87970DD5EDFDFE7F06'] }
-    }
-  },
-  {
-    pkg: 'pp-testprosjekt',
-    mode: 'cloud',
     lang: 'en-US',
-    lists: {
-      Projects: { bindings: ['0x0100CBEAE584066D4D87970DD5EDFDFE7F06'] }
+    lists: {},
+    contentTypes: {
+      '0x0100CBEAE584066D4D87970DD5EDFDFE7F06': {
+        name: 'Project (Test)',
+        fieldRefs: [
+          'GtProjectNumber',
+          'GtProjectPhase',
+          'GtProjectManager',
+          'GtProjectOwner',
+          'GtStartDate',
+          'GtEndDate',
+          'GtProjectGoals'
+        ]
+      },
+      '0x0100FFE226AE6A8C4F38A2DAB5E451711F4E': {
+        name: 'Test Checkpoint',
+        fieldRefs: ['GtSortOrder', 'GtProjectPhase']
+      }
     }
   },
   {
@@ -111,11 +199,19 @@ export const PACKAGE_CASES: IPackageCase[] = [
     mode: 'project',
     lists: {
       Testprosjektliste: {
-        bindings: ['0x01009A8EC06C79424B1B99D0FC4E61331392'],
-        views: { 'Alle elementer': ['GtTestChoice', 'GtTestProjectNote'] },
-        rows: true
+        rows: true,
+        views: {
+          'Alle elementer': ['GtTestChoice']
+        }
       }
-    }
+    },
+    contentTypes: {
+      '0x01009A8EC06C79424B1B99D0FC4E61331392': {
+        name: 'Testelement',
+        fieldRefs: ['GtTestChoice']
+      }
+    },
+    propertyBag: ['GtTestProjectProvisioned']
   },
   {
     pkg: 'pp-testprosjekt',
@@ -123,11 +219,19 @@ export const PACKAGE_CASES: IPackageCase[] = [
     lang: 'en-US',
     lists: {
       'Test Project List': {
-        bindings: ['0x01009A8EC06C79424B1B99D0FC4E61331392'],
-        views: { 'All items': ['GtTestChoice', 'GtTestProjectNote'] },
-        rows: true
+        rows: true,
+        views: {
+          'All items': ['GtTestChoice']
+        }
       }
-    }
+    },
+    contentTypes: {
+      '0x01009A8EC06C79424B1B99D0FC4E61331392': {
+        name: 'Test Item',
+        fieldRefs: ['GtTestChoice']
+      }
+    },
+    propertyBag: ['GtTestProjectProvisioned']
   },
   {
     pkg: 'pp-enkel-prosjektmal',
@@ -241,7 +345,6 @@ export const PACKAGE_CASES: IPackageCase[] = [
     extensions: ['forskningsmal'],
     lists: {
       Fasesjekkliste: {
-        bindings: ['0x0100486B1F8AEA24486FBA1C1BA9146C360C'],
         fieldRefs: ['GtcPhaseReference'],
         views: {
           'Alle elementer': [
@@ -266,7 +369,6 @@ export const PACKAGE_CASES: IPackageCase[] = [
         }
       },
       Prosjektleveranser: {
-        bindings: ['0x0100D7B74DE815F946D3B0F99D19F9B36B68'],
         fieldRefs: ['GtcDeliveryNumber'],
         views: {
           'Alle elementer': [
@@ -279,7 +381,6 @@ export const PACKAGE_CASES: IPackageCase[] = [
         }
       },
       Publiseringer: {
-        bindings: ['0x01004B2B9889EA2C462FBE9B54B0D462E96B'],
         views: {
           'Alle elementer': [
             'GtcPubResultId',
@@ -291,23 +392,66 @@ export const PACKAGE_CASES: IPackageCase[] = [
           ]
         }
       }
+    },
+    contentTypes: {
+      '0x0100486B1F8AEA24486FBA1C1BA9146C360C': {
+        name: 'Sjekkpunkt',
+        fieldRefs: [
+          'GtProjectPhase',
+          'GtChecklistStatus',
+          'GtComment',
+          'GtSortOrder',
+          'GtcPhaseReference'
+        ]
+      },
+      '0x01004B2B9889EA2C462FBE9B54B0D462E96B': {
+        name: 'Publiseringelement',
+        fieldRefs: [
+          'GtcPubResultId',
+          'GtcPubChannel',
+          'GtcPubRole',
+          'GtcPubIsPublished',
+          'GtcPubDate',
+          'GtcPubLink'
+        ]
+      },
+      '0x0100D7B74DE815F946D3B0F99D19F9B36B68': {
+        name: 'Prosjektleveranse',
+        fieldRefs: [
+          'GtDeliveryDescription',
+          'GtDeliveryStartTime',
+          'GtDeliveryEndTime',
+          'GtDeliveryQualityExpectations',
+          'GtDeliveryAcceptanceCriteria',
+          'GtDeliveryQualityTolerance',
+          'GtDeliveryQualityResponsible',
+          'GtDeliveryAcceptanceMethod',
+          'GtDeliveryAcceptanceResponsible',
+          'GtDeliveryAcceptanceDate',
+          'GtDeliveryStatus',
+          'GtDeliveryStatusComment',
+          'GtTag',
+          'GtcDeliveryNumber'
+        ]
+      }
     }
   },
   {
     pkg: 'pp-veiprosjekt',
     mode: 'hub',
     lists: {
-      Prosjekter: { bindings: ['0x0100805E9E4FEAAB4F0EABAB2600D30DB70C0E'] },
-      Prosjektdata: { bindings: ['0x0100805E9E4FEAAB4F0EABAB2600D30DB70C0E'] },
       'Fasesjekkliste Vei': {
         bindings: ['0x0100486B1F8AEA24486FBA1C1BA9146C360C'],
         fieldRefs: ['GtChecklistStatus', 'GtComment'],
-        views: { 'Alle elementer': ['GtSortOrder'] },
-        rows: true
+        rows: true,
+        views: {
+          'Alle elementer': ['GtSortOrder']
+        }
       },
       'Planneroppgaver Vei': {
         bindings: ['0x01000F43B5C9E86B4D7D9808100EC27E844A'],
         fieldRefs: ['GtSortOrder'],
+        rows: true,
         views: {
           'Alle elementer': [
             'GtSortOrder',
@@ -318,11 +462,54 @@ export const PACKAGE_CASES: IPackageCase[] = [
             'GtAttachments',
             'GtPlannerPreviewType'
           ]
-        },
+        }
+      },
+      Prosjektkolonner: {
         rows: true
       },
-      Prosjektkolonner: { rows: true },
-      Porteføljevisninger: { rows: true }
+      Porteføljevisninger: {
+        rows: true
+      }
+    },
+    contentTypes: {
+      '0x0100805E9E4FEAAB4F0EABAB2600D30DB70C0E': {
+        name: 'Prosjekt (Vei)',
+        fieldRefs: [
+          'GtProjectFinanceName',
+          'GtProjectNumber',
+          'GtArchiveReference',
+          'GtProjectServiceArea',
+          'GtProjectType',
+          'GtUNSustDevGoals',
+          'GtProjectPhase',
+          'GtProjectManager',
+          'GtProjectOwner',
+          'GtProjectSupport',
+          'GtStartDate',
+          'GtEndDate',
+          'GtProjectGoals',
+          'GtBudgetTotal',
+          'GtCostsTotal',
+          'GtProjectForecast',
+          'GtBudgetLastReportDate',
+          'GtGroupId',
+          'GtSiteId',
+          'GtSiteUrl',
+          'GtLastSyncTime',
+          'GtProjectLifecycleStatus',
+          'GtProjectPhaseText',
+          'GtProjectServiceAreaText',
+          'GtProjectTypeText',
+          'GtUNSustDevGoalsText',
+          'GtProjectAdminRoles',
+          'GtGainsResponsible',
+          'GtProjectTemplate',
+          'GtParentProjects',
+          'GtChildProjects',
+          'GtIsParentProject',
+          'GtIsProgram'
+        ]
+      }
     },
     findings: [
       {
@@ -335,21 +522,88 @@ export const PACKAGE_CASES: IPackageCase[] = [
   }
 ]
 
+/**
+ * The parent of a content type id: the id without its last `00` and GUID (`0x0100<32 hex>` is a
+ * child of `0x01`), or without its last two digits (`<id>01` is a child of `<id>`).
+ *
+ * @param id - The content type id
+ */
+export function parentContentTypeId(id: string): string | undefined {
+  const bare = id.replace(/^0x/i, '')
+  if (bare.length <= 2) return undefined
+  const parent =
+    bare.length >= 36 && /^00[\da-f]{32}$/i.test(bare.slice(-34))
+      ? bare.slice(0, -34)
+      : bare.slice(0, -2)
+  return `0x${parent}`
+}
+
 /** A text as a regular expression that matches it literally. */
 const literal = (text: string) => text.replace(/[.*+?^${}()|[\]\\/]/g, '\\$&')
 
 /**
- * The errors a run must log and the findings `verify` must report for what a case's lists lack
- * (`packages.expected.ts`), plus the case's other expected errors and findings. An error line is
- * `[Lists] (Lists): (<scope>): <message>`, a finding line `[Lists] <path>: expected ..., found ...`.
+ * The errors a run must log and the findings `verify` must report for what a case's lists and
+ * content types lack and what the site refuses (`packages.expected.ts`), plus the case's other
+ * expected errors and findings. An error line is `[<Handler>] (<Handler>): (<scope>): <message>`, a
+ * finding line `[<Handler>] <path>: expected ..., found ...`.
  *
  * @param testCase - The case
+ * @param site - Whether the site blocks custom script (the property bag is refused); default yes
  */
 export function expectedOf(
-  testCase: IPackageCase
+  testCase: IPackageCase,
+  site: { customScriptBlocked?: boolean } = {}
 ): { errors: IExpected[]; findings: IExpected[] } {
   const errors: IExpected[] = [...(testCase.errors || [])]
   const findings: IExpected[] = [...(testCase.findings || [])]
+  for (const id of Object.keys(testCase.contentTypes || {})) {
+    const { name, fieldRefs } = testCase.contentTypes[id]
+    const columns = fieldRefs.map(literal).join('|')
+    const why = `${name}: field refs to PP365's own site columns, which a scratch web lacks`
+    errors.push({
+      handler: 'ContentTypes',
+      pattern: new RegExp(
+        `processContentTypeFieldRefs\\): Field ref (${columns}) of content type \\[${literal(
+          name
+        )}\\] \\(${literal(id)}\\) is left out: the web has no site column`
+      ),
+      why
+    })
+    findings.push({
+      handler: 'ContentTypes',
+      pattern: new RegExp(
+        `^\\[ContentTypes\\] ${literal(name)} \\(${literal(
+          id.toUpperCase()
+        )}\\)/FieldRefs/(${columns}): `
+      ),
+      why
+    })
+  }
+  if (
+    testCase.propertyBag &&
+    testCase.propertyBag.length > 0 &&
+    site.customScriptBlocked !== false
+  ) {
+    const keys = testCase.propertyBag.map(literal)
+    const why =
+      'the site blocks custom script, so it refuses the property bag write'
+    errors.push({
+      handler: 'PropertyBagEntries',
+      pattern: new RegExp(
+        `ProvisionObjects\\): Property bag entries ${keys.join(
+          ', '
+        )}(, vti_indexedpropertykeys)? were not written: SharePoint refused the write, as it does on a site that blocks custom script`
+      ),
+      why
+    })
+    findings.push({
+      handler: 'PropertyBagEntries',
+      pattern: new RegExp(
+        `^\\[PropertyBagEntries\\] (${keys.join('|')})(/Indexed)?: `
+      ),
+      why
+    })
+  }
   const error = (pattern: string, why: string) =>
     errors.push({ handler: 'Lists', pattern: new RegExp(pattern), why })
   const finding = (path: string, why: string) =>

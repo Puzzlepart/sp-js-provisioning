@@ -7,9 +7,10 @@ import { verify } from '../../debug/lib/verify'
 import { loadFixture } from '../fixtures/fixtures'
 import { applyTwice, skipReason, withScratchWeb } from './helpers'
 
-/** The sections of `all.node.json`, in run order. */
+/** The sections of `all.json`, in run order. */
 const SECTIONS = [
   'SiteFields',
+  'ContentTypes',
   'Features',
   'Security',
   'Lists',
@@ -21,7 +22,7 @@ const SECTIONS = [
 ]
 
 /**
- * Every Node-capable handler fixture in one template (`all.node.json`, made by
+ * Every handler fixture that needs no setup of its own in one template (`all.json`, made by
  * `npm run build:fixtures`) on one fresh scratch web: the handlers see each other's results, as
  * in a real template (site columns the lists use, groups the list permissions name, lists the
  * lookups point at). Runs with `npm run test:integration -- all` or `-- everything`, not by
@@ -35,7 +36,7 @@ describe('Everything', { skip: skipReason() }, () => {
     user = await fixtureUser(scratch().conn)
   })
 
-  it('applies every Node-capable fixture together, twice, and verify finds nothing, exact on the fresh web', async (t) => {
+  it('applies the fixtures together, twice, and verify finds nothing, exact on the fresh web', async (t) => {
     if (!user) {
       t.skip(
         'app-only without INTEGRATION_USER: no user for the members and User values'
@@ -43,7 +44,7 @@ describe('Everything', { skip: skipReason() }, () => {
       return
     }
     const { conn } = scratch()
-    const template = () => loadFixture('all.node', { user })
+    const template = () => loadFixture('all', { user })
     /** What `verify` finds comparing everything: a fresh web the template was just applied to. */
     const exact = async (c: ISiteConnection) =>
       (await verify(c, template(), { exact: true })).findings.map((finding) =>

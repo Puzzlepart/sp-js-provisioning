@@ -1,8 +1,8 @@
 /**
  * A readable message for whatever an operation threw or rejected with: a text as it is, an error's
- * `message` (or `message.value`, as in a SharePoint REST error), a JSOM request's
- * `args.get_message()` (`executeQueryAsync` rejects with `{ sender, args }`), else a short JSON of
- * the object, so a message never reads «[object Object]» or «undefined».
+ * `message` (or `message.value`, as in a SharePoint REST error), a JSOM-style rejection's
+ * `args.get_message()` (`{ sender, args }`, as a caller's own JSOM code may reject with), else a
+ * short JSON of the object, so a message never reads «[object Object]» or «undefined».
  *
  * @param error - What was thrown or rejected with
  * @returns The message, or `undefined` when there is nothing to read

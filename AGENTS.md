@@ -35,11 +35,11 @@ code disagree, the code wins and the doc is fixed in the same change.
    no syntax newer than TS 4.0 (`Awaited`, `satisfies`), and `Error` subclasses must restore their
    prototype. Tests and the runner run `src/` through tsx (esbuild), so they can pass while
    `npm run build` fails: run both.
-5. `spfx-jsom` cannot load in Node; `tests/tsconfig.json` and `debug/tsconfig.json` map it to
-   `debug/stubs/spfx-jsom.ts` until the JSOM exit removes it (`docs/specs/jsom-exit.md`); no
-   handler uses JSOM. What REST cannot do goes through CSOM over HTTP (`src/util/csom.ts`), which
-   runs in Node: ContentTypes, Taxonomy and PropertyBagEntries. Taxonomy writes to the tenant-wide
-   term store: only to the group `SPJS Itest` in tests, and nothing is ever deleted from the store.
+5. Every handler runs in Node and under SPFx alike: there is no JSOM since 1.6.0
+   (`docs/specs/jsom-exit.md`). What REST cannot do goes through CSOM over HTTP
+   (`src/util/csom.ts`): ContentTypes, Taxonomy, PropertyBagEntries and a group's owner. Taxonomy
+   writes to the tenant-wide term store: the runner applies it only with `--taxonomy`, tests write
+   only to the group `SPJS Itest`, and nothing is ever deleted from the store.
 6. `npm version` publishes immediately (`postversion: tsc && npm publish`). Never run it unless
    asked.
 7. `.env` holds the tenant configuration and is gitignored; never commit it or print a cookie,
@@ -61,8 +61,8 @@ code disagree, the code wins and the doc is fixed in the same change.
 | `npm run check:tenant` | Is the tenant ready for the integration suites |
 | `npm run test:integration:ci`, `npm run check:reports -- test-results` | The suites as CI runs them (strict; JUnit and HTML to `test-results/`), and the check that the reports hold nothing `redact()` would replace |
 | `npm run test:integration [-- <Handler ...> \| all \| packages] [--keep]` | Integration suites against scratch webs (`all` adds `everything`; `packages` the hosting packages) |
-| `npm run build:fixtures` | Writes `all.node.json` from the handler fixtures |
-| `npm run provision -- --package <path> [--mode hub\|cloud\|project] [--twice] [--strict] [--verify] [--dry-run]` | Apply a template or a PP365 package by hand |
+| `npm run build:fixtures` | Writes `all.json` from the handler fixtures |
+| `npm run provision -- --package <path> [--mode hub\|cloud\|project] [--twice] [--strict] [--verify] [--dry-run] [--taxonomy]` | Apply a template or a PP365 package by hand (Taxonomy only with `--taxonomy`) |
 | `npm run cleanup -- --webs \| --prefix 'SPJS Itest' [--apply]` | Remove leftovers (a plan unless `--apply`) |
 | `npm run verify -- --package <path> [--site <web>] [--exact]` | Compare a template with a web, read-only (exit 1 on a finding) |
 | `npm run inspect -- [--site <web>] [--prefix <text>]` | What a web holds, as JSON, read-only |

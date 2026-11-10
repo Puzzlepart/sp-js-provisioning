@@ -83,7 +83,7 @@ function printPlan(
       console.log(
         `Skipped:  ${step.plan.skipped.join(
           ', '
-        )} (browser/SPFx-only in Node; pass --handlers to force)`
+        )} (the tenant's term store: pass --taxonomy to apply it)`
       )
   }
   console.log('')
@@ -104,7 +104,12 @@ function plannedSteps(
   const schema = transformSchema(resolved.schema, args, resolved.manifest)
   const planned = (step: IStep): IPlannedStep => ({
     ...step,
-    plan: planHandlers(step.schema, handlers, args.handlers)
+    plan: planHandlers(
+      step.schema,
+      handlers,
+      args.handlers,
+      args.taxonomy ? ['Taxonomy'] : []
+    )
   })
   if (args.mode !== 'project') {
     const step = planned({ source: resolved.label, schema })

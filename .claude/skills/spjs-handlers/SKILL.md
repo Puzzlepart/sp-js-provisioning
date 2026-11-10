@@ -72,7 +72,7 @@ code wins and the doc is fixed in the same change.
 
 As above, plus: the `Handler` union, `DefaultHandlerMap`, a `DefaultHandlerSort` number (what must
 exist before it runs?), the `Schema` property, `tests/contract/orchestration.test.ts` (its handler
-list), `debug/lib/cli.ts` `NODE_UNSUPPORTED` if it cannot run in Node, a reader in
+list), `debug/lib/cli.ts` `OPT_IN_HANDLERS` if it writes beyond the site (as Taxonomy does), a reader in
 `debug/lib/readback/`, a fixture, a suite, `verify` expectations, and the matrix row.
 
 ## Pitfalls

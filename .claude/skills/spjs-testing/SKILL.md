@@ -1,6 +1,6 @@
 ---
 name: spjs-testing
-description: 'How sp-js-provisioning is tested and how to write, run and fix its tests. Use when asked to "add a test", "run the tests", "test the handler", "test against the site", "test against the tenant", "integration test", "check:tenant", "why does the suite fail", "the second run changed", "coverage", "flaky test", "test the Lists handler", "add a fixture", "verify found differences". Encodes the layers (unit, contract, integration against scratch webs, browser-only JSOM handlers), the commands, the harness (withScratchWeb, applyTwice, apply, read-backs, verify, loadFixture), the fixture rules, the site guard, NoScript, and the failure triage. Pair with spjs-provision to apply a template by hand.'
+description: 'How sp-js-provisioning is tested and how to write, run and fix its tests. Use when asked to "add a test", "run the tests", "test the handler", "test against the site", "test against the tenant", "integration test", "check:tenant", "why does the suite fail", "the second run changed", "coverage", "flaky test", "test the Lists handler", "add a fixture", "verify found differences". Encodes the layers (unit, contract, integration against scratch webs and the term store), the commands, the harness (withScratchWeb, applyTwice, apply, read-backs, verify, loadFixture), the fixture rules, the site guard, NoScript, and the failure triage. Pair with spjs-provision to apply a template by hand.'
 ---
 
 # Testing sp-js-provisioning
@@ -22,7 +22,7 @@ the code disagree, the code wins and the doc is fixed. The plan: `docs/specs/int
 | Unit | `tests/unit/*.test.ts` | `npm test`, CI | no |
 | Contract | `tests/contract/*.test.ts` (real PnPjs, `createWireWeb`: the requests on the wire) | `npm test`, CI | no |
 | Integration | `tests/integration/<handler>.test.ts` | `npm run test:integration -- <Handler>` | yes: scratch webs below `INTEGRATION_SITE_URL` |
-| Everything | `tests/integration/everything.test.ts` (`all.node.json`, `verify --exact`) | `npm run test:integration -- all` | yes |
+| Everything | `tests/integration/everything.test.ts` (`all.json`, `verify --exact`) | `npm run test:integration -- all` | yes |
 | Packages | `tests/integration/packages.test.ts` (prosjektportalen-hosting, an exact list of what Node cannot do) | `npm run test:integration -- packages` | yes |
 
 ## Running
@@ -96,9 +96,11 @@ the code disagree, the code wins and the doc is fixed. The plan: `docs/specs/int
   build a tenant name. `check:reports` failing means a report holds a value `redact()` would
   replace: find where the text reached the report without it (a file a suite wrote itself), never
   loosen the rule.
-- The packages suite holds each case to an exact list (`tests/integration/packages.expected.ts`,
-  what each list lacks). A new logged error or finding fails as `unexpected`, a fixed one as
-  `missing` (remove its entry). One case: `npm run test:integration -- packages
+- The packages suite holds each case to an exact list (`tests/integration/packages.expected.ts`:
+  what each list and content type lacks on a scratch web, and the refused property bag). A new
+  logged error or finding fails as `unexpected`, a fixed one as `missing` (remove its entry);
+  `INTEGRATION_PACKAGES_REPORT=true` prints every case's lines instead, to write the list anew. It
+  never applies a package's Taxonomy section (the tenant's term store). One case: `npm run test:integration -- packages
   --test-name-pattern='pp-enkel|pp-forskning'` (the pattern matches the case's name). It reads the
   prosjektportalen-hosting checkout next to this one, uncommitted changes included.
 

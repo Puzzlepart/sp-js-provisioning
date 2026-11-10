@@ -15,8 +15,7 @@
         "./node_modules/@microsoft"
       ],
       "types": [
-        "es6-promise",
-        "sharepoint"
+        "es6-promise"
       ],
       "lib": [
         "ES2016",

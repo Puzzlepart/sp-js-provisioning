@@ -12,7 +12,6 @@
     "CHANGELOG.md"
   ],
   "dependencies": {
-    "spfx-jsom": "0.6.6",
     "xml-js": "1.6.11"
   },
   "peerDependencies": {
@@ -30,7 +29,6 @@
     "@types/es6-promise": "0.0.33",
     "@types/node": "^8.0.28",
     "@types/node-forge": "1.3.14",
-    "@types/sharepoint": "^2016.1.2",
     "@types/webpack-env": "1.13.1",
     "@typescript-eslint/eslint-plugin": "4.6.1",
     "@typescript-eslint/parser": "4.6.1",
@@ -64,7 +62,7 @@
     "prepack": "npm run build",
     "test": "tsx --tsconfig tests/tsconfig.json --test \"tests/unit/*.test.ts\" \"tests/contract/*.test.ts\"",
     "test:ci": "node -e \"require('node:fs').mkdirSync('test-results/unit',{recursive:true})\" && tsx --tsconfig tests/tsconfig.json --test --test-reporter=spec --test-reporter-destination=stdout --test-reporter=junit --test-reporter-destination=test-results/unit.xml --test-reporter=./tests/reporters/html.cjs --test-reporter-destination=test-results/unit/index.html \"tests/unit/*.test.ts\" \"tests/contract/*.test.ts\"",
-    "test:coverage": "tsx --enable-source-maps --tsconfig tests/tsconfig.json --test --experimental-test-coverage --test-coverage-include=\"src/**\" --test-coverage-lines=80 --test-coverage-branches=84 --test-coverage-functions=79 \"tests/unit/*.test.ts\" \"tests/contract/*.test.ts\"",
+    "test:coverage": "tsx --enable-source-maps --tsconfig tests/tsconfig.json --test --experimental-test-coverage --test-coverage-include=\"src/**\" --test-coverage-lines=90 --test-coverage-branches=85 --test-coverage-functions=86 \"tests/unit/*.test.ts\" \"tests/contract/*.test.ts\"",
     "check:tenant": "tsx --tsconfig tests/tsconfig.json tests/integration/run.ts reachability --strict",
     "test:integration": "tsx --tsconfig tests/tsconfig.json tests/integration/run.ts",
     "test:integration:ci": "tsx --tsconfig tests/tsconfig.json tests/integration/run.ts --ci",
@@ -157,7 +155,7 @@
     },
     "settings": {
       "react": {
-        "version": "detect"
+        "version": "17.0"
       }
     }
   },

@@ -6,8 +6,9 @@ import { ISiteConnection } from './connect'
 import { ILogRecord, startRun } from './logs'
 
 /**
- * What one template run did: the handlers it ran (from the progress callback), the ones it skipped
- * because they cannot run in Node, the errors and warnings the handlers logged, and the
+ * What one template run did: the handlers it ran (from the progress callback), the ones it left
+ * out because they are applied only when asked (Taxonomy), the errors and warnings the handlers
+ * logged, and the
  * `ProvisioningError` it stopped with, if any. `apply` never throws for a failed run, so callers
  * (the runner, the tests) can assert on it.
  */
@@ -22,7 +23,7 @@ export interface IApplyResult {
 }
 
 export interface IApplyOptions {
-  /** Only these handlers (validated against the engine; also forces skipped ones). */
+  /** Only these handlers (validated against the engine; Taxonomy too, when named). */
   handlers?: string[]
   /** Values for `{parameter:...}` tokens. */
   parameters?: Record<string, string>

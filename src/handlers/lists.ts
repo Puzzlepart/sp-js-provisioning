@@ -1,6 +1,5 @@
 /* eslint-disable unicorn/no-array-for-each */
 import { IList, IWeb } from '@pnp/sp/presets/all'
-import initSpfxJsom, { JsomContext } from 'spfx-jsom'
 import { IProvisioningConfig } from '../provisioningconfig'
 import { ProvisioningContext } from '../provisioningcontext'
 import {
@@ -53,7 +52,6 @@ function fieldId(xml: string, attribute = 'ID'): string {
  */
 export class Lists extends HandlerBase {
   public tokenHelper: TokenHelper
-  public jsomContext: JsomContext
   public context: ProvisioningContext
 
   /**
@@ -76,9 +74,6 @@ export class Lists extends HandlerBase {
     lists: IListInstance[],
     context: ProvisioningContext
   ): Promise<void> {
-    this.jsomContext = (
-      await initSpfxJsom(context.web.ServerRelativeUrl)
-    ).jsomContext
     this.context = context
     this.tokenHelper = new TokenHelper(this.context, this.config)
     super.scope_started()

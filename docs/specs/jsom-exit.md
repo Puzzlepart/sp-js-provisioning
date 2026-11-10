@@ -1,7 +1,7 @@
 # Spec: The JSOM Exit
 
-Status: Ready (2026-11-10; the spike below is done, implementation follows in the order of
-"Steps": 1 to 4 are done, see the status under "Steps")
+Status: Implemented (2026-11-11: steps 1 to 5 done and green against the reserved site; the
+`Integration` workflow in certificate mode and the 1.6.0 release are left, see Verification Plan)
 
 Owner: Remi Blom-Ohlsen
 
@@ -157,9 +157,12 @@ Per file: read the source (J7), `files.addUsingPath` with `Overwrite` (default `
   unchanged (they already read all four).
 - Fixtures and suites: `contenttypes.json` (+ `.b.json`), `taxonomy.json`,
   `propertybagentries.json`, `files.json`; the four suites apply twice, read back, run `verify`,
-  and assert that the second run sends no write. `all.node.json` becomes `all.json` with content
-  types, files and property bag entries (not `Taxonomy`, J5). `packages.expected.ts` is
-  regenerated: what is left is what a scratch web lacks (PP365's own columns and content types).
+  and assert that the second run sends no write. `all.node.json` becomes `all.json` with the
+  content types (not `Taxonomy`, J5; not files and property bag entries either, as it turned out:
+  `files.json` needs a local server and a source in the web, and the property bag needs custom
+  script, so they stay with their suites, like `hooks.json`). `packages.expected.ts` is
+  regenerated: what is left is what a scratch web lacks (PP365's own columns and content types)
+  and what the reserved site refuses (the property bag).
 - Unit tests for the request builder (every parameter kind, escaping, the response, an error) and
   each handler with a fake transport; contract tests pin each request on the wire.
 
@@ -173,25 +176,25 @@ Per file: read the source (J7), `files.addUsingPath` with `Overwrite` (default `
 
 One commit per step; the suites run against the reserved site at each.
 
-Status, 2026-11-10: steps 1 to 4 are implemented, documented and green offline and against the
-reserved site (`npm run test:integration -- contenttypes taxonomy files propertybagentries`: 4, 2,
-3 and 1 tests, and 1 skipped: the site blocks custom script, so the property bag write can only be
-seen refused there). No handler uses JSOM. The runner still leaves ContentTypes, Files and
-PropertyBagEntries out by default (`NODE_UNSUPPORTED`) until step 5 regenerates the packages list
-with them, and leaves Taxonomy out for good (J5); their suites name their handlers.
+Status, 2026-11-11: all five steps are implemented and documented. No handler uses JSOM, and
+`spfx-jsom` and `@types/sharepoint` are gone. The runner applies every handler but Taxonomy, which
+it applies only with `--taxonomy` (J5). Against the reserved site, cookie mode:
+`npm run test:integration -- all` 66 tests, 64 pass, 2 skipped (both need custom script), 0 fail,
+14 minutes, `everything` with the content types included; `-- packages` 9 of 9 against the
+regenerated list, 9 minutes; each of the four suites green at least twice. Offline: 413 tests,
+coverage 94.1/87.2/88.7 (floors raised to 90/85/86).
 
-What the ContentTypes suite showed on SharePoint:
+What the packages showed once the four ran:
 
-- One request with the new links, their flags, `Reorder` and a single `Update(true)` is enough:
-  the named links come first, in the template's order, and the others after them.
-- `Update(true)` gives a child content type and a bound list's copy a new link, a changed
-  `Required` and the new order.
-- The columns are looked up among `Web.AvailableFields`, so a content type on a subweb can use a
-  parent web's column; they are read only when a link has to be added.
-- A name the web already has is refused in words ("Fant en duplisert innholdstype …",
-  `Microsoft.SharePoint.SPException`), and the handler stops with them.
-- `verify` asked SharePoint for content type ids with `0X` for `0x` and found none; fixed in
-  `readContentType`.
+- The content types of the packages are created, and the lists bind them; what is left is PP365's
+  own: site columns a content type or list names (left out with an error each, and the view fields
+  and rows that need them) and content types a list binds. A PP365 hub has both.
+- `pp-veiprosjekt`'s `Prosjekt (Vei)` is a child of PP365's `Prosjekt`
+  (`0x0100805E9E4FEAAB4F0EABAB2600D30DB70C`): on a scratch web SharePoint refuses it ("the parent
+  content type does not exist") and the template stops, as it should (J4). The suite makes the
+  parent first, as it makes the menu's targets.
+- `pp-testprosjekt`'s property bag entries are refused (custom script blocked), one error per run.
+- Files with a raw.githubusercontent.com source upload in Node.
 
 What the Files and PropertyBagEntries runs showed:
 

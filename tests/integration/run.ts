@@ -47,7 +47,7 @@ function availableSuites(): string[] {
 }
 
 /**
- * Suites that run only when asked for by name: `everything` (`all.node.json`, every handler at
+ * Suites that run only when asked for by name: `everything` (`all.json`, every handler at
  * once; `all` adds it to the handler suites) and `packages` (the hosting packages, slow).
  */
 export const OPT_IN_SUITES = ['everything', 'packages']

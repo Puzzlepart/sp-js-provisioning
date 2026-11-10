@@ -3,14 +3,8 @@
   "compilerOptions": {
     "baseUrl": "..",
     "noEmit": true,
-    "paths": {
-      "spfx-jsom": [
-        "debug/stubs/spfx-jsom.ts"
-      ]
-    },
     "types": [
       "es6-promise",
-      "sharepoint",
       "node"
     ]
   },

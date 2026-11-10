@@ -298,7 +298,6 @@ File: `src/handlers/lists.ts`
 
 Responsibilities:
 
-- Initializes JSOM for list operations that need it.
 - Loads existing lists into `context.lists`.
 - Creates lists (recording them in `context.createdLists`, the lists made in this setup) or updates an existing list with only the settings the template defines.
 - Adds content type bindings.
@@ -487,9 +486,9 @@ Important behavior:
 - Unsupported methods are logged and ignored.
 - Hook failures include status details from JSON error responses when possible.
 
-## PnP, JSOM, And Browser Assumptions
+## PnP, CSOM And Browser Assumptions
 
-This library uses PnPjs REST, SharePoint's client object model over HTTP (CSOM, `src/util/csom.ts`) and, until the JSOM exit is done ([spec](./specs/jsom-exit.md)), SharePoint JSOM.
+This library uses PnPjs REST and SharePoint's client object model over HTTP (CSOM, `src/util/csom.ts`). It has used no JSOM (`spfx-jsom`, `SP.ClientContext`) since 1.6.0 ([spec](./specs/jsom-exit.md)): every handler runs in Node and under SPFx alike.
 
 PnPjs is used for most CRUD-style operations:
 
@@ -511,18 +510,14 @@ CSOM over HTTP is used where REST cannot do what a template asks: an XML request
 
 - web property bag entries and their indexed keys (`PropertyBagEntries`)
 
-No handler uses JSOM any more; `Lists` still imports `spfx-jsom` without using it until the JSOM exit's last step removes the dependency.
 
-Several modules assume browser globals (`src/util/index.ts` no longer does: it reaches them through `browserWindow()`):
+Globals the code reaches, each guarded so it runs in Node too:
 
-- `window`
-- `document`
-- `fetch`
-- `Blob`
-- `_spPageContextInfo`
-- global `SP`
+- `window`, `_spPageContextInfo` and `document` (URL tokens on a classic page, `makeUrlRelative`), through `browserWindow()` or a `typeof` check
+- `fetch` (`Files` for a source on another origin, `Hooks`), which Node 18 and later have
+- `URL`
 
-Some handlers explicitly reject Node or SPFx modes, but not all browser/global assumptions are guarded. When making a handler work in a new runtime, audit the full call path for these globals.
+The integration suites run every handler in Node against SharePoint Online; PP365 runs them under SPFx.
 
 ## Build And Package Layout
 
@@ -598,8 +593,8 @@ When adding or modifying behavior:
    - Avoid cross-handler side effects unless they are represented in `ProvisioningContext`.
 
 5. Be explicit about runtime assumptions.
-   - Browser-only handlers should fail early with clear errors.
-   - SPFx restrictions should be documented in code and specs.
+   - A handler runs in Node and under SPFx alike: reach SharePoint through the web's PnPjs pipeline (REST, or `src/util/csom.ts`), never a global client context.
+   - What only a browser has is guarded and documented in code and specs.
 
 6. Verify with the tests ([`docs/TESTING.md`](./TESTING.md)).
    - `npm run build`, `npm test`, `npm run typecheck:tests`
