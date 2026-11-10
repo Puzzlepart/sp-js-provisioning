@@ -13,7 +13,7 @@ code disagree, the code wins and the doc is fixed in the same change.
 | `src/handlers/` | One handler per template section; `exports.ts` registers them (`Handler`, `DefaultHandlerMap`, `DefaultHandlerSort`) |
 | `src/util/` | Tokens (`tokenhelper.ts`, `index.ts` URL tokens), principals (`security.ts`), CSOM over HTTP (`csom.ts`) |
 | `src/schema.ts`, `schema.json` | The template contract (TypeScript) and its JSON Schema (hand-maintained; Phase 2 regenerates it) |
-| `debug/` | `npm run provision` and `npm run cleanup`; `debug/lib/` is the harness they share with the tests |
+| `debug/` | `npm run provision`, `verify`, `inspect` and `cleanup`; `debug/lib/` is the harness they share with the tests |
 | `tests/unit/` | Offline tests (`npm test`) |
 | `tests/reporters/` | The node:test HTML reporter (`npm run test:ci`: `test-results/unit/index.html`) |
 | `tests/integration/` | Suites against scratch webs on the reserved site (`npm run test:integration`) |
@@ -58,8 +58,10 @@ code disagree, the code wins and the doc is fixed in the same change.
 | `npm run test:tasks` | The test report publisher's tests, against local bare repositories |
 | `npm run check:tenant` | Is the tenant ready for the integration suites |
 | `npm run test:integration [-- <Handler ...>] [--keep]` | Integration suites against scratch webs |
-| `npm run provision -- --package <path> [--twice] [--strict] [--dry-run]` | Apply a template or a PP365 package by hand |
+| `npm run provision -- --package <path> [--mode hub\|cloud\|project] [--twice] [--strict] [--verify] [--dry-run]` | Apply a template or a PP365 package by hand |
 | `npm run cleanup -- --webs \| --prefix 'SPJS Itest' [--apply]` | Remove leftovers (a plan unless `--apply`) |
+| `npm run verify -- --package <path> [--site <web>] [--exact]` | Compare a template with a web, read-only (exit 1 on a finding) |
+| `npm run inspect -- [--site <web>] [--prefix <text>]` | What a web holds, as JSON, read-only |
 
 ## Testing
 

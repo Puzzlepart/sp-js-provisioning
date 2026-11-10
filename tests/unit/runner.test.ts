@@ -13,11 +13,17 @@ import {
   applyLocale,
   cloudHubSubset,
   handlerOrder,
+  INSPECT_USAGE,
   NODE_UNSUPPORTED,
   parseArgs,
+  parseInspectArgs,
   planHandlers,
+  projectSteps,
   resolveTemplate,
-  UsageError
+  selectExtensions,
+  usage,
+  UsageError,
+  verifyTargets
 } from '../../debug/lib/cli'
 import { authMode, configured, readEnv, ROOT } from '../../debug/lib/env'
 import { sourceOf, startRun } from '../../debug/lib/logs'
@@ -78,8 +84,8 @@ describe('runner: arguments', () => {
   it('rejects what it does not understand with exit code 2', () => {
     assertUsageError(() => parseArgs(['--bogus']), /Unknown argument: --bogus/)
     assertUsageError(
-      () => parseArgs(['--package', 'x.json', '--mode', 'project']),
-      /Invalid --mode "project"/
+      () => parseArgs(['--package', 'x.json', '--mode', 'bogus']),
+      /Invalid --mode "bogus" \(expected hub, cloud or project\)/
     )
     assertUsageError(
       () => parseArgs(['--strict']),
@@ -92,6 +98,206 @@ describe('runner: arguments', () => {
     assertUsageError(
       () => parseArgs(['--package', 'x.json', '--parameters', 'novalue']),
       /Invalid --parameters entry "novalue"/
+    )
+  })
+})
+
+describe('runner: project mode, verify and inspect arguments', () => {
+  it('takes --mode project with --extensions: ids, all or none', () => {
+    const args = parseArgs([
+      '--package',
+      'pkg',
+      '--mode',
+      'project',
+      '--extensions',
+      'a, b'
+    ])
+    assert.equal(args.mode, 'project')
+    assert.deepEqual(args.extensions, ['a', 'b'])
+    for (const value of ['all', 'none'] as const)
+      assert.equal(
+        parseArgs([
+          '--package',
+          'pkg',
+          '--mode',
+          'project',
+          '--extensions',
+          value
+        ]).extensions,
+        value
+      )
+    assertUsageError(
+      () => parseArgs(['--package', 'pkg', '--extensions', 'a']),
+      /--extensions needs --mode project/
+    )
+    assertUsageError(
+      () =>
+        parseArgs([
+          '--package',
+          'pkg',
+          '--mode',
+          'project',
+          '--extensions',
+          ','
+        ]),
+      /Invalid --extensions/
+    )
+  })
+
+  it('takes --verify and --exact for provision, and refuses --exact without --verify', () => {
+    const args = parseArgs(['--package', 'x.json', '--verify', '--exact'])
+    assert.ok(args.verify && args.exact && !args.json)
+    assertUsageError(
+      () => parseArgs(['--package', 'x.json', '--exact']),
+      /--exact needs --verify/
+    )
+    assertUsageError(
+      () => parseArgs(['--package', 'x.json', '--json']),
+      /--json is an option of npm run verify/
+    )
+  })
+
+  it('gives verify the shared options, --exact and --json, and none that write', () => {
+    const args = parseArgs(
+      ['--package', 'x.json', '--exact', '--json', '--handlers', 'Lists'],
+      'verify'
+    )
+    assert.ok(args.exact && args.json && !args.verify)
+    assert.deepEqual(args.handlers, ['Lists'])
+    for (const flag of ['--twice', '--strict', '--verify', '--dry-run'])
+      assertUsageError(
+        () => parseArgs(['--package', 'x.json', flag], 'verify'),
+        new RegExp(`${flag} is an option of npm run provision`)
+      )
+    assertUsageError(
+      () =>
+        parseArgs(
+          ['--package', 'x.json', '--allow-site', 'https://x'],
+          'verify'
+        ),
+      /--allow-site is an option of npm run provision/
+    )
+    const text = usage(handlers, 'verify')
+    assert.match(text, /npm run verify/)
+    assert.match(text, /--json/)
+    assert.doesNotMatch(text, /--twice|--allow-site/)
+    assert.match(usage(handlers), /--verify/)
+  })
+
+  it('parses the inspect arguments', () => {
+    assert.deepEqual(
+      parseInspectArgs([
+        '--site',
+        'https://x',
+        '--prefix',
+        'SPJS Itest',
+        '--out',
+        'o.json'
+      ]),
+      { site: 'https://x', prefix: 'SPJS Itest', out: 'o.json', help: false }
+    )
+    assert.equal(parseInspectArgs(['-h']).help, true)
+    assertUsageError(
+      () => parseInspectArgs(['--package', 'x']),
+      /Unknown argument: --package/
+    )
+    assertUsageError(
+      () => parseInspectArgs(['--prefix']),
+      /Missing value for --prefix/
+    )
+    assert.match(INSPECT_USAGE, /do not commit it/)
+  })
+})
+
+describe('runner: project setup steps', () => {
+  const nav = (title: string) => [{ Title: title, Url: '/x' }]
+
+  it('applies the template without Hooks, then each extension without Hooks, then the hooks', () => {
+    const hook = { Title: 'h', Url: 'https://example.org', Method: 'POST' }
+    const steps = projectSteps(
+      { Lists: [], Hooks: [hook], Navigation: { QuickLaunch: nav('T') } },
+      [
+        {
+          id: 'a',
+          name: 'A',
+          schema: { Navigation: { TopNavigationBar: nav('A') } }
+        },
+        { id: 'b', name: 'B', schema: { Hooks: [hook], WebSettings: {} } }
+      ]
+    )
+    assert.deepEqual(
+      steps.apply.map((step) => step.source),
+      ['template', 'extension a', 'extension b']
+    )
+    assert.deepEqual(steps.apply[0].schema, {
+      Lists: [],
+      Navigation: { QuickLaunch: nav('T') }
+    })
+    assert.deepEqual(steps.apply[2].schema, { WebSettings: {} })
+    assert.deepEqual(steps.hooks, [
+      { source: 'template hooks', schema: { Hooks: [hook] } },
+      { source: 'extension b hooks', schema: { Hooks: [hook] } }
+    ])
+  })
+
+  it("leaves out each menu of the template's Navigation that an extension declares too", () => {
+    // As ApplyTemplate._omitNavigationOfExtensions: the extension's menu is the one the project gets.
+    const template = {
+      Navigation: { QuickLaunch: nav('T'), TopNavigationBar: nav('T') }
+    }
+    const one = projectSteps(template, [
+      { id: 'a', name: 'A', schema: { Navigation: { QuickLaunch: nav('A') } } }
+    ])
+    assert.deepEqual(one.apply[0].schema, {
+      Navigation: { TopNavigationBar: nav('T') }
+    })
+    const both = projectSteps(template, [
+      {
+        id: 'a',
+        name: 'A',
+        schema: {
+          Navigation: { QuickLaunch: nav('A'), TopNavigationBar: nav('A') }
+        }
+      }
+    ])
+    assert.deepEqual(both.apply[0].schema, {})
+    assert.deepEqual(projectSteps(template, []).apply[0].schema, template)
+  })
+
+  it('verifies a menu only against the last template that declares it', () => {
+    const targets = verifyTargets([
+      {
+        source: 'one',
+        schema: { Navigation: { QuickLaunch: nav('1') }, Lists: [] }
+      },
+      { source: 'two', schema: { Navigation: { QuickLaunch: nav('2') } } },
+      { source: 'three', schema: { WebSettings: {} } }
+    ])
+    assert.deepEqual(
+      targets.map((target) => target.schema),
+      [
+        { Lists: [] },
+        { Navigation: { QuickLaunch: nav('2') } },
+        { WebSettings: {} }
+      ]
+    )
+  })
+
+  it('selects the extensions the setup starts with, all, none or by id', () => {
+    const available = [
+      { id: 'a', name: 'A', file: 'a.json', defaultSelected: true },
+      { id: 'b', name: 'B', file: 'b.json' },
+      { id: 'c', name: 'C', file: 'c.json', locked: true }
+    ]
+    const ids = (selection?: any) =>
+      selectExtensions(available, selection).map((extension) => extension.id)
+    assert.deepEqual(ids(), ['a', 'c'])
+    assert.deepEqual(ids('all'), ['a', 'b', 'c'])
+    assert.deepEqual(ids('none'), [])
+    assert.deepEqual(ids(['b']), ['b'])
+    assertUsageError(
+      () => ids(['x']),
+      /Unknown extension\(s\): x\. The package has: a, b, c/
     )
   })
 })
@@ -221,6 +427,101 @@ describe('runner: packages', () => {
       const english = resolveTemplate({ package: dir, lang: 'en-US' })
       assert.deepEqual(english.schema, { SiteFields: [] })
       assert.equal(english.label, 'pp-test -> hub.en-US.json')
+    } finally {
+      rmSync(dir, { recursive: true, force: true })
+    }
+  })
+
+  it('resolves --mode project to the localized project template and the selected extensions', () => {
+    const dir = tempDir()
+    try {
+      fs.writeFileSync(
+        path.join(dir, 'manifest.json'),
+        JSON.stringify({
+          name: 'pp-test',
+          provisioning: {
+            hubTemplate: 'hub.json',
+            template: 'template.json',
+            localized: { 'en-US': { template: 'template.en-US.json' } },
+            extensions: [
+              {
+                id: 'menu',
+                name: 'Menu',
+                file: 'ext/menu.json',
+                defaultSelected: true
+              },
+              { id: 'other', name: 'Other', file: 'ext/other.json' }
+            ]
+          }
+        })
+      )
+      fs.mkdirSync(path.join(dir, 'ext'))
+      fs.writeFileSync(path.join(dir, 'hub.json'), '{"SiteFields":[]}')
+      fs.writeFileSync(
+        path.join(dir, 'template.json'),
+        '{"$schema":"s","Lists":[]}'
+      )
+      fs.writeFileSync(path.join(dir, 'template.en-US.json'), '{"Features":[]}')
+      fs.writeFileSync(path.join(dir, 'ext', 'menu.json'), '{"Navigation":{}}')
+      fs.writeFileSync(
+        path.join(dir, 'ext', 'other.json'),
+        '{"WebSettings":{}}'
+      )
+
+      const project = resolveTemplate({ package: dir, mode: 'project' })
+      // `$schema` is the editor's, not a section.
+      assert.deepEqual(project.schema, { Lists: [] })
+      assert.equal(project.label, 'pp-test -> template.json')
+      assert.deepEqual(project.extensions, [
+        { id: 'menu', name: 'Menu', schema: { Navigation: {} } }
+      ])
+      const english = resolveTemplate({
+        package: dir,
+        mode: 'project',
+        lang: 'en-US',
+        extensions: 'all'
+      })
+      assert.deepEqual(english.schema, { Features: [] })
+      assert.deepEqual(
+        english.extensions.map((extension) => extension.id),
+        ['menu', 'other']
+      )
+      // The hub template stays the default.
+      assert.equal(resolveTemplate({ package: dir }).extensions, undefined)
+    } finally {
+      rmSync(dir, { recursive: true, force: true })
+    }
+  })
+
+  it('refuses --mode project for a package without a project template, and extension ids for a template', () => {
+    const dir = tempDir()
+    try {
+      fs.writeFileSync(
+        path.join(dir, 'manifest.json'),
+        JSON.stringify({
+          name: 'hub-only',
+          provisioning: { hubTemplate: 'hub.json' }
+        })
+      )
+      fs.writeFileSync(path.join(dir, 'hub.json'), '{}')
+      assertUsageError(
+        () => resolveTemplate({ package: dir, mode: 'project' }),
+        /manifest\.provisioning\.template missing/
+      )
+      const file = path.join(dir, 'hub.json')
+      assert.deepEqual(
+        resolveTemplate({ package: file, mode: 'project' }).extensions,
+        []
+      )
+      assertUsageError(
+        () =>
+          resolveTemplate({
+            package: file,
+            mode: 'project',
+            extensions: ['a']
+          }),
+        /--extensions needs a package/
+      )
     } finally {
       rmSync(dir, { recursive: true, force: true })
     }

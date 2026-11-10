@@ -7,6 +7,19 @@ For releases older than 1.3.6, see the git history.
 
 ## [Unreleased]
 
+### Development
+
+- Integration testing Phase 2, part 2 ([spec](./docs/specs/integration-testing.md)): `npm run verify`
+  compares a template or a package with a web, read-only, and reports each difference
+  (`debug/lib/verify.ts`, `debug/lib/readback/site.ts`): tokens replaced as the engine does for each
+  handler, and what a re-apply makes true (lists, views and members as a superset, data rows by
+  their key, a menu node's URL only with `IgnoreExisting`; `--exact` for a fresh web).
+  `npm run inspect` prints what a web holds of what the handlers write, as JSON.
+  `provision --verify` runs `verify` after applying, and `provision --mode project` applies a
+  package's project template and extensions as the project setup's `ApplyTemplate` and `Hooks`
+  steps do (`--extensions`). Every integration suite's `applyTwice` now also asserts that `verify`
+  finds nothing; `tests/unit/verify.test.ts` covers its rules.
+
 ## [1.5.1] - 2026-11-10
 
 A handler that fails with something other than an `Error`, such as a refused JSOM request, is

@@ -73,7 +73,9 @@
     "test:tasks": "node --test \".tasks/*.test.js\"",
     "postversion": "tsc && npm publish",
     "provision": "tsx --tsconfig debug/tsconfig.json debug/provision.ts",
-    "cleanup": "tsx --tsconfig debug/tsconfig.json debug/cleanup.ts"
+    "cleanup": "tsx --tsconfig debug/tsconfig.json debug/cleanup.ts",
+    "verify": "tsx --tsconfig debug/tsconfig.json debug/verify.ts",
+    "inspect": "tsx --tsconfig debug/tsconfig.json debug/inspect.ts"
   },
   "eslintConfig": {
     "env": {

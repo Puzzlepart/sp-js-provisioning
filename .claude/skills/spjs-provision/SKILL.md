@@ -1,6 +1,6 @@
 ---
 name: spjs-provision
-description: 'How to apply a template or a Prosjektportalen package to a SharePoint site with the local runner, and how to read the result. Use when asked to "provision", "run the template", "apply the package", "test the template on a site", "npm run provision", "dry run", "why did provisioning fail", "which handlers run", "cloud mode", "--strict", "--twice", "clean up the site". Encodes the .env sign-in (PP365 e2e cookies locally, certificate in CI), the site guard, the flags, the handlers that run in Node, how the modes map to PP365 PackageInstaller, the exit codes and the log lines. Pair with spjs-testing for automated suites.'
+description: 'How to apply a template or a Prosjektportalen package to a SharePoint site with the local runner, and how to read the result. Use when asked to "provision", "run the template", "apply the package", "test the template on a site", "npm run provision", "dry run", "why did provisioning fail", "which handlers run", "cloud mode", "project mode", "--strict", "--twice", "--verify", "npm run verify", "what differs from the template", "npm run inspect", "what is on the site", "clean up the site". Encodes the .env sign-in (PP365 e2e cookies locally, certificate in CI), the site guard, the flags, the handlers that run in Node, how the modes map to PP365 PackageInstaller and the project setup, verify and inspect, the exit codes and the log lines. Pair with spjs-testing for automated suites.'
 ---
 
 # Provisioning a site by hand
@@ -26,12 +26,17 @@ fixed.
 | `... --twice --strict` | Apply twice; exit 1 on any logged error |
 | `... --handlers SiteFields,Lists` | Only those (checked against the engine, exit 2 otherwise); also forces browser-only ones |
 | `... --mode cloud` | The subset PP365 applies when publishing a cloud template |
+| `... --mode project [--extensions <ids\|all\|none>]` | The project template and extensions, as the project setup's `ApplyTemplate` and `Hooks` steps apply them |
+| `... --verify [--exact]` | Then compare the template with the site (exit 1 on a finding) |
+| `npm run verify -- --package <path> [--exact] [--json]` | Compare a template with a site, read-only (every section, browser-only ones included) |
+| `npm run inspect -- [--prefix <text>] [--out <file>]` | What a web holds of what the handlers write, as JSON, read-only |
 | `... --lang en-US`, `--skip-taxonomy`, `--parameters k=v,...` | Locale, no Taxonomy, `{parameter:k}` values |
 | `... --site <url> --allow-site <url>` | A site outside `INTEGRATION_SITE_URL`: refused unless `--allow-site` repeats it |
 | `npm run cleanup -- --prefix 'SPJS Itest'` / `--webs` | What to remove; `--apply` removes it |
 
 `<path>` is a package folder (with `manifest.json`), a `.pppkg`/`.zip`, or a template JSON.
-Exit codes: 0 applied, 1 failed (or a logged error with `--strict`), 2 usage error or refused site.
+Exit codes: 0 applied, 1 failed (or a logged error with `--strict`, a finding with `--verify`), 2
+usage error or refused site. `verify`: 0 no finding, 1 a finding.
 
 ## What runs in Node
 
@@ -49,8 +54,16 @@ then assume the content types already exist.
   run goes on, and only `--strict` exits 1. A navigation node SharePoint refuses still fails the
   run, as `Navigation node '<Title>' (<Url>) was refused by SharePoint: ...`, and both menus are
   left as they were.
-- `--strict` sees logged errors, not what SharePoint silently ignored: read the result back (the
-  suites do; `debug/lib/readback/`), or look at the site.
+- `--strict` sees logged errors, not what SharePoint silently ignored: `--verify` (or
+  `npm run verify`) reads the result back and compares it with the template.
+- `FINDING [Lists] L/DataRows/0 (Title=A)/Num: expected 1, found 2`: handler, path in the
+  template, the value the template gives (tokens replaced as the engine does) and the site's.
+  `not checked [...]` lines say what verify does not compare, and why (a `{parameter:}` without a
+  value, a DateTime without a time zone, Hooks).
+- verify compares what a re-apply makes true: a re-applied template does not change a custom
+  action, a page with `Overwrite: false`, a `Skip` row's values or a kept menu node's URL (without
+  `IgnoreExisting`), so verify only checks those exist; `--exact` compares them too, for a web the
+  template was just applied to.
 
 ## Pitfalls
 
@@ -59,6 +72,10 @@ then assume the content types already exist.
   PackageInstaller strips only Taxonomy). The runner skips them by default; naming them in
   `--handlers` forces them, and the run then stops at that handler.
 - NoScript blocks ScriptLink custom actions, property bag and master page writes on modern sites.
+- `--mode project` on a package without `provisioning.template` exits 2. The template's menu is
+  left out where a selected extension declares the same menu (as the setup does), so verify checks
+  that menu against the extension.
+- `inspect` output holds tenant URLs and user names: never commit it or paste it into an issue.
 
 ## Do not
 

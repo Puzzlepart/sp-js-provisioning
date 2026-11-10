@@ -42,7 +42,9 @@ the code disagree, the code wins and this page is fixed in the same change. The 
 | `npm run test:integration:ci` | Strict (a missing site or sign-in fails), spec + JUnit to `test-results/reachability.xml` and `test-results/integration.xml`; both, and the log, pass through `redact()` |
 | `npm run cleanup -- --webs` / `--prefix 'SPJS Itest'` | What a crashed run left behind (scratch webs and their groups older than 2 h / prefixed artefacts); a plan unless `--apply` |
 | `npm run cleanup -- --webs --older-than 0m` | The same right after a run or `--keep` (webs younger than 2 h are left for a run that may be active); only while no other run is |
-| `npm run provision -- --package <path> --twice --strict` | Apply a template or package by hand (`debug/README.md`) |
+| `npm run provision -- --package <path> --twice --strict --verify` | Apply a template or package by hand, then compare it with the site (`debug/README.md`) |
+| `npm run verify -- --package <path> [--site <web>]` | Compare a template with a web, read-only; exit 1 on a finding (on a kept scratch web after `--keep`) |
+| `npm run inspect -- [--site <web>] [--prefix 'SPJS Itest']` | What a web holds of what the handlers write, as JSON, read-only |
 
 ## Reports
 
@@ -83,7 +85,8 @@ organization's members after signing in to GitHub. Its address is the repository
 | Scratch webs | `debug/lib/scratch.ts` | `SPJS Itest <suite> <stamp>` at `spjs-itest-<suite>-<stamp>` (UTC `yyMMddHHmmss`), unique permissions, its own associated groups; deleted with the site groups whose title starts with its title (its associated groups and the fixtures' `{sitename} ...` groups) |
 | Applying | `debug/lib/apply.ts` | `apply(conn, template, options)` returns `{ order, skipped, errors, warnings, error }` and never throws |
 | Reading back | `debug/lib/readback/<handler>.ts` | What a handler provisioned, as plain data without ids or timestamps |
-| Suites | `tests/integration/helpers.ts` | `withScratchWeb`, `applyTwice`, `assertClean`, `skipReason`; `recording(conn, requests)`, a connection that records each request the engine sends, for "no write" or "no DELETE" assertions on a second apply |
+| Suites | `tests/integration/helpers.ts` | `withScratchWeb`, `applyTwice`, `assertClean`, `assertVerified`, `skipReason`; `recording(conn, requests)`, a connection that records each request the engine sends, for "no write" or "no DELETE" assertions on a second apply |
+| Verify | `debug/lib/verify.ts`, `debug/lib/readback/site.ts` | `verify(conn, template, options)`: what any template should leave, with the engine's token rules, read back and diffed; `npm run verify` and `provision --verify` print it, `applyTwice` asserts it (unit-tested in `tests/unit/verify.test.ts`) |
 | Fixtures | `tests/fixtures/templates/*.json`, `tests/fixtures/fixtures.ts` | `loadFixture(name, { user, hookUrl })` |
 | Runner | `tests/integration/run.ts` | Maps names to suite files; runs reachability first in its own process (`node --test` sorts the files it is given), then the suites, one file at a time |
 
@@ -109,6 +112,8 @@ describe('Security', { skip: skipReason() }, () => {
    a request and change nothing (a group owner through REST's `SetUserAsOwner`).
 2. **Apply twice.** `applyTwice` applies, reads back, applies again and reads back again: both runs
    without a `ProvisioningError` or a logged error, and the second read-back equal to the first.
+   Then `verify` must find no difference in the sections that ran (`assertVerified`): the suite's
+   own read-back checks the fixture's details, this checks `verify`'s rules against SharePoint.
 3. **Fresh fixtures.** Handlers mutate their input; `loadFixture` returns a new copy every call.
 4. **Fixture conventions.** Titles start with `SPJS Itest`, internal names with `SPJSItest`, site
    column groups are `SPJS Itest`, GUIDs are fixed and lower case. No tenant URL or user in a
@@ -136,6 +141,7 @@ describe('Security', { skip: skipReason() }, () => {
 | A suite skips "custom script is blocked" | NoScript on the reserved site | Expected; or have an SPO admin allow custom script |
 | `the second run changed what the first provisioned` | The handler is not idempotent for that member | Compare the two read-backs in the diff; a defect, or a volatile member the reader must drop |
 | `the first run logged errors` | A handler logged and carried on | The message names the handler and SharePoint's answer |
+| `verify found differences between the template and the web` | The suite's read-back passed, but `verify` reads a member differently, or found what the read-back does not check | Each line is `handler path: expected ..., found ...`. A rule in `debug/lib/verify.ts` that does not match what the handler does is fixed there with a unit test in `tests/unit/verify.test.ts`; a real difference is a defect |
 | `The operation was aborted due to timeout` | SharePoint did not answer one attempt within 120 s (`REQUEST_TIMEOUT`); seen once while creating a scratch web's groups, the next suite fine | Run the suite again; `withScratchWeb` deletes a half-made web in `after`, else `cleanup` |
 | `# SharePoint: GET answered 429; waiting 120 s, trying again` (or 503), a suite many times slower than usual | SharePoint throttles the account: several full runs in a short time (seen 2026-10-21 on the fifth run in three hours: one test took 15 minutes and timed out, another got a 404 from a node it had just listed; both green when run again) | Let the tenant rest, then run the failed suites again; a failure without these lines is not throttling |
 | `# scratch web ... may be left behind` | `after` could not delete the scratch web (node:test reports nothing else when `before` failed) | `npm run cleanup -- --webs --older-than 0m`, then `--apply` |

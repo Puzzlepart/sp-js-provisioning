@@ -31,6 +31,8 @@ debug/*
 !debug/example.ts
 !debug/provision.ts
 !debug/cleanup.ts
+!debug/verify.ts
+!debug/inspect.ts
 !debug/README.md
 !debug/tsconfig.json
 !debug/stubs

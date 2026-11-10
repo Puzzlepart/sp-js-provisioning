@@ -25,6 +25,8 @@
     "../src/**/*.ts",
     "../debug/lib/**/*.ts",
     "../debug/provision.ts",
-    "../debug/cleanup.ts"
+    "../debug/cleanup.ts",
+    "../debug/verify.ts",
+    "../debug/inspect.ts"
   ]
 }

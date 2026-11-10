@@ -12,6 +12,7 @@ import {
   scratchName,
   stampOf
 } from '../../debug/lib/scratch'
+import { verify } from '../../debug/lib/verify'
 
 export { skipReason } from '../../debug/lib/env'
 
@@ -180,6 +181,41 @@ export function assertClean(result: IApplyResult, label = 'the run'): void {
 }
 
 /**
+ * Asserts that `verify` finds no difference between a template and the web
+ * (docs/specs/integration-testing.md, Harness): the suites' read-backs check the fixture's details,
+ * this checks `verify`'s rules against SharePoint, section by section.
+ *
+ * @param conn - The web
+ * @param template - The template, as it was applied
+ * @param options - The sections to compare (the handlers that ran), values for `{parameter:}`, and
+ * `exact` for a web the template was just applied to
+ */
+export async function assertVerified(
+  conn: ISiteConnection,
+  template: Record<string, any>,
+  options: {
+    handlers?: string[]
+    parameters?: Record<string, string>
+    exact?: boolean
+  } = {}
+): Promise<void> {
+  const result = await verify(conn, template, options)
+  assert.deepEqual(
+    result.findings.map((finding) =>
+      redact(
+        `${finding.handler} ${finding.path}: expected ${JSON.stringify(
+          finding.expected
+        )}, found ${JSON.stringify(finding.actual)}${
+          finding.message ? ` (${finding.message})` : ''
+        }`
+      )
+    ),
+    [],
+    'verify found differences between the template and the web'
+  )
+}
+
+/**
  * The two runs and read-backs of {@link applyTwice}.
  */
 export interface ITwice<T> {
@@ -192,8 +228,9 @@ export interface ITwice<T> {
 /**
  * Applies a template, reads the result back, applies it again and reads back again. Each run must
  * end without a `ProvisioningError` and without a logged error, and the second read-back must equal
- * the first: re-applying a template changes nothing. Each run gets a fresh template from
- * `template()`, since handlers mutate their input.
+ * the first: re-applying a template changes nothing. Then `verify` must find no difference in the
+ * sections that ran ({@link assertVerified}). Each run gets a fresh template from `template()`,
+ * since handlers mutate their input.
  *
  * @param conn - The scratch web
  * @param template - Returns a fresh copy of the template
@@ -217,5 +254,9 @@ export async function applyTwice<T>(
     afterFirst,
     'the second run changed what the first provisioned'
   )
+  await assertVerified(conn, template(), {
+    handlers: second.order,
+    parameters: options.parameters
+  })
   return { first, second, afterFirst, afterSecond }
 }

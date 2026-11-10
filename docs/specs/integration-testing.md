@@ -1,7 +1,9 @@
 # Spec: Integration Testing Against A Site
 
 Status: Ready (Phases 0a, 0b and 1 done 2026-10-21; `ci.yml` green on GitHub since 2026-10-29; the
-Lists, SiteFields and Navigation pins fixed by their specs, released in 1.5.0; Phase 2 next)
+Lists, SiteFields and Navigation pins fixed by their specs, released in 1.5.0; Phase 2 part 1
+(generated `schema.json`, schema and fixture-coverage tests, contract tests) done 2026-11-06 and
+part 2 (`verify`, `inspect`, `provision --verify` and `--mode project`) 2026-11-10; part 3 next)
 
 Owner: Remi Blom-Ohlsen
 

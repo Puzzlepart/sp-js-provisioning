@@ -1,6 +1,6 @@
 ---
 name: spjs-testing
-description: 'How sp-js-provisioning is tested and how to write, run and fix its tests. Use when asked to "add a test", "run the tests", "test the handler", "test against the site", "test against the tenant", "integration test", "check:tenant", "why does the suite fail", "the second run changed", "coverage", "flaky test", "test the Lists handler", "add a fixture". Encodes the layers (unit, integration against scratch webs, browser-only JSOM handlers), the commands, the harness (withScratchWeb, applyTwice, apply, read-backs, loadFixture), the fixture rules, the site guard, NoScript, and the failure triage. Pair with spjs-provision to apply a template by hand.'
+description: 'How sp-js-provisioning is tested and how to write, run and fix its tests. Use when asked to "add a test", "run the tests", "test the handler", "test against the site", "test against the tenant", "integration test", "check:tenant", "why does the suite fail", "the second run changed", "coverage", "flaky test", "test the Lists handler", "add a fixture", "verify found differences". Encodes the layers (unit, contract, integration against scratch webs, browser-only JSOM handlers), the commands, the harness (withScratchWeb, applyTwice, apply, read-backs, verify, loadFixture), the fixture rules, the site guard, NoScript, and the failure triage. Pair with spjs-provision to apply a template by hand.'
 ---
 
 # Testing sp-js-provisioning
@@ -48,7 +48,8 @@ the code disagree, the code wins and the doc is fixed. The plan: `docs/specs/int
    timestamps or other volatile members.
 3. Suite: `describe('<Handler>', { skip: skipReason() }, ...)`, `withScratchWeb('<name>')`, then
    `applyTwice(conn, () => loadFixture('<name>'), read)` and assertions on the read-back. Tenant
-   values (role names, group titles) are read in the test.
+   values (role names, group titles) are read in the test. `applyTwice` also runs `verify` on the
+   sections that ran and fails on a finding (`assertVerified`; call it yourself after a B variant).
 4. A defect: pin it with `it(name, { todo: 'why' }, ...)` in the suite. A unit test that exposes it
    is marked `{ todo: 'why' }` too, or lands with the fix (a plain failing test turns the required
    CI check red). Fix it in its own change with a CHANGELOG line, removing the `todo`s there.
@@ -72,11 +73,14 @@ the code disagree, the code wins and the doc is fixed. The plan: `docs/specs/int
   rerun the failed suites; do not loosen an assertion for it.
 - The cookie session lasts about two days although the cookie says otherwise; a 403 on the first
   read means renew it (`npx playwright test --project=setup` in `prosjektportalen365/e2e`).
+- `verify found differences` with a green read-back: `verify`'s rule for that member does not
+  match what the handler does (fix `debug/lib/verify.ts` with a unit test in
+  `tests/unit/verify.test.ts`), or the web really differs (a defect the read-back missed).
 
 ## Verification checklist
 
 - [ ] The suite asserts the read-back, not only a clean run
-- [ ] `applyTwice` passes (second read-back equal to the first)
+- [ ] `applyTwice` passes (second read-back equal to the first, and no `verify` finding)
 - [ ] Known defects are `todo`, with a reason
 - [ ] No tenant URL, cookie, token or certificate in any committed or new file
       (`npm run check:secrets` scans them all, docs and specs too); no user name either (it is

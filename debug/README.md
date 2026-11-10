@@ -57,6 +57,11 @@ npm run provision -- --package <path> --mode cloud
 npm run provision -- --package <path> --lang en-US --skip-taxonomy
 npm run provision -- --package <path> --dry-run
 
+# The project template and its extensions, as the project setup applies them, on a web below
+# INTEGRATION_SITE_URL; then compare the result with the templates
+npm run provision -- --site <reserved-site>/<web> --package <path> --mode project --verify
+npm run provision -- --site <reserved-site>/<web> --package <path> --mode project --extensions all
+
 npm run provision -- --help
 ```
 
@@ -64,18 +69,21 @@ npm run provision -- --help
 | --- | --- |
 | `--site <url>` | The target site. Default: `INTEGRATION_SITE_URL`. Must be that site or a web below it, unless `--allow-site` names it. |
 | `--allow-site <url>` | Write to a site outside `INTEGRATION_SITE_URL`; the same URL as `--site`, to confirm it (exit 2 otherwise). |
-| `--package <path>` | A package folder (with `manifest.json`), a `.pppkg`/`.zip` (extracted with `unzip`), or a raw template JSON. A package resolves to its hub template. |
-| `--lang <locale>` | The package's localized hub template and list content, e.g. `en-US`. |
-| `--mode hub\|cloud` | `hub`: the whole hub template (default). `cloud`: the subset PP365 applies when a package is published as a cloud template. |
+| `--package <path>` | A package folder (with `manifest.json`), a `.pppkg`/`.zip` (extracted with `unzip`), or a raw template JSON. A package resolves to its hub template, or with `--mode project` to its project template. |
+| `--lang <locale>` | The package's localized template and list content, e.g. `en-US`. |
+| `--mode hub\|cloud\|project` | `hub`: the whole hub template (default). `cloud`: the subset PP365 applies when a package is published as a cloud template. `project`: the project template and the selected extensions, as the project setup's `ApplyTemplate` and `Hooks` steps apply them (below). |
+| `--extensions <ids\|all\|none>` | `--mode project`: the extensions to apply, by id. Default: the ones the setup selects to begin with (`defaultSelected` or `locked`). |
 | `--handlers <csv>` | Only these handlers, checked against the engine (exit 2 with the valid names). Also forces handlers that are skipped in Node. |
 | `--parameters <k=v,...>` | Values for `{parameter:k}` tokens. |
 | `--skip-taxonomy` | Drop the Taxonomy section. |
 | `--strict` | Exit 1 when a handler logged an error and carried on, not only when one threw. |
 | `--twice` | Apply twice; the second run shows what re-applying does. |
+| `--verify` | Then compare the template with the site, as `npm run verify` does (below), for the sections that ran; exit 1 on a finding. |
+| `--exact` | With `--verify`: also compare what a re-apply leaves as it is. For a web the template was just applied to. |
 | `--dry-run` | Print the plan and exit, without signing in (no site needed). |
 
-Exit codes: 0 applied, 1 failed (or, with `--strict`, an error was logged), 2 usage error (also a
-target the site guard refuses).
+Exit codes: 0 applied, 1 failed (or, with `--strict`, an error was logged; with `--verify`, a
+finding), 2 usage error (also a target the site guard refuses).
 
 `--strict` sees what the handlers log as errors, including the failures they log and carry on
 after (a site column SharePoint refuses, an unresolved token in a site column, a list field, a
@@ -83,8 +91,40 @@ FieldRef to a column that is not found, a view's fields, a folder, a row or an u
 lookup or user value in it, a page control). Since 1.5.0 a failing site column is one of these
 and no longer stops the run, so only `--strict` makes it fail. It does not read the result
 back from the site, so a green strict run is not proof that everything was applied: the first
-tenant run found a group owner that SharePoint silently did not change. The integration suites
-read back (`npm run test:integration`, `docs/TESTING.md`).
+tenant run found a group owner that SharePoint silently did not change. `--verify` reads it back,
+and so do the integration suites (`npm run test:integration`, `docs/TESTING.md`).
+
+## Verify and inspect
+
+```sh
+# What differs between a template (or a package) and a web; exit 1 on a finding
+npm run verify -- --package tests/fixtures/templates/lists.json --site <reserved-site>/<web>
+npm run verify -- --package <path> --mode project --json
+
+# What a web holds of what the handlers write, as JSON
+npm run inspect -- --site <reserved-site>/<web> --prefix 'SPJS Itest' --out inspect.json
+```
+
+Both only read, so they need no site guard; they take `--site` (default `INTEGRATION_SITE_URL`)
+and sign in as `provision` does.
+
+`verify` takes `provision`'s template options (`--package`, `--lang`, `--mode`, `--extensions`,
+`--handlers`, `--parameters`, `--skip-taxonomy`) plus `--exact` and `--json`. It replaces the
+tokens the way the engine does for each handler and member (the token matrix in
+`docs/specs/integration-testing.md`), reads what the template names and reports each difference
+as `FINDING [handler] path: expected ..., found ...`, and what it does not compare as `not checked`.
+It compares what a re-apply makes true: lists, views, bindings, folders, group members and role
+assignments as a superset (exact with `RemoveExistingViews`, `RemoveExistingContentTypes` or
+`ClearExistingMembers`); data rows by their `KeyColumn`, the values of `Overwrite` rows only; pages
+with `Overwrite: false` and custom actions by existence; menus by their titles, in order, at every
+level, and a node's URL only with `IgnoreExisting`. `--exact` also compares the rest, for a web the
+template was just applied to. Unlike `provision`, it compares every section by default, browser-only
+ones included, so it also checks a site PP365 provisioned.
+
+`inspect` reads the web's own site columns and content types, its site groups, permissions and
+associated groups, lists (with views, fields, folders and permissions), custom actions, theme,
+pages, navigation, settings and property bag. `--prefix` keeps the named items to those whose
+name starts with it. Its JSON holds the tenant's URLs and user names: do not commit it.
 
 ## Clean up
 
@@ -121,10 +161,17 @@ assume the content types already exist on the site.
 | --- | --- |
 | `_provisionHub` (import) | `--mode hub` (default) |
 | `provisionCloudTemplateHubDependencies` (publish as cloud template) | `--mode cloud` |
+| The project setup's `ApplyTemplate` and `Hooks` steps (ProjectExtensions) | `--mode project` |
 | Taxonomy feature flag off | `--skip-taxonomy` |
 | Locale from the hub's language (`_applyLocale`) | `--lang` |
 | Sign-in through SPFx | `.env`: cookies locally, certificate in CI (`debug/lib/auth.ts`) |
 | The page's SPFx context | a stand-in built from `_api/site` and `_api/web` (`debug/lib/connect.ts`) |
+
+`--mode project` applies, in the setup's order: the project template without `Hooks` and without
+each menu (`QuickLaunch`, `TopNavigationBar`) a selected extension declares too, then each extension
+without `Hooks`, then the template's hooks and each extension's. The rest of the setup (PreTask,
+SitePermissions, SetTaxonomyFields, CopyListData, Planner) is not mirrored, and the template's
+`Parameters` are not passed to the engine (the setup does not either).
 
 The sign-in and `.env` variables are ported from PP365's `integration/` harness (releases/1.15),
 so the certificate secret and the cookie file serve both repositories.
@@ -135,14 +182,19 @@ so the certificate secret and the cookie file serve both repositories.
 | --- | --- |
 | `provision.ts` | The command |
 | `cleanup.ts` | Removes leftovers of runs and tests (a plan unless `--apply`) |
+| `verify.ts` | Compares a template with a web (read-only) |
+| `inspect.ts` | Prints what a web holds, as JSON (read-only) |
 | `lib/env.ts` | `.env`, the sign-in mode, the skip reasons, site URL normalisation |
 | `lib/auth.ts` | Cookie and certificate sign-in for PnPjs |
 | `lib/connect.ts` | A signed-in client, the SPFx context stand-in, the site guard (`assertWritable`) |
 | `lib/apply.ts` | `apply(conn, template, options)`: one template run, with its handlers, errors and warnings |
-| `lib/cli.ts` | Arguments, handler plan, package and cloud-subset resolution (unit-tested in `tests/unit/runner.test.ts`) |
+| `lib/cli.ts` | Arguments, handler plan, package, cloud-subset and project-step resolution (unit-tested in `tests/unit/runner.test.ts`) |
+| `lib/verify.ts` | `verify(conn, template, options)`: expectations with the engine's token rules, the diff, the result lines (unit-tested in `tests/unit/verify.test.ts`) |
+| `lib/inspect.ts` | `inspectWeb(conn, { prefix })` |
 | `lib/logs.ts` | Collects log lines by handler for `--strict` and the tests |
 | `lib/scratch.ts` | Scratch webs for the integration tests: names, create, delete with their groups |
 | `lib/cleanup.ts` | What `cleanup` finds: scratch leftovers by age, prefixed artefacts |
 | `lib/redact.ts` | Removes cookies, tokens and tenant hosts from what is printed |
 | `lib/readback/<handler>.ts` | What a handler provisioned, read back for the integration tests |
+| `lib/readback/site.ts` | The readers `verify` and `inspect` share: any template's lists, fields, content types, groups and the rest |
 | `stubs/spfx-jsom.ts` | Node stand-in for `spfx-jsom` |
