@@ -213,6 +213,10 @@ skipped (custom script blocked), 0 fail; about 12 minutes. `npm run test:integra
 9 cases, all as `packages.expected.ts` lists them; about 8 minutes. Nothing left behind.
 The same day as CI runs it (`npm run test:integration:ci -- all packages`, cookie mode): 64 tests,
 63 pass, 1 skipped, 0 fail, 19 minutes, and `npm run check:reports -- test-results` passed.
+The first run of the `Integration` workflow (2026-11-10, certificate mode, the default
+`handlers`): reachability 5 pass and 1 skipped (an app has no site admin flag), the suites 54
+tests, 53 pass, 1 skipped, 0 fail, 16 minutes; the report check passed and the report is on the
+report site.
 
 | Handler | Suite | Fixture | Status | Pinned (`todo`) |
 | --- | --- | --- | --- | --- |

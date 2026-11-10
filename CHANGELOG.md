@@ -44,6 +44,7 @@ For releases older than 1.3.6, see the git history.
   `onmicrosoft.com` domains, the site in a `/sites/...` path, e-mail addresses and logins, the
   configured user, app and tenant, and every GUID that is not in the repository's own files, and
   `npm run check:reports` fails the job before the upload when a report still holds such a value.
+  The first approved run (2026-11-10), also the first in certificate mode, was green.
 - prettier also checks `debug/lib`: `.prettierignore`'s `lib/` (the build output) matched it too,
   so `npm run lint:check` never looked at the harness. The pattern is `/lib/` and the files are
   formatted.

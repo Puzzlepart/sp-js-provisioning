@@ -1,8 +1,10 @@
 # Spec: CI test reports on the test report site
 
-Status: Implemented (2026-11-04: the HTML reporter, the shared publisher with its tests and the
-`publish-report` job, checked locally, and revised the same day for F1 and F2 below. The first
-publish waits for the setup by hand below.)
+Status: Verified (2026-11-10. Implemented 2026-11-04: the HTML reporter, the shared publisher with
+its tests and the `publish-report` job, revised the same day for F1 and F2 below. Since the setup
+by hand the unit report of every push to `main` is on the site, the front page links
+`sp-js-provisioning/`, and on 2026-11-10 the first integration report was published beside it, in
+its own column.)
 
 Owner: Remi Blom-Ohlsen
 
