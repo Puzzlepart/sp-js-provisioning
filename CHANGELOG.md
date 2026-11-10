@@ -7,6 +7,12 @@ For releases older than 1.3.6, see the git history.
 
 ## [Unreleased]
 
+## [1.5.1] - 2026-11-10
+
+A handler that fails with something other than an `Error`, such as a refused JSOM request, is
+described in words in the `ProvisioningError` and the log instead of «[object Object]» and
+«undefined». `schema.json` describes everything 1.5.0 added.
+
 ### Fixed
 
 - A handler that failed with something other than an `Error` is described in words. A refused JSOM
