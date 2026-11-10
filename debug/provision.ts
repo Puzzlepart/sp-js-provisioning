@@ -37,6 +37,11 @@ import {
   ISiteConnection
 } from './lib/connect'
 import { authMode, env } from './lib/env'
+import {
+  fillPlaceholders,
+  fixtureUser,
+  placeholdersIn
+} from './lib/placeholders'
 import { describeError } from './lib/redact'
 import { formatResult, IFinding, verify } from './lib/verify'
 
@@ -182,7 +187,18 @@ async function main(): Promise<number> {
     console.log(usage(handlers))
     return 0
   }
-  const { label, steps, verified } = plannedSteps(args, handlers)
+  const planned = plannedSteps(args, handlers)
+  const { label } = planned
+  let { steps, verified } = planned
+  const placeholders = steps.reduce(
+    (all: string[], step) =>
+      all.concat(placeholdersIn(step.schema).filter((p) => !all.includes(p))),
+    []
+  )
+  if (placeholders.includes('@@hookUrl@@'))
+    throw new UsageError(
+      'The template has @@hookUrl@@, the Hooks fixture: its listener runs only in the Hooks suite (npm run test:integration -- Hooks)'
+    )
   printPlan(site, label, args, steps)
   if (args.dryRun) {
     console.log('Dry run: not signing in, not applying.')
@@ -206,6 +222,23 @@ async function main(): Promise<number> {
   console.log(
     `Signed in with ${connection.mode} to "${connection.webInfo.Title}" (${connection.webInfo.Url})\n`
   )
+  if (placeholders.includes('@@user@@')) {
+    // A test fixture: `@@user@@` is the user the suites fill in (tests/fixtures/README.md).
+    const user = await fixtureUser(connection)
+    if (!user)
+      throw new UsageError(
+        'The template has @@user@@ (a test fixture) and the app has no user: set INTEGRATION_USER'
+      )
+    const filled = (step: IPlannedStep) => ({
+      ...step,
+      schema: fillPlaceholders(step.schema, { user }, step.source)
+    })
+    steps = steps.map(filled)
+    verified = verified.map(filled)
+    console.log(
+      'Filled @@user@@ (a test fixture placeholder) with the signed-in user.\n'
+    )
+  }
 
   const runs: Array<Array<{ step: IPlannedStep; result: IApplyResult }>> = []
   for (let attempt = 1; attempt <= (args.twice ? 2 : 1); attempt++) {

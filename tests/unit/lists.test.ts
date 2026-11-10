@@ -1417,6 +1417,67 @@ describe('Lists: DataRows', () => {
     assert.deepEqual(calls, ['update 4 {"Title":"Kari\'s prosjekt rad"}'])
   })
 
+  it('sends a DateTime the same in every time zone (Europe/Oslo, UTC, Asia/Tokyo)', async () => {
+    // PP365 runs the engine in each user's browser: a value that depended on the machine's time
+    // zone would store another instant, or another date, for a user elsewhere. A string goes as
+    // the template has it (SharePoint reads a value without an offset in the web's time zone), a
+    // Date as its instant in UTC.
+    const zones = ['Europe/Oslo', 'UTC', 'Asia/Tokyo']
+    const row = () => ({
+      Title: 'Dato',
+      GtDate: '2026-05-17',
+      GtLocal: '2026-05-17T10:00:00',
+      GtUtc: '2026-05-17T10:00:00Z',
+      GtOffset: '2026-05-17T12:00:00+02:00',
+      GtInstant: new Date(Date.UTC(2026, 4, 17, 8, 0, 0))
+    })
+    const fields = [
+      { InternalName: 'Title', TypeAsString: 'Text' },
+      ...[
+        'GtDate',
+        'GtLocal',
+        'GtUtc',
+        'GtOffset',
+        'GtInstant'
+      ].map((name) => ({ InternalName: name, TypeAsString: 'DateTime' }))
+    ]
+    const original = process.env.TZ
+    const sent: string[][] = []
+    const parsedLocally: string[] = []
+    try {
+      for (const zone of zones) {
+        process.env.TZ = zone
+        parsedLocally.push(new Date('2026-05-17T10:00:00').toISOString())
+        const { web, calls } = createWeb({ fields })
+        await createHandler(new ProvisioningContext()).processListDataRows(
+          web,
+          {
+            Title: 'Datoer',
+            DataRows: { Rows: [row()] }
+          }
+        )
+        sent.push(calls)
+      }
+    } finally {
+      if (original === undefined) delete process.env.TZ
+      else process.env.TZ = original
+    }
+    // The zones did differ for this process: a local parse gives three instants.
+    assert.equal(new Set(parsedLocally).size, 3)
+    assert.deepEqual(sent[1], sent[0])
+    assert.deepEqual(sent[2], sent[0])
+    assert.deepEqual(sent[0], [
+      `add ${JSON.stringify({
+        Title: 'Dato',
+        GtDate: '2026-05-17',
+        GtLocal: '2026-05-17T10:00:00',
+        GtUtc: '2026-05-17T10:00:00Z',
+        GtOffset: '2026-05-17T12:00:00+02:00',
+        GtInstant: '2026-05-17T08:00:00.000Z'
+      })}`
+    ])
+  })
+
   it('builds nothing for a row it skips: no lookup, no ensureUser', async () => {
     const handler = createHandler(new ProvisioningContext())
     const { web, calls } = createWeb({

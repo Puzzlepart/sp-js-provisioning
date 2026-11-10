@@ -24,6 +24,11 @@ import {
 import { DefaultHandlerSort } from '../src/handlers/exports'
 import { accessDenied, connect, ISiteConnection } from './lib/connect'
 import { authMode, env } from './lib/env'
+import {
+  fillPlaceholders,
+  fixtureUser,
+  placeholdersIn
+} from './lib/placeholders'
 import { describeError } from './lib/redact'
 import { formatResult, IVerifyResult, verify } from './lib/verify'
 
@@ -36,7 +41,7 @@ async function main(): Promise<number> {
   }
   const resolved = resolveTemplate(args)
   const schema = transformSchema(resolved.schema, args, resolved.manifest)
-  const targets: IStep[] =
+  let targets: IStep[] =
     args.mode === 'project'
       ? verifyTargets(projectSteps(schema, resolved.extensions ?? []).apply)
       : [{ source: resolved.label, schema }]
@@ -51,6 +56,20 @@ async function main(): Promise<number> {
     if (!message) throw error
     console.error(message)
     return 1
+  }
+  if (
+    targets.some((target) => placeholdersIn(target.schema).includes('@@user@@'))
+  ) {
+    // A test fixture: `@@user@@` is the user the suites fill in (tests/fixtures/README.md).
+    const user = await fixtureUser(connection)
+    if (!user)
+      throw new UsageError(
+        'The template has @@user@@ (a test fixture) and the app has no user: set INTEGRATION_USER'
+      )
+    targets = targets.map((target) => ({
+      ...target,
+      schema: fillPlaceholders(target.schema, { user }, target.source)
+    }))
   }
   if (!args.json)
     console.log(

@@ -1,9 +1,8 @@
 # Spec: Integration Testing Against A Site
 
 Status: Ready (Phases 0a, 0b and 1 done 2026-10-21; `ci.yml` green on GitHub since 2026-10-29; the
-Lists, SiteFields and Navigation pins fixed by their specs, released in 1.5.0; Phase 2 part 1
-(generated `schema.json`, schema and fixture-coverage tests, contract tests) done 2026-11-06 and
-part 2 (`verify`, `inspect`, `provision --verify` and `--mode project`) 2026-11-10; part 3 next)
+Lists, SiteFields and Navigation pins fixed by their specs, released in 1.5.0; Phase 2 done
+2026-11-10; Phase 3 next)
 
 Owner: Remi Blom-Ohlsen
 
@@ -414,6 +413,16 @@ Pinned only (`{ todo }` with the evidence), each for its own change:
   refused under NoScript, only `ClientSideExtension.*` actions get through; `{site}` on a subweb is
   the site collection's URL (documented); PnPjs's `loadClientsidePage().commentsDisabled` reads
   `false` for a page whose comments are disabled (the reader uses the file's item).
+- Found by the packages suite (2026-11-10), none of them engine defects: SharePoint stores a view
+  query normalised (`<FieldRef Name= "X"/>` as `<FieldRef Name="X" />`), so `verify` compares it
+  that way; a view's `JSLink` (`hierarchytaskslist.js` in five hub templates) is answered with
+  success and stays `clienttemplates.js` on the reserved site, which blocks custom script (an
+  expected finding of the vei case); a request whose URL passes SharePoint's length limit (about
+  260 characters of path) is refused, which a long scratch web name reaches in
+  `getFileByServerRelativePath` (the suite's webs have short names); `pp-testprosjekt` 1.1.0 had
+  three list field refs without an `ID`, which the handler logs as errors on every run, in a
+  browser too (fixed in the package's 1.1.1; `verify` notes such a ref instead of reporting the
+  column as missing).
 
 ### Fixtures and hosting packages
 
@@ -430,6 +439,12 @@ Pinned only (`{ todo }` with the evidence), each for its own change:
 - `all.node.json` composes the handler fixtures in sort order without the JSOM-dependent links
   (fixture content types, term sets, taxonomy rows, Files, PropertyBagEntries);
   `everything.test.ts` applies it twice and runs `verify()`. The full composition is D3's exit.
+  As built (Phase 2): `npm run build:fixtures` writes it from ten fixtures (`composeAllNode` in
+  `tests/fixtures/fixtures.ts`; `tests/unit/fixtures.test.ts` fails when it is stale), with the list
+  `sitefields.json`'s Lookup points at; without `hooks.json` (a local listener),
+  `customactions-script.json` (custom script), `failures.json`, `smoke.json` and the `.b`
+  variants. `everything.test.ts` verifies it with `--exact`. `provision` and `verify` fill its
+  `@@user@@` with the signed-in user (`debug/lib/placeholders.ts`) and refuse `@@hookUrl@@`.
 - `prosjektportalen-hosting`: 12 packages, 26 provisioning JSON files, 8 of them hub templates in
   6 packages. ContentTypes is in all 8 hub templates (14 of 26 files), Taxonomy in 7 (7 of 26);
   Lists 16, SiteFields 11, Navigation 5, ClientSidePages 5; Files and PropertyBagEntries 4 each,
@@ -442,7 +457,21 @@ Pinned only (`{ todo }` with the evidence), each for its own change:
   `--mode hub`, `cloud` and `project`, nb-NO and en-US, then `verify()`; `EnkeltProsjekt.json`,
   `Forskningsmal.json` and the vei list `Security`. Until D3 it asserts an explicit
   expected-failure list (bindings to content types not created in Node, taxonomy rows).
-  `INTEGRATION_PACKAGES=all` adds the rest.
+  `INTEGRATION_PACKAGES=all` adds the rest. As built (Phase 2): nine cases, each on its own
+  scratch web, applied twice the way the runner's mode does (`--mode project` with the extension
+  for `EnkeltProsjekt.json` and `Forskningsmal.json`, the vei hub template for its list
+  permissions). `packages.expected.ts` says for each case what each list lacks afterwards
+  (content type bindings, field refs, view columns, rows); the suite derives from it the errors the
+  run must log and the findings `verify` must report, and both must match exactly, so a new failure
+  and a fixed one both fail the case. Two causes explain every entry: ContentTypes does not run in
+  Node (D3), and a scratch web is not a PP365 site (it lacks PP365's own content types and site
+  columns). For the same reason the suite first makes the pages and lists a template's menu points
+  at and no template declares (`SitePages/Prosjektstatus.aspx`, `Lists/Prosjektlogg`): SharePoint
+  refuses a menu node without its target. With `INTEGRATION_PACKAGES=all` every other package's
+  hub and project template is applied and its errors and findings reported (`t.diagnostic`), only
+  a stopped run fails.
+- A `{parameter:}` fixture (`parameters.json`, `parameters.test.ts`): site column and list field
+  XML and DataRows values, the `KeyColumn` value with an apostrophe.
 - `schema.json` is regenerated from `src/schema.ts` in Phase 2 (`DataRows`, `Folders`, `Taxonomy`
   and definitions; `IHooks` without DOM types; `additionalProperties: false` where unknown keys are
   ignored). Only then do `tests/unit/schema.test.ts` (fixtures and the 26 hosting files with `ajv`)
@@ -461,7 +490,9 @@ Pinned only (`{ todo }` with the evidence), each for its own change:
   so small differences between machines do not fail the check. They only rise: raised at the end
   of Phase 1 to 66/74/65 (measured 67.09 / 75.05 / 65.91), and with the Lists re-apply spec to
   73/78/74 (measured 74.35 / 79.68 / 75.61), and with the SiteFields and Navigation re-apply specs
-  to 79/83/79 (measured 80.36 / 84.02 / 80.21, 2026-10-29; one point below, as for Lists).
+  to 79/83/79 (measured 80.36 / 84.02 / 80.21, 2026-10-29; one point below, as for Lists), and at
+  the end of Phase 2 to 80/84/79 (measured 81.04 / 85.02 / 80.51 with the contract tests,
+  2026-11-10).
 - Phase 2: `tests/contract/` turns the recording web of `webprovisioner.test.ts` into a fake
   transport (`on.send.replace`, canned `Response` bodies, recorded `{ url, method, body }`, an
   SPFx-style relative mode) pinning wire shapes (`createfieldasxml`, `$top=5000`, OData escaping,
@@ -520,7 +551,7 @@ spike re-tests it.
 | 0a. A runner you can trust | As above | S | Done 2026-10-21: first tenant run green twice, recorded in the Security spec; it found the group-owner defect (D4) |
 | 0b. Offline CI and log levels | `ci.yml`, lint fix, `test:ci` (mkdir), coverage floors, `npm pack` check; D4's log-level and `ProvisioningError` fixes (Lists/ClientSidePages levels, non-`Error` and `undefined` causes, Files/PropertyBagEntries `Error`s) plus two small logging guards (`ConsoleListener` once, `logging.prefix`); `tests/fixtures/templates/failures.json` (a list whose `Fields` holds a well-formed Lookup to a missing list, a `Files` entry, a `PropertyBagEntries` entry) | S-M | Done 2026-10-21: the CI sequence green locally (77 unit tests; source-mapped coverage 61.03/72.18/59.18, floors 60/71/58); the three `failures.json` runs exit 1 with the handler and a readable message; `smoke.json --twice --strict` green with each line printed once and both group owners read back as set (also the Security owner defect). `ci.yml` green on GitHub on every push to `main` since 2026-10-29 (`cdf7886`, `1381ca2`); `main` is protected by the ruleset "main: offline CI required" (the check required, no deletion, no force push). |
 | 1. Every Node-capable handler against a site | Site guard; scratch webs with associated groups; reachability with the NoScript probe; `apply`, readers, `verify`, `inspect`, `cleanup`; suites and fixtures for the ten Node-capable handlers, skipping suites for the four JSOM ones; D4's Phase 1 fixes; `AGENTS.md`, `docs/TESTING.md`, two skills, `check-skills` (in `ci.yml`); the gulp-era `.vscode/launch.json`, `.vscode/tasks.json` and `settings.example.js` removed; the Security spec's Verification Plan amended for D2 and Security Verified | M-L | Done 2026-10-21 (`verify` and `inspect` moved to Phase 2): `check:tenant` green; `npm run test:integration` 45 tests, 34 pass, 10 `todo`, 1 skipped, 0 fail, in about 9 minutes, nothing left behind (green on the final code and twice in a row before its last transport change; one run in between was throttled and green again on rerun); 15 suites (10 Node handlers in 11 suites, plus the JSOM four skipping) and reachability; the Security spec Verified. D4's four Phase 1 fixes done; the suites also found 10 engine defects the plan did not list, 6 fixed with tests and 4 pinned (D4); the closing reviews found 2 more, fixed with unit tests. The runs also found two harness defects, fixed: `node --test` sorts its files (reachability ran in alphabetical place), and a request that hung for 3 x 300 s left a scratch web behind. |
-| 2. Depth, packages, schema | DataRows value matrix (DateTime under `TZ` Europe/Oslo, UTC, Asia/Tokyo); `all.node.json`; contract tests; `--mode project`; `packages.test.ts`; `schema.json`; floors raised; two skills | M | |
+| 2. Depth, packages, schema | DataRows value matrix (DateTime under `TZ` Europe/Oslo, UTC, Asia/Tokyo); `all.node.json`; contract tests; `--mode project`; `packages.test.ts`; `schema.json`; floors raised; two skills | M | Done 2026-11-10 in three parts. Part 1 (2026-11-06): `schema.json` generated from `src/schema.ts` and checked in CI, the schema and fixture-coverage tests, `tests/contract/`. Part 2: `verify`, `inspect`, `provision --verify` and `--mode project`, and `verify` in every suite's `applyTwice`. Part 3: `packages.test.ts` with `packages.expected.ts`, `all.node.json` with `everything.test.ts`, the `parameters` suite, the DateTime time zone test (a unit test: the handler sends a string as the template has it and a `Date` as UTC, in every zone), the `spjs-handlers` and `spjs-release` skills, floors 80/84/79. Tenant runs on 2026-11-10: `npm run test:integration -- all` 55 tests, 54 pass, 1 skipped (custom script), 0 fail, after a first full run that failed one test on a `verify` rule (the associated groups were not read for a list's permissions without a `Security` section); `-- packages` 9 of 9; `provision --package tests/fixtures/templates/all.node.json --twice --strict --verify` exit 0 without a finding; `verify` on a kept Lists web without a finding; nothing left behind. The packages suite found what the spec's "Not defects, recorded" lists. |
 | 3. Tenant CI | `integration.yml`, the `tenant` environment | S | |
 | 4. JSOM exit | Own spec (D3) | S + L | |
 

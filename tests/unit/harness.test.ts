@@ -248,6 +248,36 @@ describe('harness: suites', () => {
       /Unknown suite\(s\): bogus/
     )
   })
+
+  it('runs everything and packages only when asked for; all adds everything', () => {
+    const names = (files: string[]) => files.map((file) => path.basename(file))
+    const withOptIn = [...available, 'everything', 'packages']
+    assert.deepEqual(names(suiteFiles([], withOptIn)), [
+      'reachability.test.ts',
+      'lists.test.ts',
+      'lists-datarows.test.ts',
+      'security.test.ts'
+    ])
+    assert.deepEqual(names(suiteFiles(['all'], withOptIn)), [
+      'reachability.test.ts',
+      'lists.test.ts',
+      'lists-datarows.test.ts',
+      'security.test.ts',
+      'everything.test.ts'
+    ])
+    assert.deepEqual(names(suiteFiles(['packages'], withOptIn)), [
+      'reachability.test.ts',
+      'packages.test.ts'
+    ])
+    assert.deepEqual(names(suiteFiles(['ALL', 'packages'], withOptIn)), [
+      'reachability.test.ts',
+      'packages.test.ts',
+      'lists.test.ts',
+      'lists-datarows.test.ts',
+      'security.test.ts',
+      'everything.test.ts'
+    ])
+  })
 })
 
 describe('harness: fixtures', () => {

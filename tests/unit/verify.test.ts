@@ -290,7 +290,7 @@ describe('verify: lists', () => {
     )
   })
 
-  it('compares a view query without the whitespace between tags', () => {
+  it('compares a view query without the whitespace SharePoint does not store', () => {
     const actual = {
       lists: {
         L: list({
@@ -315,12 +315,67 @@ describe('verify: lists', () => {
       ),
       []
     )
+    // As pp-enkel-prosjektmal writes its queries (2026-11-10): a space after `=`, no space
+    // before `/>`. SharePoint stores the query without them.
+    assert.deepEqual(
+      findings(withQuery('<OrderBy><FieldRef Name= "ID"/></OrderBy>'), actual),
+      []
+    )
+    // Text between tags is compared as it is.
+    assert.equal(
+      findings(
+        withQuery(
+          '<Where><Eq><FieldRef Name="A" /><Value Type="Text">x = "y"</Value></Eq></Where>'
+        ),
+        {
+          lists: {
+            L: list({
+              views: [
+                view('V', {
+                  properties: {
+                    ViewQuery:
+                      '<Where><Eq><FieldRef Name="A" /><Value Type="Text">x="y"</Value></Eq></Where>'
+                  }
+                })
+              ]
+            })
+          }
+        }
+      ).length,
+      1
+    )
     assert.equal(
       findings(
         withQuery('<OrderBy><FieldRef Name="Title" /></OrderBy>'),
         actual
       ).length,
       1
+    )
+  })
+
+  it('notes a field ref without an ID instead of reporting the column as missing', () => {
+    // pp-testprosjekt 1.1.0's hub template had three list field refs with only a Name (fixed in
+    // 1.1.1, 2026-11-10). The handler finds a field ref by its ID, so it logs an error for each
+    // on every run, in a browser too; the column itself came with the content type.
+    const template = schema({
+      FieldRefs: [
+        { Name: 'GtSortOrder' },
+        { ID: 'aaaaaaaa-0000-0000-0000-000000000003', Name: 'GtOther' }
+      ]
+    })
+    const expected = expectations(template, context)
+    assert.deepEqual(
+      expected.lists[0].fieldRefs.map((ref) => ref.name),
+      ['GtOther']
+    )
+    assert.deepEqual(
+      expected.notes.map((note) => note.path),
+      ['L/FieldRefs/GtSortOrder']
+    )
+    assert.match(expected.notes[0].reason, /without an ID is never applied/)
+    assert.deepEqual(
+      findings(template, { lists: { L: list({ views: [view('V')] }) } }),
+      ['Lists L/FieldRefs/GtOther: "a field" -> "none"']
     )
   })
 

@@ -19,6 +19,23 @@ For releases older than 1.3.6, see the git history.
   package's project template and extensions as the project setup's `ApplyTemplate` and `Hooks`
   steps do (`--extensions`). Every integration suite's `applyTwice` now also asserts that `verify`
   finds nothing; `tests/unit/verify.test.ts` covers its rules.
+- Integration testing Phase 2, part 3: `npm run test:integration -- packages`
+  (`tests/integration/packages.test.ts`) applies the prosjektportalen-hosting packages twice, each
+  case on its own scratch web (`pp-testprosjekt` as a hub import, a cloud template and a project
+  setup, in both locales; three templates of other packages; `INTEGRATION_PACKAGES=all` the rest),
+  and holds the errors it logs and the differences `verify` finds to an exact list of what the Node
+  run cannot do until the JSOM exit (`packages.expected.ts`: what each list lacks). It found two
+  `verify` rules to correct (a view query is compared as SharePoint stores it, without the
+  whitespace around an attribute's `=`; a list field ref without an `ID` is noted instead of
+  reported as a missing column) and three such field refs in `pp-testprosjekt` (fixed in its
+  1.1.1). `npm run test:integration -- all` adds `everything.test.ts`: `all.node.json`, every
+  Node-capable fixture in one template (`npm run build:fixtures`), applied twice and verified with
+  `--exact`; the `parameters` suite covers `{parameter:}`. A DataRows unit test sends DateTime
+  values the same in Europe/Oslo, UTC and Asia/Tokyo. `provision` and `verify` fill a fixture's
+  `@@user@@`. The `spjs-handlers` and `spjs-release` skills; the coverage floors rise to 80/84/79.
+- prettier also checks `debug/lib`: `.prettierignore`'s `lib/` (the build output) matched it too,
+  so `npm run lint:check` never looked at the harness. The pattern is `/lib/` and the files are
+  formatted.
 
 ## [1.5.1] - 2026-11-10
 

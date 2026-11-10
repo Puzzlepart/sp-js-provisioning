@@ -3,7 +3,9 @@
 Templates the tests apply, in `templates/`. They hold no tenant URL, user or secret: run-time
 values come in through `loadFixture(name, { user, hookUrl })` (`@@user@@`, `@@hookUrl@@`) or the
 engine's own tokens, used only where the handler replaces them (see the per-handler matrix in
-`docs/specs/integration-testing.md`).
+`docs/specs/integration-testing.md`). `npm run provision` and `npm run verify` fill `@@user@@`
+with the signed-in user (or `INTEGRATION_USER`) and refuse a template with `@@hookUrl@@`
+(`debug/lib/placeholders.ts`).
 
 Conventions: titles start with `SPJS Itest`, internal names with `SPJSItest`, site column groups
 are `SPJS Itest`, and site groups are named `{sitename} ...` so they carry the scratch web's title
@@ -25,6 +27,8 @@ families (`<name>.json` and its `<name>.b.json` variant), except tenant-invarian
 | `navigation.json`, `.b.json` | `navigation.test.ts` | Quick Launch three levels deep and the top bar; B: `IgnoreExisting` at the top level and on a child, a kept node without its children |
 | `websettings.json`, `.b.json` | `websettings.test.ts` | Welcome page and web properties; B without a welcome page |
 | `hooks.json` | `hooks.test.ts` | GET and POST hooks to a local listener, a 202 that is polled |
+| `parameters.json` | `parameters.test.ts` | `{parameter:}` in site column and list field XML and in DataRows values, the `KeyColumn` value included (with an apostrophe) |
+| `all.node.json` | `everything.test.ts` (`npm run test:integration -- all`); `npm run provision -- --package tests/fixtures/templates/all.node.json --twice --strict --verify` | Every Node-capable handler fixture in one template, in run order, plus the list `sitefields.json`'s Lookup points at. Made from the fixtures by `npm run build:fixtures` (`tests/fixtures/fixtures.ts`, `composeAllNode`); `tests/unit/fixtures.test.ts` fails when it is out of date. Without `hooks.json` (a local listener), `customactions-script.json` (custom script), `failures.json`, `smoke.json` and the `.b` variants |
 
 Built-in ids the fixtures use (the same on every tenant):
 

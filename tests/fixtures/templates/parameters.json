@@ -1,0 +1,34 @@
+{
+  "$schema": "../../../schema.json",
+  "SiteFields": [
+    "<Field ID=\"{53dffdd6-d881-4124-a041-c2d673808641}\" Name=\"SPJSItestPmText\" StaticName=\"SPJSItestPmText\" DisplayName=\"SPJS Itest {parameter:label}\" Type=\"Text\" Required=\"FALSE\" Group=\"SPJS Itest\"><Default>{parameter:default}</Default></Field>"
+  ],
+  "Lists": [
+    {
+      "Title": "SPJS Itest Parameters",
+      "Description": "SPJS Itest parameters",
+      "Template": 100,
+      "ContentTypesEnabled": false,
+      "Fields": [
+        "<Field ID=\"{039fe6ca-5c91-481b-8875-74b18b971cb3}\" Name=\"SPJSItestPmListText\" StaticName=\"SPJSItestPmListText\" DisplayName=\"SPJS Itest list {parameter:label}\" Type=\"Text\" />"
+      ],
+      "FieldRefs": [
+        {
+          "ID": "53dffdd6-d881-4124-a041-c2d673808641",
+          "Name": "SPJSItestPmText"
+        }
+      ],
+      "DataRows": {
+        "KeyColumn": "Title",
+        "UpdateBehavior": "Overwrite",
+        "Rows": [
+          {
+            "Title": "SPJS Itest {parameter:label}",
+            "SPJSItestPmListText": "{parameter:default}",
+            "SPJSItestPmText": "{parameter:label} in the site column"
+          }
+        ]
+      }
+    }
+  ]
+}

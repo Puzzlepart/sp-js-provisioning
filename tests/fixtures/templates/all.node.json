@@ -1,0 +1,613 @@
+{
+  "$schema": "../../../schema.json",
+  "SiteFields": [
+    "<Field ID=\"{030a3ce7-2f14-4c44-bbd1-9f0f151c3d7a}\" Name=\"SPJSItestSfText\" StaticName=\"SPJSItestSfText\" DisplayName=\"SPJS Itest Text\" Description=\"Text column on {sitename}\" Type=\"Text\" MaxLength=\"120\" Required=\"FALSE\" Group=\"SPJS Itest\" />",
+    "<Field ID=\"{86a4e77a-0226-45fc-a516-a493d77b97ca}\" Name=\"SPJSItestSfNote\" StaticName=\"SPJSItestSfNote\" DisplayName=\"SPJS Itest Note\" Type=\"Note\" NumLines=\"6\" RichText=\"FALSE\" Required=\"FALSE\" Group=\"SPJS Itest\" />",
+    "<Field ID=\"{65002032-fb23-4727-8d87-738a18f1a991}\" Name=\"SPJSItestSfNumber\" StaticName=\"SPJSItestSfNumber\" DisplayName=\"SPJS Itest Number\" Type=\"Number\" Min=\"0\" Max=\"100\" Decimals=\"2\" Required=\"TRUE\" Group=\"SPJS Itest\" />",
+    "<Field ID=\"{882f8fe0-f45f-4844-a550-522e46883139}\" Name=\"SPJSItestSfDate\" StaticName=\"SPJSItestSfDate\" DisplayName=\"SPJS Itest Date\" Type=\"DateTime\" Format=\"DateOnly\" Required=\"FALSE\" Group=\"SPJS Itest\" />",
+    "<Field ID=\"{0e85db19-384a-405d-80b6-86734c611241}\" Name=\"SPJSItestSfBoolean\" StaticName=\"SPJSItestSfBoolean\" DisplayName=\"SPJS Itest Boolean\" Type=\"Boolean\" Group=\"SPJS Itest\"><Default>1</Default></Field>",
+    "<Field ID=\"{8bbbc71c-21c6-4954-9d55-631b96deb9a1}\" Name=\"SPJSItestSfChoice\" StaticName=\"SPJSItestSfChoice\" DisplayName=\"SPJS Itest Choice\" Type=\"Choice\" Format=\"Dropdown\" FillInChoice=\"FALSE\" Required=\"FALSE\" Group=\"SPJS Itest\"><Default>Beta</Default><CHOICES><CHOICE>Alfa</CHOICE><CHOICE>Beta</CHOICE><CHOICE>Gamma</CHOICE></CHOICES></Field>",
+    "<Field ID=\"{a9125489-fd99-42ee-b486-af55cdc61eb6}\" Name=\"SPJSItestSfMultiChoice\" StaticName=\"SPJSItestSfMultiChoice\" DisplayName=\"SPJS Itest MultiChoice\" Type=\"MultiChoice\" FillInChoice=\"TRUE\" Required=\"FALSE\" Group=\"SPJS Itest\"><CHOICES><CHOICE>Rød</CHOICE><CHOICE>Grønn</CHOICE><CHOICE>Blå</CHOICE></CHOICES></Field>",
+    "<Field ID=\"{90228b9a-9a85-419f-a53d-2dd45bc1700b}\" Name=\"SPJSItestSfUrl\" StaticName=\"SPJSItestSfUrl\" DisplayName=\"SPJS Itest Url\" Type=\"URL\" Format=\"Hyperlink\" Required=\"FALSE\" Group=\"SPJS Itest\" />",
+    "<Field ID=\"{5b2ff75a-47b0-4362-8e84-f33c629d03c4}\" Name=\"SPJSItestSfUser\" StaticName=\"SPJSItestSfUser\" DisplayName=\"SPJS Itest User\" Type=\"User\" List=\"UserInfo\" ShowField=\"ImnName\" UserSelectionMode=\"PeopleOnly\" UserSelectionScope=\"0\" Required=\"FALSE\" Group=\"SPJS Itest\" />",
+    "<Field ID=\"{fa25fcbf-acb3-4350-b7ef-8d4e8f169499}\" Name=\"SPJSItestSfCalculated\" StaticName=\"SPJSItestSfCalculated\" DisplayName=\"SPJS Itest Calculated\" Type=\"Calculated\" ResultType=\"Number\" Decimals=\"0\" Required=\"FALSE\" Group=\"SPJS Itest\"><Formula>=[SPJS Itest Number]*2</Formula><FieldRefs><FieldRef Name=\"SPJSItestSfNumber\" /></FieldRefs></Field>",
+    "<Field ID=\"{cf9d3103-f63b-4666-a9ca-da4098eb1e90}\" Name=\"SPJSItestSfLookup\" StaticName=\"SPJSItestSfLookup\" DisplayName=\"SPJS Itest Lookup\" Type=\"Lookup\" List=\"{listid:SPJS Itest Sitefields Source}\" ShowField=\"Title\" Required=\"FALSE\" Group=\"SPJS Itest\" />",
+    "<Field ID=\"{84f1ac72-f179-4a17-a07f-159e004c7a91}\" Name=\"SPJSItestCategory\" StaticName=\"SPJSItestCategory\" DisplayName=\"SPJS Itest Category\" Type=\"Choice\" Format=\"Dropdown\" Group=\"SPJS Itest\"><CHOICES><CHOICE>Plan</CHOICE><CHOICE>Gjennomføring</CHOICE><CHOICE>Avsluttet</CHOICE></CHOICES></Field>",
+    "<Field ID=\"{79692f62-6723-4c5e-a1eb-f2de7adc15e9}\" Name=\"SPJSItestSecret\" StaticName=\"SPJSItestSecret\" DisplayName=\"SPJS Itest Secret\" Type=\"Text\" CanToggleHidden=\"TRUE\" Group=\"SPJS Itest\" />",
+    "<Field ID=\"{21bb9a2c-0de1-47ed-a7cc-f56b3effe467}\" Name=\"SPJSItestDrText\" StaticName=\"SPJSItestDrText\" DisplayName=\"SPJS Itest Text\" Type=\"Text\" MaxLength=\"255\" Group=\"SPJS Itest\" />",
+    "<Field ID=\"{34ddfd52-b89c-4435-910e-297d620d2306}\" Name=\"SPJSItestDrNumber\" StaticName=\"SPJSItestDrNumber\" DisplayName=\"SPJS Itest Number\" Type=\"Number\" Decimals=\"2\" Group=\"SPJS Itest\" />",
+    "<Field ID=\"{e79f8d78-f3ea-4b4b-b837-07549c951229}\" Name=\"SPJSItestDrFlag\" StaticName=\"SPJSItestDrFlag\" DisplayName=\"SPJS Itest Flag\" Type=\"Boolean\" Group=\"SPJS Itest\"><Default>0</Default></Field>",
+    "<Field ID=\"{bceedb32-28a8-4baa-8f14-8637bc1e1664}\" Name=\"SPJSItestDrDate\" StaticName=\"SPJSItestDrDate\" DisplayName=\"SPJS Itest Date\" Type=\"DateTime\" Format=\"DateOnly\" Group=\"SPJS Itest\" />",
+    "<Field ID=\"{f1b09d6a-ae0a-4fd3-8e5e-4f19961034d4}\" Name=\"SPJSItestDrChoice\" StaticName=\"SPJSItestDrChoice\" DisplayName=\"SPJS Itest Choice\" Type=\"Choice\" Format=\"Dropdown\" FillInChoice=\"FALSE\" Group=\"SPJS Itest\"><CHOICES><CHOICE>Alfa</CHOICE><CHOICE>Beta</CHOICE><CHOICE>Gamma</CHOICE></CHOICES></Field>",
+    "<Field ID=\"{1f26bfc0-761a-441f-81a1-9450a0a18521}\" Name=\"SPJSItestDrChoices\" StaticName=\"SPJSItestDrChoices\" DisplayName=\"SPJS Itest Choices\" Type=\"MultiChoice\" FillInChoice=\"FALSE\" Group=\"SPJS Itest\"><CHOICES><CHOICE>Alfa</CHOICE><CHOICE>Beta</CHOICE><CHOICE>Gamma</CHOICE></CHOICES></Field>",
+    "<Field ID=\"{94db5294-2817-43d9-8dfe-34a5a4b63bbc}\" Name=\"SPJSItestDrLink\" StaticName=\"SPJSItestDrLink\" DisplayName=\"SPJS Itest Link\" Type=\"URL\" Format=\"Hyperlink\" Group=\"SPJS Itest\" />",
+    "<Field ID=\"{15cb2353-8a4b-41cf-9f37-8cfd8c262e03}\" Name=\"SPJSItestDrPerson\" StaticName=\"SPJSItestDrPerson\" DisplayName=\"SPJS Itest Person\" Type=\"User\" UserSelectionMode=\"PeopleOnly\" ShowField=\"ImnName\" Group=\"SPJS Itest\" />"
+  ],
+  "Features": [
+    {
+      "id": "a7a2793e-67cd-4dc1-9fd0-43f61581207a",
+      "deactivate": false,
+      "force": false
+    }
+  ],
+  "Security": {
+    "SiteGroups": [
+      {
+        "Title": "{sitename} Readers",
+        "Description": "Readers of {sitename}",
+        "Owner": "{associatedownergroupid}",
+        "AllowMembersEditMembership": false,
+        "OnlyAllowMembersViewMembership": true
+      },
+      {
+        "Title": "{sitename} Owners",
+        "Description": "Owns itself",
+        "Owner": "{sitename} Owners",
+        "AllowRequestToJoinLeave": true,
+        "AutoAcceptRequestToJoinLeave": false,
+        "RequestToJoinLeaveEmailSetting": "spjs-itest@contoso.com"
+      },
+      {
+        "Title": "{sitename} Members",
+        "Description": "Exactly one member",
+        "Owner": "{associatedownergroupid}",
+        "Members": [
+          "@@user@@"
+        ],
+        "ClearExistingMembers": true
+      }
+    ],
+    "BreakRoleInheritance": true,
+    "RoleAssignments": [
+      {
+        "Principal": "{sitename} Readers",
+        "RoleDefinition": "Read"
+      },
+      {
+        "Principal": "{sitename} Members",
+        "RoleDefinition": "Contribute"
+      },
+      {
+        "Principal": "{associatedvisitorgroupid}",
+        "RoleDefinition": "Read"
+      }
+    ]
+  },
+  "Lists": [
+    {
+      "Title": "SPJS Itest Sitefields Source",
+      "Description": "SPJS Itest the Lookup site column points here",
+      "Template": 100,
+      "ContentTypesEnabled": false
+    },
+    {
+      "Title": "SPJS Itest Security List",
+      "Description": "Granted to a group of the same template",
+      "Template": 100,
+      "ContentTypesEnabled": false,
+      "Security": {
+        "BreakRoleInheritance": true,
+        "CopyRoleAssignments": false,
+        "RoleAssignments": [
+          {
+            "Principal": "{sitename} Readers",
+            "RoleDefinition": "Read"
+          },
+          {
+            "Principal": "{associatedownergroupid}",
+            "RoleDefinition": "Full Control"
+          }
+        ]
+      }
+    },
+    {
+      "Title": "SPJS Itest Oppgaver",
+      "Description": "A generic list from sp-js-provisioning's lists fixture",
+      "Template": 100,
+      "ContentTypesEnabled": true,
+      "RemoveExistingContentTypes": false,
+      "ContentTypeBindings": [
+        {
+          "ContentTypeID": "0x01"
+        },
+        {
+          "ContentTypeID": "0x0104"
+        }
+      ],
+      "AdditionalSettings": {
+        "EnableVersioning": true,
+        "Hidden": false
+      },
+      "Fields": [
+        "<Field ID=\"{d8d7c828-6085-486b-8f59-454fc7838be7}\" Name=\"SPJSItestCode\" StaticName=\"SPJSItestCode\" DisplayName=\"SPJS Itest Kode\" Type=\"Text\" MaxLength=\"20\" />"
+      ],
+      "FieldRefs": [
+        {
+          "ID": "84f1ac72-f179-4a17-a07f-159e004c7a91",
+          "Name": "SPJSItestCategory",
+          "DisplayName": "SPJS Itest Kategori",
+          "Required": true
+        },
+        {
+          "ID": "79692f62-6723-4c5e-a1eb-f2de7adc15e9",
+          "Name": "SPJSItestSecret",
+          "DisplayName": "SPJS Itest Skjult",
+          "Hidden": true
+        }
+      ],
+      "Views": [
+        {
+          "Title": "SPJS Itest Aktive",
+          "ViewFields": [
+            "LinkTitle",
+            "SPJSItestCode",
+            "SPJSItestCategory"
+          ],
+          "AdditionalSettings": {
+            "ViewQuery": "<OrderBy><FieldRef Name=\"SPJSItestCode\" /></OrderBy><Where><Eq><FieldRef Name=\"SPJSItestCategory\" /><Value Type=\"Choice\">Plan</Value></Eq></Where>",
+            "RowLimit": 50,
+            "Paged": true,
+            "DefaultView": false
+          }
+        }
+      ],
+      "Security": {
+        "BreakRoleInheritance": true,
+        "CopyRoleAssignments": true,
+        "RoleAssignments": [
+          {
+            "Principal": "{associatedvisitorgroupid}",
+            "RoleDefinition": "Contribute"
+          }
+        ]
+      }
+    },
+    {
+      "Title": "SPJS Itest Dokumenter",
+      "Description": "A library from sp-js-provisioning's lists fixture",
+      "Template": 101,
+      "ContentTypesEnabled": true,
+      "RemoveExistingContentTypes": false,
+      "ContentTypeBindings": [
+        {
+          "ContentTypeID": "0x0101"
+        }
+      ],
+      "AdditionalSettings": {
+        "EnableVersioning": true,
+        "EnableMinorVersions": true,
+        "Hidden": false
+      },
+      "Fields": [
+        "<Field ID=\"{9cacac4a-21b4-4e5e-b8f3-7aa782b686b2}\" Name=\"SPJSItestRelated\" StaticName=\"SPJSItestRelated\" DisplayName=\"SPJS Itest Relaterte oppgaver\" Type=\"LookupMulti\" Mult=\"TRUE\" List=\"{listid:SPJS Itest Oppgaver}\" WebId=\"{siteid}\" ShowField=\"Title\" />"
+      ],
+      "FieldRefs": [
+        {
+          "ID": "84f1ac72-f179-4a17-a07f-159e004c7a91",
+          "Name": "SPJSItestCategory",
+          "DisplayName": "SPJS Itest Dokumentkategori",
+          "Required": false
+        }
+      ],
+      "Views": [
+        {
+          "Title": "SPJS Itest Alle filer",
+          "ViewFields": [
+            "DocIcon",
+            "LinkFilename",
+            "SPJSItestCategory",
+            "SPJSItestRelated",
+            "Modified"
+          ],
+          "AdditionalSettings": {
+            "ViewQuery": "<OrderBy><FieldRef Name=\"FileLeafRef\" /></OrderBy>",
+            "RowLimit": 100,
+            "Paged": true,
+            "Scope": 1,
+            "DefaultView": true
+          }
+        }
+      ],
+      "Folders": [
+        {
+          "Name": "Økonomi",
+          "Folders": [
+            {
+              "Name": "Fakturaer"
+            },
+            {
+              "Name": "Budsjett 2026"
+            }
+          ]
+        },
+        {
+          "Name": "Møtereferater"
+        }
+      ],
+      "Security": {
+        "BreakRoleInheritance": true,
+        "CopyRoleAssignments": false,
+        "RoleAssignments": [
+          {
+            "Principal": "{associatedownergroupid}",
+            "RoleDefinition": "Full Control"
+          },
+          {
+            "Principal": "{associatedmembergroupid}",
+            "RoleDefinition": "Edit"
+          }
+        ]
+      }
+    },
+    {
+      "Title": "SPJS Itest DataRows Source",
+      "Description": "Lookup source for sp-js-provisioning's lists-datarows fixture",
+      "Template": 100,
+      "ContentTypesEnabled": false,
+      "DataRows": {
+        "KeyColumn": "Title",
+        "Rows": [
+          {
+            "Title": "SPJS Itest Source A"
+          },
+          {
+            "Title": "SPJS Itest Source B"
+          },
+          {
+            "Title": "SPJS Itest Source C"
+          }
+        ]
+      }
+    },
+    {
+      "Title": "SPJS Itest DataRows Overwrite",
+      "Description": "Every DataRows value shape, upserted by Title",
+      "Template": 100,
+      "ContentTypesEnabled": false,
+      "Fields": [
+        "<Field ID=\"{90d2bcf9-e988-4f6e-8cbb-a6aa51301d0c}\" Name=\"SPJSItestDrLookup\" StaticName=\"SPJSItestDrLookup\" DisplayName=\"SPJS Itest Lookup\" Type=\"Lookup\" List=\"{{listid:SPJS Itest DataRows Source}}\" ShowField=\"Title\" />",
+        "<Field ID=\"{651911d0-ae6e-4b2a-8efb-8bc345cff62b}\" Name=\"SPJSItestDrLookups\" StaticName=\"SPJSItestDrLookups\" DisplayName=\"SPJS Itest Lookups\" Type=\"LookupMulti\" Mult=\"TRUE\" List=\"{{listid:SPJS Itest DataRows Source}}\" ShowField=\"Title\" />"
+      ],
+      "FieldRefs": [
+        {
+          "ID": "21bb9a2c-0de1-47ed-a7cc-f56b3effe467",
+          "Name": "SPJSItestDrText",
+          "DisplayName": "SPJS Itest Text"
+        },
+        {
+          "ID": "34ddfd52-b89c-4435-910e-297d620d2306",
+          "Name": "SPJSItestDrNumber",
+          "DisplayName": "SPJS Itest Number"
+        },
+        {
+          "ID": "e79f8d78-f3ea-4b4b-b837-07549c951229",
+          "Name": "SPJSItestDrFlag",
+          "DisplayName": "SPJS Itest Flag"
+        },
+        {
+          "ID": "bceedb32-28a8-4baa-8f14-8637bc1e1664",
+          "Name": "SPJSItestDrDate",
+          "DisplayName": "SPJS Itest Date"
+        },
+        {
+          "ID": "f1b09d6a-ae0a-4fd3-8e5e-4f19961034d4",
+          "Name": "SPJSItestDrChoice",
+          "DisplayName": "SPJS Itest Choice"
+        },
+        {
+          "ID": "1f26bfc0-761a-441f-81a1-9450a0a18521",
+          "Name": "SPJSItestDrChoices",
+          "DisplayName": "SPJS Itest Choices"
+        },
+        {
+          "ID": "94db5294-2817-43d9-8dfe-34a5a4b63bbc",
+          "Name": "SPJSItestDrLink",
+          "DisplayName": "SPJS Itest Link"
+        },
+        {
+          "ID": "15cb2353-8a4b-41cf-9f37-8cfd8c262e03",
+          "Name": "SPJSItestDrPerson",
+          "DisplayName": "SPJS Itest Person"
+        }
+      ],
+      "DataRows": {
+        "KeyColumn": "Title",
+        "UpdateBehavior": "Overwrite",
+        "Rows": [
+          {
+            "Title": "SPJS Itest Row A",
+            "SPJSItestDrText": "{sitename} / {parameter:SPJSItestText}",
+            "SPJSItestDrNumber": 12.5,
+            "SPJSItestDrFlag": true,
+            "SPJSItestDrDate": "2026-05-17",
+            "SPJSItestDrChoice": "Beta",
+            "SPJSItestDrChoices": [
+              "Alfa",
+              "Gamma"
+            ],
+            "SPJSItestDrLink": {
+              "Url": "https://contoso.com/spjs-itest/{parameter:SPJSItestSlug}",
+              "Description": "SPJS Itest link"
+            },
+            "SPJSItestDrPerson": "@@user@@",
+            "SPJSItestDrLookup": {
+              "lookupValue": "SPJS Itest Source A"
+            },
+            "SPJSItestDrLookups": [
+              {
+                "lookupValue": "SPJS Itest Source B"
+              },
+              3
+            ]
+          },
+          {
+            "Title": "SPJS Itest Row B",
+            "SPJSItestDrText": "Kept {Title} and {unknown:value}",
+            "SPJSItestDrNumber": 7,
+            "SPJSItestDrFlag": false,
+            "SPJSItestDrDate": "2026-12-31",
+            "SPJSItestDrChoice": "Gamma",
+            "SPJSItestDrChoices": "Beta",
+            "SPJSItestDrLink": "https://fabrikam.com/spjs-itest",
+            "SPJSItestDrPerson": {
+              "login": "@@user@@"
+            },
+            "SPJSItestDrLookup": 2,
+            "SPJSItestDrLookups": [
+              {
+                "lookupId": 1
+              }
+            ]
+          },
+          {
+            "Title": "SPJS Itest Row C",
+            "SPJSItestDrFlag": 1,
+            "SPJSItestDrLookup": "SPJS Itest Source C"
+          }
+        ]
+      }
+    },
+    {
+      "Title": "SPJS Itest DataRows Skip",
+      "Description": "Rows upserted by a Number key, existing rows skipped",
+      "Template": 100,
+      "ContentTypesEnabled": false,
+      "FieldRefs": [
+        {
+          "ID": "34ddfd52-b89c-4435-910e-297d620d2306",
+          "Name": "SPJSItestDrNumber",
+          "DisplayName": "SPJS Itest Sort order"
+        },
+        {
+          "ID": "21bb9a2c-0de1-47ed-a7cc-f56b3effe467",
+          "Name": "SPJSItestDrText",
+          "DisplayName": "SPJS Itest Text"
+        }
+      ],
+      "DataRows": {
+        "KeyColumn": "SPJSItestDrNumber",
+        "UpdateBehavior": "Skip",
+        "Rows": [
+          {
+            "Title": "SPJS Itest Step 10",
+            "SPJSItestDrNumber": 10,
+            "SPJSItestDrText": "First step"
+          },
+          {
+            "Title": "SPJS Itest Step 20",
+            "SPJSItestDrNumber": 20,
+            "SPJSItestDrText": "Second step"
+          },
+          {
+            "Title": "SPJS Itest Step 30",
+            "SPJSItestDrNumber": 30,
+            "SPJSItestDrText": "Third step"
+          }
+        ]
+      }
+    }
+  ],
+  "CustomActions": [
+    {
+      "Title": "SPJS Itest SPFx Application Customizer",
+      "Name": "SPJSItestSPFxApplicationCustomizer",
+      "Description": "An SPFx application customizer; SharePoint stores any component id",
+      "Location": "ClientSideExtension.ApplicationCustomizer",
+      "ClientSideComponentId": "caf4e769-7468-4144-ab1d-5141846b1e88",
+      "ClientSideComponentProperties": "{\"message\":\"SPJS Itest\",\"level\":2}",
+      "Sequence": 10
+    },
+    {
+      "Title": "SPJS Itest SPFx Command Set",
+      "Name": "SPJSItestSPFxCommandSet",
+      "Description": "An SPFx list view command set on every custom list",
+      "Location": "ClientSideExtension.ListViewCommandSet.CommandBar",
+      "ClientSideComponentId": "c3a3281c-7015-4e04-ad5f-3af8fdb8a4a3",
+      "ClientSideComponentProperties": "{\"commands\":{\"one\":{\"title\":\"SPJS Itest\"}}}",
+      "RegistrationId": "100",
+      "RegistrationType": 1,
+      "Sequence": 20
+    },
+    {
+      "Title": "SPJS Itest SPFx Context Menu",
+      "Name": "SPJSItestSPFxContextMenu",
+      "Description": "An SPFx command set in the item menu of every document library",
+      "Location": "ClientSideExtension.ListViewCommandSet.ContextMenu",
+      "ClientSideComponentId": "d5ffb638-ec52-43f9-a8ef-6794dc34f0d6",
+      "ClientSideComponentProperties": "{}",
+      "RegistrationId": "101",
+      "RegistrationType": 1,
+      "Sequence": 30
+    }
+  ],
+  "ComposedLook": {
+    "ColorPaletteUrl": "{sitecollection}/_catalogs/theme/15/Palette005.spcolor",
+    "FontSchemeUrl": "{themegallery}/fontscheme003.spfont",
+    "BackgroundImageUrl": "{site}/_layouts/15/images/image_bg005.jpg"
+  },
+  "ClientSidePages": [
+    {
+      "Name": "SPJS-Itest-Kept.aspx",
+      "Title": "SPJS Itest Kept",
+      "PageLayoutType": "Article",
+      "CommentsDisabled": true,
+      "Overwrite": false,
+      "VerticalSection": [
+        {
+          "Id": "PageText",
+          "Text": "<p>SPJS Itest vertical section</p>",
+          "Properties": {}
+        }
+      ],
+      "Sections": [
+        {
+          "Columns": [
+            {
+              "Factor": 6,
+              "Controls": [
+                {
+                  "Id": "Text",
+                  "Text": "<p>SPJS Itest left column</p>",
+                  "Properties": {}
+                }
+              ]
+            },
+            {
+              "Factor": 6,
+              "Controls": [
+                {
+                  "Id": "c70391ea-0b10-4ee9-b2b4-006d3fcad0cd",
+                  "Properties": {
+                    "layoutId": "List",
+                    "hideWebPartWhenEmpty": false,
+                    "spjsItestNote": "Quick links on {sitename}"
+                  },
+                  "ServerProcessedContent": {
+                    "htmlStrings": {},
+                    "searchablePlainTexts": {
+                      "title": "{sitename} links"
+                    },
+                    "imageSources": {},
+                    "links": {}
+                  }
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "Columns": [
+            {
+              "Factor": 12,
+              "Controls": [
+                {
+                  "Id": "d1d91016-032f-456d-98a4-721247c305e8",
+                  "Properties": {
+                    "altText": "SPJS Itest image on {sitename}",
+                    "captionText": "SPJS Itest caption",
+                    "linkUrl": "{site}/SitePages"
+                  }
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "Name": "SPJS-Itest-Overwritten.aspx",
+      "Title": "SPJS Itest Overwritten",
+      "PageLayoutType": "Article",
+      "CommentsDisabled": false,
+      "Overwrite": true,
+      "Sections": [
+        {
+          "Columns": [
+            {
+              "Factor": 4,
+              "Controls": [
+                {
+                  "Id": "Text",
+                  "Text": "<p>SPJS Itest first version</p>",
+                  "Properties": {}
+                }
+              ]
+            },
+            {
+              "Factor": 8,
+              "Controls": [
+                {
+                  "Id": "c70391ea-0b10-4ee9-b2b4-006d3fcad0cd",
+                  "Properties": {
+                    "layoutId": "CompactCard",
+                    "hideWebPartWhenEmpty": false,
+                    "spjsItestNote": "First version on {sitename}"
+                  }
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "Navigation": {
+    "QuickLaunch": [
+      {
+        "Title": "SPJS Itest Home",
+        "Url": "{site}"
+      },
+      {
+        "Title": "SPJS Itest Pages",
+        "Url": "SitePages",
+        "Children": [
+          {
+            "Title": "SPJS Itest Master pages",
+            "Url": "{site}/_catalogs/masterpage"
+          },
+          {
+            "Title": "SPJS Itest Contoso",
+            "Url": "https://www.contoso.com/spjs-itest/child",
+            "Children": [
+              {
+                "Title": "SPJS Itest Contoso grandchild",
+                "Url": "https://www.contoso.com/spjs-itest/grandchild"
+              }
+            ]
+          },
+          {
+            "Title": "SPJS Itest Contents",
+            "Url": "_layouts/15/viewlsts.aspx"
+          }
+        ]
+      },
+      {
+        "Title": "SPJS Itest Fabrikam",
+        "Url": "https://www.fabrikam.com/spjs-itest",
+        "IgnoreExisting": true
+      }
+    ],
+    "TopNavigationBar": [
+      {
+        "Title": "SPJS Itest Top",
+        "Url": "{site}/_catalogs/wp",
+        "Children": [
+          {
+            "Title": "SPJS Itest Top child",
+            "Url": "https://www.contoso.com/spjs-itest/top"
+          }
+        ]
+      },
+      {
+        "Title": "SPJS Itest Top external",
+        "Url": "https://www.fabrikam.com/spjs-itest/top"
+      }
+    ]
+  },
+  "WebSettings": {
+    "WelcomePage": "SitePages/Home.aspx",
+    "Description": "SPJS Itest web settings in {site}",
+    "TreeViewEnabled": true,
+    "QuickLaunchEnabled": false
+  }
+}

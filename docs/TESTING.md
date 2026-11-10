@@ -10,9 +10,10 @@ the code disagree, the code wins and this page is fixed in the same change. The 
 | Layer | Where | Needs a tenant | Runs |
 | --- | --- | --- | --- |
 | Unit | `tests/unit/*.test.ts` (node:test through tsx; real PnPjs with fake webs or a recording web) | no | `npm test`, and in CI (`ci.yml`, job "Build and offline tests") with JUnit, an HTML report and coverage floors |
-| Contract | `tests/contract/*.test.ts` (Phase 2: real PnPjs, a fake transport, the wire shape of each handler) | no | `npm test`, CI |
-| Integration | `tests/integration/*.test.ts`, one suite per handler, against scratch webs below the reserved site | yes | `npm run test:integration` locally; `integration.yml` (Phase 3, dispatched by hand behind a protected environment) |
-| Packages | `tests/integration/packages.test.ts` (Phase 2: the prosjektportalen-hosting packages) | yes | `npm run test:integration -- packages` |
+| Contract | `tests/contract/*.test.ts` (real PnPjs, an in-process transport, `tests/helpers/transport.ts`: the requests a handler sends, and WebProvisioner's order) | no | `npm test`, CI |
+| Integration | `tests/integration/*.test.ts`, one suite per handler (and `parameters`), against scratch webs below the reserved site; each `applyTwice` also runs `verify` | yes | `npm run test:integration` locally; `integration.yml` (Phase 3, dispatched by hand behind a protected environment) |
+| Everything | `tests/integration/everything.test.ts`: `all.node.json`, every Node-capable fixture in one template, applied twice and verified with `--exact` | yes | `npm run test:integration -- all` (the handler suites and this) |
+| Packages | `tests/integration/packages.test.ts`: the prosjektportalen-hosting packages (`INTEGRATION_HOSTING_DIR`), each case on its own scratch web, against an exact list of what the Node run cannot do until the JSOM exit | yes | `npm run test:integration -- packages` |
 | Browser only | Taxonomy, ContentTypes, Files and PropertyBagEntries run through JSOM | yes, in a browser | their suites skip until the JSOM exit (spec, D3) |
 
 ## Which test do I write?
@@ -20,7 +21,8 @@ the code disagree, the code wins and this page is fixed in the same change. The 
 | You changed | Write |
 | --- | --- |
 | Logic with no SharePoint call (tokens, parsing, plans) | a unit test |
-| What a handler sends (a URL, a body, the order of requests) | a unit test with a recording web (`tests/unit/webprovisioner.test.ts`, `csom.test.ts`); in Phase 2 a contract test |
+| What a handler sends (a URL, a body, the order of requests) | a contract test (`tests/contract/wire.test.ts`, `createWireWeb`), or a unit test with a recording web (`tests/unit/webprovisioner.test.ts`, `csom.test.ts`) |
+| What a re-apply makes true (a new rule for a member) | a `verify` rule in `debug/lib/verify.ts` with its unit test in `tests/unit/verify.test.ts`; the suites then check it on a site |
 | How a handler reacts to a failure (log level, `ProvisioningError`) | a unit test with a throwing fake and `captureLogs` (`tests/helpers/logs.ts`) |
 | What ends up on a site | the handler's integration suite: fixture, read-back, `applyTwice` |
 | A defect found on a site | first the test that fails because of it (unit if possible, else integration), then the fix |
@@ -39,6 +41,9 @@ the code disagree, the code wins and this page is fixed in the same change. The 
 | `npm run test:integration` | Reachability in a process of its own, then every handler suite, one file at a time; the suites do not run when reachability fails |
 | `npm run test:integration -- Lists Security` | Those suites (handler names, any case) |
 | `npm run test:integration -- Lists --keep` | Keep the scratch webs to look at them |
+| `npm run test:integration -- all` | Every handler suite and `everything` (`all.node.json`) |
+| `npm run test:integration -- packages` | The hosting packages (`INTEGRATION_PACKAGES=all` adds every package, reported) |
+| `npm run build:fixtures` | Writes `tests/fixtures/templates/all.node.json` from the handler fixtures (a unit test fails when it is stale) |
 | `npm run test:integration:ci` | Strict (a missing site or sign-in fails), spec + JUnit to `test-results/reachability.xml` and `test-results/integration.xml`; both, and the log, pass through `redact()` |
 | `npm run cleanup -- --webs` / `--prefix 'SPJS Itest'` | What a crashed run left behind (scratch webs and their groups older than 2 h / prefixed artefacts); a plan unless `--apply` |
 | `npm run cleanup -- --webs --older-than 0m` | The same right after a run or `--keep` (webs younger than 2 h are left for a run that may be active); only while no other run is |
@@ -87,8 +92,8 @@ organization's members after signing in to GitHub. Its address is the repository
 | Reading back | `debug/lib/readback/<handler>.ts` | What a handler provisioned, as plain data without ids or timestamps |
 | Suites | `tests/integration/helpers.ts` | `withScratchWeb`, `applyTwice`, `assertClean`, `assertVerified`, `skipReason`; `recording(conn, requests)`, a connection that records each request the engine sends, for "no write" or "no DELETE" assertions on a second apply |
 | Verify | `debug/lib/verify.ts`, `debug/lib/readback/site.ts` | `verify(conn, template, options)`: what any template should leave, with the engine's token rules, read back and diffed; `npm run verify` and `provision --verify` print it, `applyTwice` asserts it (unit-tested in `tests/unit/verify.test.ts`) |
-| Fixtures | `tests/fixtures/templates/*.json`, `tests/fixtures/fixtures.ts` | `loadFixture(name, { user, hookUrl })` |
-| Runner | `tests/integration/run.ts` | Maps names to suite files; runs reachability first in its own process (`node --test` sorts the files it is given), then the suites, one file at a time |
+| Fixtures | `tests/fixtures/templates/*.json`, `tests/fixtures/fixtures.ts`, `debug/lib/placeholders.ts` | `loadFixture(name, { user, hookUrl })`; `composeAllNode()` (`all.node.json`); `fixtureUser(conn)`, the user `@@user@@` stands for, which `provision` and `verify` also fill in |
+| Runner | `tests/integration/run.ts` | Maps names to suite files (`everything` and `packages` only when asked for, `all` adds `everything`); runs reachability first in its own process (`node --test` sorts the files it is given), then the suites, one file at a time |
 
 A suite looks like this (`tests/integration/security.test.ts` is the reference):
 
@@ -164,6 +169,11 @@ of 6, three times). Full run on 2026-10-29, after the review fixes: reachability
 52 tests, 51 pass, 0 `todo`, 1 skipped (custom script blocked), 0 fail; about 9 minutes; nothing
 left behind.
 
+Measured on 2026-11-10 at the end of Phase 2, where every `applyTwice` also runs `verify`:
+`npm run test:integration -- all`: reachability 6 of 6; the suites 55 tests, 54 pass, 0 `todo`, 1
+skipped (custom script blocked), 0 fail; about 12 minutes. `npm run test:integration -- packages`:
+9 cases, all as `packages.expected.ts` lists them; about 8 minutes. Nothing left behind.
+
 | Handler | Suite | Fixture | Status | Pinned (`todo`) |
 | --- | --- | --- | --- | --- |
 | SiteFields | `sitefields.test.ts` | `sitefields.json`, `.b.json`, `failures.json` | green (7 tests: an unchanged second apply writes nothing, B and back, an admin's description kept, a narrowing type change, a lookup to a list of the same template, a taxonomy column, a refused column) | — (re-apply and same-template `{listid:}` fixed, [spec](./specs/sitefields-re-apply.md)) |
@@ -177,4 +187,7 @@ left behind.
 | Navigation | `navigation.test.ts` | `navigation.json`, `.b.json` | green (6 tests: a second apply keeps ids and writes nothing, an owner's changes, B, refusals in either collection, a recycled target) | — (re-apply reconciles in place, [spec](./specs/navigation-re-apply.md)) |
 | WebSettings | `websettings.test.ts` | `websettings.json`, `.b.json` | green | — (applying without a welcome page fixed in Phase 1) |
 | Hooks | `hooks.test.ts` | `hooks.json` | green | — (the 202 poll, its `Location` and failures fixed in Phase 1) |
+| Parameters | `parameters.test.ts` | `parameters.json` | green (2 tests: `{parameter:}` in field XML and data rows, the row matched by its value on the second run; without the values `verify` names the tokens) | — |
+| Everything | `everything.test.ts` (only with `-- all` or `-- everything`) | `all.node.json` | green: nine sections in one template, applied twice, `verify --exact` finds nothing | — |
+| Packages | `packages.test.ts` (only with `-- packages`) | the prosjektportalen-hosting checkout | green against `packages.expected.ts`: `pp-testprosjekt` as hub import, cloud template and project setup in both locales, the enkel and forskning project setups, the vei hub import | what each list lacks in Node, per case: bindings to content types that are not there, and the columns, view fields and rows that follow from it (until the JSOM exit) |
 | Taxonomy, ContentTypes, Files, PropertyBagEntries | `<name>.test.ts` | — | skipped: JSOM, until the JSOM exit | — |

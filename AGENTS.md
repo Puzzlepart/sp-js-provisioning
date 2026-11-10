@@ -12,9 +12,9 @@ code disagree, the code wins and the doc is fixed in the same change.
 | `src/webprovisioner.ts` | `WebProvisioner`: loads the context, runs the handlers in `DefaultHandlerSort` order, wraps failures in `ProvisioningError` |
 | `src/handlers/` | One handler per template section; `exports.ts` registers them (`Handler`, `DefaultHandlerMap`, `DefaultHandlerSort`) |
 | `src/util/` | Tokens (`tokenhelper.ts`, `index.ts` URL tokens), principals (`security.ts`), CSOM over HTTP (`csom.ts`) |
-| `src/schema.ts`, `schema.json` | The template contract (TypeScript) and its JSON Schema (hand-maintained; Phase 2 regenerates it) |
+| `src/schema.ts`, `schema.json` | The template contract (TypeScript) and its JSON Schema, generated from it (`npm run build:schema`; CI fails when it is stale) |
 | `debug/` | `npm run provision`, `verify`, `inspect` and `cleanup`; `debug/lib/` is the harness they share with the tests |
-| `tests/unit/` | Offline tests (`npm test`) |
+| `tests/unit/`, `tests/contract/` | Offline tests (`npm test`): logic with fakes, and the requests a handler sends through real PnPjs |
 | `tests/reporters/` | The node:test HTML reporter (`npm run test:ci`: `test-results/unit/index.html`) |
 | `tests/integration/` | Suites against scratch webs on the reserved site (`npm run test:integration`) |
 | `tests/fixtures/templates/` | Fixture templates (`SPJS Itest ...`) |
@@ -50,14 +50,15 @@ code disagree, the code wins and the doc is fixed in the same change.
 | --- | --- |
 | `npm ci` | Install (Node from `.nvmrc`) |
 | `npm run build` | `tsc` → `lib/` |
-| `npm test` | Unit tests |
+| `npm test` | Unit and contract tests |
 | `npm run typecheck:tests` | Type-check tests, `src/` and `debug/` |
 | `npm run lint:check` | eslint (`src/`) and prettier, without rewriting; `npm run lint` rewrites |
 | `npm run test:coverage` | Unit tests with coverage floors (they only rise) |
-| `npm run check:pack`, `npm run check:secrets`, `npm run check-skills` | Package contents, committed secrets, skills |
+| `npm run check:pack`, `npm run check:secrets`, `npm run check-skills`, `npm run check:schema` | Package contents, committed secrets, skills, `schema.json` up to date (`npm run build:schema` writes it) |
 | `npm run test:tasks` | The test report publisher's tests, against local bare repositories |
 | `npm run check:tenant` | Is the tenant ready for the integration suites |
-| `npm run test:integration [-- <Handler ...>] [--keep]` | Integration suites against scratch webs |
+| `npm run test:integration [-- <Handler ...> \| all \| packages] [--keep]` | Integration suites against scratch webs (`all` adds `everything`; `packages` the hosting packages) |
+| `npm run build:fixtures` | Writes `all.node.json` from the handler fixtures |
 | `npm run provision -- --package <path> [--mode hub\|cloud\|project] [--twice] [--strict] [--verify] [--dry-run]` | Apply a template or a PP365 package by hand |
 | `npm run cleanup -- --webs \| --prefix 'SPJS Itest' [--apply]` | Remove leftovers (a plan unless `--apply`) |
 | `npm run verify -- --package <path> [--site <web>] [--exact]` | Compare a template with a web, read-only (exit 1 on a finding) |
@@ -66,8 +67,8 @@ code disagree, the code wins and the doc is fixed in the same change.
 ## Testing
 
 Unit tests run offline in seconds; write one for any logic and for what a handler sends. The
-integration suites apply a fixture to a scratch web twice, read the result back and compare; they
-need the tenant set up as `docs/TESTING.md` describes (reserved site in `.env`, subsites enabled,
+integration suites apply a fixture to a scratch web twice, read the result back, compare and run
+`verify`; they need the tenant set up as `docs/TESTING.md` describes (reserved site in `.env`, subsites enabled,
 the account a site collection admin). Run them only when the user has asked for tenant work: they
 write to the tenant. The `spjs-testing` skill has the details and the failure triage.
 
@@ -79,7 +80,9 @@ Skills live only in `.claude/skills/<name>/SKILL.md` (`npm run check-skills` fai
 | Skill | For |
 | --- | --- |
 | `spjs-testing` | Writing, running and fixing tests: layers, commands, harness, fixture rules, triage |
-| `spjs-provision` | Applying a template or package to a site with `npm run provision`, and reading the result |
+| `spjs-provision` | Applying a template or package to a site with `npm run provision`, `verify` and `inspect`, and reading the result |
+| `spjs-handlers` | Changing or adding a handler: the contract, throw versus log, tokens, the tests a change needs |
+| `spjs-release` | Releasing to npm (the user publishes) and taking a release into PP365 |
 
 ## Do not
 

@@ -5,8 +5,10 @@
  * given in alphabetical order), then the suites asked for. When reachability fails, the suites do
  * not run: they would all fail the same way.
  *
- *   npm run test:integration                         every suite
+ *   npm run test:integration                         every handler suite
  *   npm run test:integration -- Lists Security       those suites (handler names, any case)
+ *   npm run test:integration -- all                  every handler suite and `everything`
+ *   npm run test:integration -- packages             the prosjektportalen-hosting packages
  *   npm run test:integration -- reachability         only the reachability checks
  *   npm run check:tenant                             the same, strict: a missing site fails
  *   npm run test:integration -- Lists --keep         keep the scratch webs for inspection
@@ -44,12 +46,30 @@ function availableSuites(): string[] {
 }
 
 /**
+ * Suites that run only when asked for by name: `everything` (`all.node.json`, every handler at
+ * once; `all` adds it to the handler suites) and `packages` (the hosting packages, slow).
+ */
+export const OPT_IN_SUITES = ['everything', 'packages']
+
+/**
  * The suite files to run, reachability first.
  *
- * @param names - Suite or handler names; none for every suite
+ * @param names - Suite or handler names, or `all`; none for every handler suite
  * @param available - The suites there are
  */
 export function suiteFiles(names: string[], available: string[]): string[] {
+  const handlerSuites = available.filter(
+    (name) => name !== 'reachability' && !OPT_IN_SUITES.includes(name)
+  )
+  if (names.some((name) => name.toLowerCase() === 'all'))
+    return suiteFiles(
+      [
+        ...names.filter((name) => name.toLowerCase() !== 'all'),
+        ...handlerSuites,
+        ...(available.includes('everything') ? ['everything'] : [])
+      ],
+      available
+    )
   // A handler name selects its suites: `lists` runs `lists` and `lists-datarows`.
   const selected = (name: string) =>
     available.filter((suite) => suite === name || suite.startsWith(`${name}-`))
@@ -65,7 +85,7 @@ export function suiteFiles(names: string[], available: string[]): string[] {
         .map((name) => name.toLowerCase())
         .reduce((all, name) => [...all, ...selected(name)], [] as string[])
         .filter((name, index, all) => all.indexOf(name) === index)
-    : available.filter((name) => name !== 'reachability')
+    : handlerSuites
   const ordered = [
     'reachability',
     ...wanted.filter((name) => name !== 'reachability')

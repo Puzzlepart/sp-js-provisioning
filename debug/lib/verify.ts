@@ -641,22 +641,34 @@ export function expectations(
             removeExistingContentTypes:
               !!lc.RemoveExistingContentTypes && !!lc.ContentTypeBindings,
             fields: [],
-            fieldRefs: (lc.FieldRefs || []).map((ref: any) => ({
-              id: bareGuid(ref.ID),
-              ...(ref.Name ? { name: ref.Name } : {}),
-              ...(ref.DisplayName !== undefined
-                ? { displayName: ref.DisplayName }
-                : {}),
-              ...(ref.Required !== undefined ? { required: ref.Required } : {}),
-              ...(ref.Hidden !== undefined ? { hidden: ref.Hidden } : {}),
-              ...(ref.AdditionalProperties
-                ? { additional: ref.AdditionalProperties }
-                : {})
-            })),
+            // A field ref without an ID is noted below, not compared.
+            fieldRefs: (lc.FieldRefs || [])
+              .filter((ref: any) => !!ref.ID)
+              .map((ref: any) => ({
+                id: bareGuid(ref.ID),
+                ...(ref.Name ? { name: ref.Name } : {}),
+                ...(ref.DisplayName !== undefined
+                  ? { displayName: ref.DisplayName }
+                  : {}),
+                ...(ref.Required !== undefined
+                  ? { required: ref.Required }
+                  : {}),
+                ...(ref.Hidden !== undefined ? { hidden: ref.Hidden } : {}),
+                ...(ref.AdditionalProperties
+                  ? { additional: ref.AdditionalProperties }
+                  : {})
+              })),
             views,
             removeExistingViews: !!lc.RemoveExistingViews && !!lc.Views,
             folders: folderPaths(lc.Folders)
           }
+          for (const ref of lc.FieldRefs || [])
+            if (!ref.ID)
+              note(
+                handler,
+                `${lc.Title}/FieldRefs/${ref.Name || '?'}`,
+                'a field ref without an ID is never applied: the handler finds a list field ref by its ID, and logs an error for this one on every run'
+              )
           for (const xml of lc.Fields || [])
             try {
               list.fields.push(fieldOf(xml, tokens))
@@ -1002,10 +1014,20 @@ export function grantsRole(
   )
 }
 
-/** CAML or HTML without the whitespace between tags. */
+/**
+ * CAML or HTML as SharePoint stores it, for comparing: without the whitespace between tags, around
+ * an attribute's `=` and before a tag's end (a template's `<FieldRef Name= "X"/>` is stored as
+ * `<FieldRef Name="X" />`).
+ */
 const compact = (text: any) =>
   String(text ?? '')
     .replace(/>\s+</g, '><')
+    .replace(/<[^<>]+>/g, (tag) =>
+      tag
+        .replace(/\s*=\s*(["'])/g, '=$1')
+        .replace(/\s+/g, ' ')
+        .replace(/\s*(\/?)>$/, (end, slash) => (slash ? ' />' : '>'))
+    )
     .trim()
 
 /** Text of HTML: tags dropped, whitespace collapsed (a Note column wraps its value). */

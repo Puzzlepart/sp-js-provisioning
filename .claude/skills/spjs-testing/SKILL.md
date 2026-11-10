@@ -20,7 +20,10 @@ the code disagree, the code wins and the doc is fixed. The plan: `docs/specs/int
 | Layer | Location | Runs | Tenant |
 | --- | --- | --- | --- |
 | Unit | `tests/unit/*.test.ts` | `npm test`, CI | no |
+| Contract | `tests/contract/*.test.ts` (real PnPjs, `createWireWeb`: the requests on the wire) | `npm test`, CI | no |
 | Integration | `tests/integration/<handler>.test.ts` | `npm run test:integration -- <Handler>` | yes: scratch webs below `INTEGRATION_SITE_URL` |
+| Everything | `tests/integration/everything.test.ts` (`all.node.json`, `verify --exact`) | `npm run test:integration -- all` | yes |
+| Packages | `tests/integration/packages.test.ts` (prosjektportalen-hosting, an exact list of what Node cannot do) | `npm run test:integration -- packages` | yes |
 | Browser only | Taxonomy, ContentTypes, Files, PropertyBagEntries | suites skip until the JSOM exit | — |
 
 ## Running
@@ -76,11 +79,23 @@ the code disagree, the code wins and the doc is fixed. The plan: `docs/specs/int
 - `verify found differences` with a green read-back: `verify`'s rule for that member does not
   match what the handler does (fix `debug/lib/verify.ts` with a unit test in
   `tests/unit/verify.test.ts`), or the web really differs (a defect the read-back missed).
+- SharePoint refuses a request whose URL passes its length limit (about 260 characters of path,
+  2026-11-10): a scratch web's path is in every request and `getFileByServerRelativePath` names it
+  twice, so keep suite names short (`pkg forskningsprosjekt project`, not the whole case label)
+  and reach files through their list where you can.
+- SharePoint stores CAML normalised (`<FieldRef Name= "X"/>` becomes `<FieldRef Name="X" />`):
+  compare a view query through `verify`, not as text.
+- The packages suite holds each case to an exact list (`tests/integration/packages.expected.ts`,
+  what each list lacks). A new logged error or finding fails as `unexpected`, a fixed one as
+  `missing` (remove its entry). One case: `npm run test:integration -- packages
+  --test-name-pattern='pp-enkel|pp-forskning'` (the pattern matches the case's name). It reads the
+  prosjektportalen-hosting checkout next to this one, uncommitted changes included.
 
 ## Verification checklist
 
 - [ ] The suite asserts the read-back, not only a clean run
 - [ ] `applyTwice` passes (second read-back equal to the first, and no `verify` finding)
+- [ ] A changed handler fixture: `npm run build:fixtures` (else `tests/unit/fixtures.test.ts` fails)
 - [ ] Known defects are `todo`, with a reason
 - [ ] No tenant URL, cookie, token or certificate in any committed or new file
       (`npm run check:secrets` scans them all, docs and specs too); no user name either (it is
