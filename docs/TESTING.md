@@ -217,6 +217,8 @@ The first run of the `Integration` workflow (2026-11-10, certificate mode, the d
 `handlers`): reachability 5 pass and 1 skipped (an app has no site admin flag), the suites 54
 tests, 53 pass, 1 skipped, 0 fail, 16 minutes; the report check passed and the report is on the
 report site.
+The second run the same day (`suites=all`, `packages=testprosjekt`, certificate mode): 64 tests,
+63 pass, 1 skipped, 0 fail, 27 minutes, with `everything` and the nine package cases.
 
 | Handler | Suite | Fixture | Status | Pinned (`todo`) |
 | --- | --- | --- | --- | --- |
