@@ -9,7 +9,7 @@ export interface IWireRequest {
   path: string
   /** The query, decoded (`$filter`, `$select`, `$top`, ...). */
   query: Record<string, string>
-  /** The JSON body, parsed, when there is one. */
+  /** The JSON body, parsed, when there is one; a CSOM request's XML as text. */
   body?: any
 }
 
@@ -48,9 +48,12 @@ export function createWireWeb(
           address.startsWith(prefix) ? address.slice(prefix.length) : address
         ),
         query,
+        // A CSOM request (ProcessQuery) is XML: kept as text, for tests/helpers/csom.ts.
         body:
           init && typeof init.body === 'string' && init.body
-            ? JSON.parse(init.body)
+            ? /^\s*</.test(init.body)
+              ? init.body
+              : JSON.parse(init.body)
             : undefined
       }
       requests.push(request)
