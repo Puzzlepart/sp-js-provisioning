@@ -1,0 +1,49 @@
+{
+  "$schema": "../../../schema.json",
+  "Taxonomy": {
+    "TermGroup": {
+      "Id": "0a9151e2-a998-4a44-b71c-160ef44e81b1",
+      "Name": "SPJS Itest"
+    },
+    "TermSets": [
+      {
+        "Id": "518a580a-11e9-4f6d-b4b5-3099c454535f",
+        "Name": "SPJS Itest Faser",
+        "Description": "SPJS Itest: the Taxonomy suite's term set, left in place on purpose: the suite reuses it and deletes nothing from the term store",
+        "IsOpenForTermCreation": false,
+        "Terms": [
+          {
+            "Id": "3689460f-6803-4d01-bb0b-2dc423374adb",
+            "Name": "SPJS Itest Konsept",
+            "SortOrder": 1,
+            "CustomProperties": {
+              "SPJSItestLevel": "Prosjekt",
+              "SPJSItestText": "Første fase"
+            }
+          },
+          {
+            "Id": "548b20a5-9c63-45de-8e5a-a96096ef484d",
+            "Name": "SPJS Itest Planlegge",
+            "SortOrder": 2,
+            "CustomProperties": {
+              "SPJSItestLevel": "Prosjekt"
+            }
+          },
+          {
+            "Id": "7d5d9e0c-51fc-4ea8-a7e3-9febcc4f1f1a",
+            "Name": "SPJS Itest Gjennomføre",
+            "SortOrder": 3
+          },
+          {
+            "Id": "71ece6f2-4780-486d-a4d5-c28cf8f9dffe",
+            "Name": "SPJS Itest Avslutte",
+            "SortOrder": 4,
+            "CustomProperties": {
+              "SPJSItestLevel": "Program"
+            }
+          }
+        ]
+      }
+    ]
+  }
+}

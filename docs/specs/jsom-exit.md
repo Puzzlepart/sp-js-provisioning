@@ -1,7 +1,7 @@
 # Spec: The JSOM Exit
 
 Status: Ready (2026-11-10; the spike below is done, implementation follows in the order of
-"Steps": 1 and 2 are done, see the status under "Steps")
+"Steps": 1 to 3 are done, see the status under "Steps")
 
 Owner: Remi Blom-Ohlsen
 
@@ -173,11 +173,10 @@ Per file: read the source (J7), `files.addUsingPath` with `Overwrite` (default `
 
 One commit per step; the suites run against the reserved site at each.
 
-Status, 2026-11-10: steps 1 and 2 are implemented, documented (`docs/ARCHITECTURE.md`, the
-[ADR](../adr/csom-over-http.md), `CHANGELOG.md`, the fixtures README, the skills) and green offline
-and against the reserved site (`npm run test:integration -- contenttypes`, 4 of 4). The runner
+Status, 2026-11-10: steps 1 to 3 are implemented, documented and green offline and against the
+reserved site (`npm run test:integration -- contenttypes taxonomy`: 4 and 2 tests). The runner
 still leaves ContentTypes out by default (`NODE_UNSUPPORTED`) until step 5 regenerates the packages
-list with it; its suite names its handlers.
+list with it, and leaves Taxonomy out for good (J5); their suites name their handlers.
 
 What the ContentTypes suite showed on SharePoint:
 
@@ -191,6 +190,15 @@ What the ContentTypes suite showed on SharePoint:
   `Microsoft.SharePoint.SPException`), and the handler stops with them.
 - `verify` asked SharePoint for content type ids with `0X` for `0x` and found none; fixed in
   `readContentType`.
+
+What the Taxonomy runs showed (the signed-in user, cookies):
+
+- The first run created the group `SPJS Itest`, the term set and its four terms with the
+  template's ids, custom properties, description and sort order, in three requests (the read, the
+  group, the term set); the second only read. The user may write to the term store.
+- `_api/v2.1/termstore` returns a term's custom properties with `$select=properties` and a term
+  set's sort order with `$select=customSortOrder` (neither without a `$select`): `readTaxonomy` and
+  `verify` use them.
 
 ## Acceptance Criteria
 
@@ -225,7 +233,8 @@ What the ContentTypes suite showed on SharePoint:
 ## Open Questions
 
 - May PP365's CI app write to the term store, or does the Taxonomy suite skip in certificate mode?
-- Is the signed-in test user a term store administrator? The first Taxonomy run says.
+- ~~Is the signed-in test user a term store administrator?~~ It may write to the term store: the
+  first Taxonomy run created the group (2026-11-10).
 
 ## Rollout Notes
 

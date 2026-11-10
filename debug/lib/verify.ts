@@ -295,7 +295,17 @@ export interface IExpected {
     sets: Array<{
       id: string
       name: string
-      terms: Array<{ id: string; name: string }>
+      description?: string
+      open?: boolean
+      /** `UpdateExistingTerms`: a re-apply adds the custom properties a term lacks. */
+      updateExisting: boolean
+      /** The custom sort order the `SortOrder` values give, when two or more terms have one. */
+      sortOrder?: string[]
+      terms: Array<{
+        id: string
+        name: string
+        properties: Record<string, string>
+      }>
     }>
   }
   siteFields?: IExpectedField[]
@@ -527,14 +537,30 @@ export function expectations(
                 }
               }
             : {}),
-          sets: (section.TermSets || []).map((set: any) => ({
-            id: bareGuid(set.Id),
-            name: set.Name,
-            terms: (set.Terms || []).map((term: any) => ({
-              id: bareGuid(term.Id),
-              name: term.Name
-            }))
-          }))
+          sets: (section.TermSets || []).map((set: any) => {
+            const ordered = (set.Terms || [])
+              .filter((term: any) => typeof term.SortOrder === 'number')
+              .sort((a: any, b: any) => a.SortOrder - b.SortOrder)
+            return {
+              id: bareGuid(set.Id),
+              name: set.Name,
+              ...(set.Description ? { description: set.Description } : {}),
+              ...(typeof set.IsOpenForTermCreation === 'boolean'
+                ? { open: set.IsOpenForTermCreation }
+                : {}),
+              updateExisting: !!set.UpdateExistingTerms,
+              ...(ordered.length > 1
+                ? {
+                    sortOrder: ordered.map((term: any) => bareGuid(term.Id))
+                  }
+                : {}),
+              terms: (set.Terms || []).map((term: any) => ({
+                id: bareGuid(term.Id),
+                name: term.Name,
+                properties: { ...(term.CustomProperties || {}) }
+              }))
+            }
+          })
         }
         break
       case 'SiteFields':
@@ -1821,22 +1847,65 @@ export function diff(
         }
         if (!stored.names.includes(set.name))
           f.add('Taxonomy', `TermSets/${set.id}/Name`, set.name, stored.names)
+        // Set only when the handler creates the term set.
+        if (exact && set.description !== undefined)
+          if (stored.description !== set.description)
+            f.add(
+              'Taxonomy',
+              `TermSets/${set.name}/Description`,
+              set.description,
+              stored.description
+            )
+        if (exact && set.open !== undefined && stored.isOpen !== set.open)
+          f.add(
+            'Taxonomy',
+            `TermSets/${set.name}/IsOpenForTermCreation`,
+            set.open,
+            stored.isOpen
+          )
+        // A re-apply sets the order when it differs.
+        if (
+          set.sortOrder &&
+          stored.customSortOrder.join(':') !== set.sortOrder.join(':')
+        )
+          f.add(
+            'Taxonomy',
+            `TermSets/${set.name}/CustomSortOrder`,
+            set.sortOrder,
+            stored.customSortOrder
+          )
         for (const term of set.terms) {
           const storedTerm = stored.terms[term.id]
-          if (!storedTerm)
+          if (!storedTerm) {
             f.add(
               'Taxonomy',
               `TermSets/${set.name}/Terms/${term.name}`,
               'a term',
               'none'
             )
-          else if (!storedTerm.labels.includes(term.name))
+            continue
+          }
+          if (!storedTerm.labels.includes(term.name))
             f.add(
               'Taxonomy',
               `TermSets/${set.name}/Terms/${term.id}/Name`,
               term.name,
               storedTerm.labels
             )
+          // A new term gets the template's properties; an existing one only the ones it lacks,
+          // with UpdateExistingTerms, and none is overwritten.
+          for (const key of Object.keys(term.properties)) {
+            const have = storedTerm.properties[key]
+            const path = `TermSets/${set.name}/Terms/${term.name}/CustomProperties/${key}`
+            if (have === undefined && (exact || set.updateExisting))
+              f.add('Taxonomy', path, term.properties[key], null)
+            else if (
+              exact &&
+              have !== undefined &&
+              have !== term.properties[key]
+            )
+              f.add('Taxonomy', path, term.properties[key], have)
+          }
         }
       }
     }

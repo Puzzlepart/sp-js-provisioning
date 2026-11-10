@@ -715,15 +715,19 @@
         "ITerm": {
             "properties": {
                 "CustomProperties": {
-                    "$ref": "#/definitions/Record%3Cstring%2Cstring%3E"
+                    "$ref": "#/definitions/Record%3Cstring%2Cstring%3E",
+                    "description": "Set on a new term; on an existing one only those it lacks, with `UpdateExistingTerms`."
                 },
                 "Id": {
+                    "description": "The term's id (a GUID). A term the store has with this id, in any term set, is kept.",
                     "type": "string"
                 },
                 "Name": {
+                    "description": "The name a new term gets, in the term store's default language.",
                     "type": "string"
                 },
                 "SortOrder": {
+                    "description": "The term's place in its term set's custom sort order: with two or more terms that have one,\nthe order is set when it differs from the term set's.",
                     "type": "number"
                 }
             },
@@ -732,9 +736,11 @@
         "ITermGroup": {
             "properties": {
                 "Id": {
+                    "description": "The group's id (a GUID). A group the store has with this id is used as it is.",
                     "type": "string"
                 },
                 "Name": {
+                    "description": "The name a new group gets.",
                     "type": "string"
                 }
             },
@@ -743,15 +749,19 @@
         "ITermSet": {
             "properties": {
                 "Description": {
+                    "description": "Set on a new term set.",
                     "type": "string"
                 },
                 "Id": {
+                    "description": "The term set's id (a GUID). A term set the store has with this id is used as it is.",
                     "type": "string"
                 },
                 "IsOpenForTermCreation": {
+                    "description": "Set on a new term set.",
                     "type": "boolean"
                 },
                 "Name": {
+                    "description": "The name a new term set gets, in the term store's default language.",
                     "type": "string"
                 },
                 "Terms": {
@@ -970,7 +980,8 @@
             "type": "array"
         },
         "Taxonomy": {
-            "$ref": "#/definitions/ITaxonomy"
+            "$ref": "#/definitions/ITaxonomy",
+            "description": "A term group, its term sets and terms in the default site collection term store, with the ids\nthe template gives them. Missing ones are created; what the store has (by id, anywhere in it)\nis left as it is, except the custom sort order, set when it differs, and the custom properties\na term lacks with `UpdateExistingTerms`. Runs first, before the site columns that use the term\nsets. A term store that cannot be read or written stops the template."
         },
         "Version": {
             "type": "string"

@@ -16,7 +16,6 @@ const PASS_THROUGH =
   'passed to SharePoint unchanged with the other settings; the fixtures cover the path with other keys'
 
 const NOT_COVERED: Record<string, string> = {
-  'Schema.Taxonomy': JSOM,
   'Schema.Version': 'metadata: the engine has no handler for it and skips it',
   'Schema.Parameters':
     'the {parameter:} token is covered by tests/unit (runner, csom); a parameters.json fixture comes with the depth part of Phase 2',
@@ -36,20 +35,6 @@ const NOT_COVERED: Record<string, string> = {
   'IWebPartPropertyOverride.name': JSOM,
   'IWebPartPropertyOverride.type': JSOM,
   'IWebPartPropertyOverride.value': JSOM,
-  'ITaxonomy.TermGroup': JSOM,
-  'ITaxonomy.TermSets': JSOM,
-  'ITerm.CustomProperties': JSOM,
-  'ITerm.Id': JSOM,
-  'ITerm.Name': JSOM,
-  'ITerm.SortOrder': JSOM,
-  'ITermGroup.Id': JSOM,
-  'ITermGroup.Name': JSOM,
-  'ITermSet.Description': JSOM,
-  'ITermSet.Id': JSOM,
-  'ITermSet.IsOpenForTermCreation': JSOM,
-  'ITermSet.Name': JSOM,
-  'ITermSet.Terms': JSOM,
-  'ITermSet.UpdateExistingTerms': JSOM,
   'IListInstance.RemoveExistingViews':
     'inline templates in tests/integration/lists.test.ts (it acts only on lists made in the same setup)',
   'IListInstanceFieldReference.AdditionalProperties':

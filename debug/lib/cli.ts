@@ -11,8 +11,8 @@ import * as path from 'path'
 
 /**
  * Handlers the runner leaves out unless `--handlers` names them:
- *  - Taxonomy provisions through JSOM (`spfx-jsom` -> `SP.ClientContext`), which is stubbed out in
- *    Node (`debug/stubs/spfx-jsom.ts`).
+ *  - Taxonomy writes to the tenant's term store, which every site shares (docs/specs/jsom-exit.md,
+ *    J5); it runs in Node (CSOM over HTTP).
  *  - Files refuses whenever an SPFx context is set, which the runner always sets.
  *  - PropertyBagEntries rejects in Node.
  *  - ContentTypes runs in Node (CSOM over HTTP) but stays out until the packages suite's list

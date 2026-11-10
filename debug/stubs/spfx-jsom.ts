@@ -6,10 +6,10 @@
  * Node (it `require`s `.resx` files). The local provisioning runner replaces it
  * with this stub so the engine module graph loads.
  *
- * Lists merely *initializes* a jsom context and never touches it — it keeps
- * working. Taxonomy, which actually uses JSOM, hits the throwing proxy below and
- * fails with a clear message; the runner auto-skips it by default. The JSOM exit
- * (docs/specs/jsom-exit.md) removes this stub.
+ * Only Lists still imports it: it merely *initializes* a jsom context and never
+ * touches it, so it keeps working. A handler that used JSOM through it would hit
+ * the throwing proxy below. The JSOM exit (docs/specs/jsom-exit.md) removes this
+ * stub.
  */
 function jsomUnavailable(): never {
   throw new Error(

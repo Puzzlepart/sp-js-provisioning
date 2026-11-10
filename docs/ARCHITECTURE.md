@@ -66,7 +66,7 @@ Current order:
 
 | Sort | Handler | Why It Is Early Or Late |
 | ---: | --- | --- |
-| -1 | `Taxonomy` | Creates term groups, term sets and terms (JSOM) before the site columns that use them. |
+| -1 | `Taxonomy` | Creates term groups, term sets and terms (CSOM over HTTP) before the site columns that use them. |
 | 0 | `SiteFields` | Creates or updates web fields used by content types and lists. |
 | 1 | `ContentTypes` | Uses site fields and produces content types used by list bindings. |
 | 2 | `Features` | Activates or deactivates web features before list and page work. |
@@ -206,6 +206,22 @@ Handler convention:
 - Inputs are the PnP `IWeb`, the template section, and sometimes `ProvisioningContext`.
 - Most handlers process items sequentially with promise `reduce`.
 - Handler errors should be thrown so `WebProvisioner` can wrap them in `ProvisioningError`. SiteFields, Lists and Security log a failing item with `log_error` and carry on instead; only failures that leave nothing to do are thrown.
+
+### `Taxonomy`
+
+File: `src/handlers/taxonomy.ts`
+
+Responsibilities:
+
+- Reads the default site collection term store in one CSOM request (`src/util/csom.ts`): its default language, and whether the group, each term set and each term is there (by id, anywhere in the store); a term set's custom sort order, and a term's custom properties when its term set has `UpdateExistingTerms`.
+- Creates a missing term group with the template's id (`CreateGroup`, `CommitAll`).
+- Per term set, one request that ends with `CommitAll`, only when something is needed: the term set when it is missing (`CreateTermSet` in the store's default language, with `Description` and `IsOpenForTermCreation`), the missing terms with their custom properties, the custom properties an existing term lacks (`UpdateExistingTerms`, never overwriting one), and the custom sort order when it differs.
+
+Key contracts:
+
+- Ids are the template's; a term, term set or group the store has (wherever) is not renamed, moved or given a description again.
+- A term store that cannot be read, a missing default term store, or a write SharePoint refuses stops the template: the site columns that come next point at term sets that would not be there. A term set's request is all or nothing (one `CommitAll`).
+- The term store is tenant-wide: the runner applies `Taxonomy` only when asked, and the integration suite writes only to its own group (`docs/specs/jsom-exit.md`, J5).
 
 ### `SiteFields`
 
@@ -499,11 +515,11 @@ PnPjs is used for most CRUD-style operations:
 CSOM over HTTP is used where REST cannot do what a template asks: an XML request posted to `_vti_bin/client.svc/ProcessQuery` through the web's own PnPjs pipeline, so it works signed in however the web is (SPFx in the browser, a bearer token or cookies in Node). `CsomRequest` builds it, `executeQuery` sends it and returns the results by action id, and SharePoint's error comes back as a `CsomError` with its message and type name.
 
 - content types with the template's ids, their field links, flags and order (`ContentTypes`)
+- term groups, term sets and terms with the template's ids, custom properties and sort order (`Taxonomy`): the term store's REST API refuses writes from a browser session on "OAuth only" tenants
 - a site group as another group's owner (`Security`)
 
 JSOM is used where neither covers the needed behavior yet (the JSOM exit moves these to CSOM over HTTP or REST):
 
-- the term store (`Taxonomy`)
 - classic web parts on files/pages
 - property bag indexing
 

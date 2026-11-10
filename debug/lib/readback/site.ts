@@ -166,7 +166,19 @@ export interface IContentTypeState {
 export interface ITermSetState {
   Id: string
   names: string[]
-  terms: Record<string, { Id: string; labels: string[] } | null>
+  description: string
+  isOpen: boolean
+  /** The custom sort order, term ids in lower case; empty when it has none. */
+  customSortOrder: string[]
+  terms: Record<
+    string,
+    {
+      Id: string
+      labels: string[]
+      /** The term's custom properties (not its local ones). */
+      properties: Record<string, string>
+    } | null
+  >
 }
 
 /**
@@ -784,7 +796,11 @@ export async function readTaxonomy(
     for (const set of query.sets) {
       let info: any
       try {
-        info = await get(`sets/${bareGuid(set.id)}`)
+        info = await get(
+          `sets/${bareGuid(
+            set.id
+          )}?$select=id,localizedNames,description,isOpen,customSortOrder`
+        )
       } catch (error) {
         if (error && error.status === 404) {
           state.sets[set.id] = null
@@ -796,11 +812,20 @@ export async function readTaxonomy(
       for (const termId of set.terms)
         try {
           const term: any = await get(
-            `sets/${bareGuid(set.id)}/terms/${bareGuid(termId)}`
+            `sets/${bareGuid(set.id)}/terms/${bareGuid(
+              termId
+            )}?$select=id,labels,properties`
           )
           terms[termId] = {
             Id: bareGuid(term.id),
-            labels: (term.labels || []).map((label: any) => label.name)
+            labels: (term.labels || []).map((label: any) => label.name),
+            properties: (term.properties || []).reduce(
+              (all: Record<string, string>, property: any) => {
+                all[property.key] = property.value
+                return all
+              },
+              {}
+            )
           }
         } catch (error) {
           if (error && error.status === 404) terms[termId] = null
@@ -809,6 +834,9 @@ export async function readTaxonomy(
       state.sets[set.id] = {
         Id: bareGuid(info.id),
         names: (info.localizedNames || []).map((name: any) => name.name),
+        description: info.description || '',
+        isOpen: !!info.isOpen,
+        customSortOrder: (info.customSortOrder || []).map(bareGuid),
         terms
       }
     }

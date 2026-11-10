@@ -828,6 +828,88 @@ describe('verify: features, property bag and web settings', () => {
   })
 })
 
+describe('verify: taxonomy', () => {
+  const SET = '518a580a-11e9-4f6d-b4b5-3099c454535f'
+  const A = '3689460f-6803-4d01-bb0b-2dc423374adb'
+  const B = '548b20a5-9c63-45de-8e5a-a96096ef484d'
+  const template = (update = false) => ({
+    Taxonomy: {
+      TermGroup: { Id: '0a9151e2-a998-4a44-b71c-160ef44e81b1', Name: 'G' },
+      TermSets: [
+        {
+          Id: `{${SET.toUpperCase()}}`,
+          Name: 'Faser',
+          Description: 'Fasene',
+          IsOpenForTermCreation: false,
+          UpdateExistingTerms: update,
+          Terms: [
+            {
+              Id: A,
+              Name: 'Konsept',
+              SortOrder: 2,
+              CustomProperties: { Level: 'Prosjekt', Text: 'Første' }
+            },
+            { Id: B, Name: 'Planlegge', SortOrder: 1 }
+          ]
+        }
+      ]
+    }
+  })
+  const store = (
+    properties: Record<string, string>,
+    customSortOrder = [B, A]
+  ): Partial<ISiteState> => ({
+    taxonomy: {
+      group: { Id: '0a9151e2-a998-4a44-b71c-160ef44e81b1', Name: 'G' },
+      sets: {
+        [SET]: {
+          Id: SET,
+          names: ['Faser'],
+          description: 'Endret',
+          isOpen: true,
+          customSortOrder,
+          terms: {
+            [A]: { Id: A, labels: ['Konsept'], properties },
+            [B]: { Id: B, labels: ['Planlegge'], properties: {} }
+          }
+        }
+      }
+    }
+  })
+
+  it("compares the sort order; a term's custom properties only with UpdateExistingTerms, as keys", () => {
+    assert.deepEqual(findings(template(), store({})), [])
+    assert.deepEqual(findings(template(), store({}, [A, B])), [
+      `Taxonomy TermSets/Faser/CustomSortOrder: ${JSON.stringify([
+        B,
+        A
+      ])} -> ${JSON.stringify([A, B])}`
+    ])
+    assert.deepEqual(findings(template(true), store({ Level: 'Endret' })), [
+      'Taxonomy TermSets/Faser/Terms/Konsept/CustomProperties/Text: "Første" -> null'
+    ])
+  })
+
+  it('compares the values, the description and IsOpenForTermCreation only when exact', () => {
+    assert.deepEqual(
+      findings(template(), store({ Level: 'Endret' }), { exact: true }),
+      [
+        'Taxonomy TermSets/Faser/Description: "Fasene" -> "Endret"',
+        'Taxonomy TermSets/Faser/IsOpenForTermCreation: false -> true',
+        'Taxonomy TermSets/Faser/Terms/Konsept/CustomProperties/Level: "Prosjekt" -> "Endret"',
+        'Taxonomy TermSets/Faser/Terms/Konsept/CustomProperties/Text: "Første" -> null'
+      ]
+    )
+  })
+
+  it('asks only for the term sets and terms of the template', () => {
+    assert.deepEqual(queryOf(expectations(template(), context)).taxonomy, {
+      groupId: '0a9151e2-a998-4a44-b71c-160ef44e81b1',
+      sets: [{ id: SET, terms: [A, B] }]
+    })
+  })
+})
+
 describe('verify: the result', () => {
   it('prints a line per finding and note, and a summary', () => {
     const lines = formatResult({

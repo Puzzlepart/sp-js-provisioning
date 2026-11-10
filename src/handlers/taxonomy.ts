@@ -1,23 +1,66 @@
 /* eslint-disable unicorn/prevent-abbreviations */
 import { IWeb } from '@pnp/sp/presets/all'
-import initSpfxJsom, { ExecuteJsomQuery, JsomContext } from 'spfx-jsom'
 import { IProvisioningConfig } from '../provisioningconfig'
 import { ProvisioningContext } from '../provisioningcontext'
-import { ITaxonomy, ITerm, ITermGroup, ITermSet } from '../schema'
+import { ITaxonomy, ITerm, ITermSet } from '../schema'
+import {
+  CsomRequest,
+  describeCsomError,
+  executeQuery,
+  guid,
+  guidOf,
+  isNull
+} from '../util/csom'
 import { HandlerBase } from './handlerbase'
+
+/** `SP.Taxonomy.TaxonomySession`, whose static `GetTaxonomySession` opens the term store. */
+const TAXONOMY_SESSION = '{981cbc68-9edc-4f8d-872f-71146fcbb84f}'
+
+/** A term as the term store has it. */
+interface ITermState {
+  exists: boolean
+  /** Read only when the term set has `UpdateExistingTerms`. */
+  customProperties: Record<string, string>
+}
+
+/** A term set as the term store has it, with the template's terms. */
+interface ITermSetState {
+  exists: boolean
+  customSortOrder: string
+  terms: Record<string, ITermState>
+}
+
+/** What the default term store holds of a template. */
+interface ITermStoreState {
+  defaultLanguage: number
+  groupExists: boolean
+  sets: Record<string, ITermSetState>
+}
+
+/**
+ * A sort order (`id:id:…`) as ids in lower case without braces, to compare.
+ *
+ * @param order - The sort order
+ */
+const sortKey = (order: string): string =>
+  (order || '')
+    .split(':')
+    .map((id) => guidOf(id) || id.trim().toLowerCase())
+    .join(':')
 
 /**
  * Describes the Taxonomy Object Handler.
  *
- * Provisions a term group, its term sets and terms into the default site
- * collection term store using JSOM (so explicit term-set/term GUIDs from the
- * template are preserved). Idempotent: anything that already exists by ID is
- * left untouched.
+ * Provisions a term group, its term sets and terms into the default site collection term store,
+ * with the ids the template gives them, through CSOM over HTTP (`src/util/csom.ts`). The store is
+ * read first, in one request; then a term set that needs anything gets one request that ends with
+ * `CommitAll`: the term set when it is missing, the terms that are missing with their custom
+ * properties, the custom properties an existing term lacks (`UpdateExistingTerms`, never
+ * overwriting), and the custom sort order when it differs. What exists is otherwise left as it is,
+ * and a term set that needs nothing gets no request.
  */
 export class Taxonomy extends HandlerBase {
-  public jsomContext: JsomContext
   public context: ProvisioningContext
-  private termStore: SP.Taxonomy.TermStore
 
   /**
    * Creates a new instance of the Taxonomy handler.
@@ -27,7 +70,8 @@ export class Taxonomy extends HandlerBase {
   }
 
   /**
-   * Provisioning taxonomy
+   * Provisioning taxonomy. A term store that cannot be read or written stops the template: the
+   * site columns that come next would point at term sets that are not there.
    *
    * @param web - The web
    * @param taxonomy - The taxonomy part of the template
@@ -39,25 +83,26 @@ export class Taxonomy extends HandlerBase {
     context: ProvisioningContext
   ): Promise<void> {
     this.context = context
-    const spfxJsom = await initSpfxJsom(context.web.ServerRelativeUrl, {
-      loadTaxonomy: true
-    })
-    this.jsomContext = spfxJsom.jsomContext
-    this.termStore = spfxJsom.defaultTermStore
     super.scope_started()
     try {
-      if (!this.termStore) {
-        throw new Error('No default site collection term store is available.')
-      }
-      this.jsomContext.clientContext.load(this.termStore)
-      await ExecuteJsomQuery(this.jsomContext)
-      const lcid = this.termStore.get_defaultLanguage()
-
-      const group = await this.ensureGroup(taxonomy.TermGroup)
-      for (const termSetDef of taxonomy.TermSets ?? []) {
-        const termSet = await this.ensureTermSet(group, termSetDef, lcid)
-        await this.ensureTerms(termSet, termSetDef, lcid)
-      }
+      this.validate(taxonomy)
+      const termSets = taxonomy.TermSets || []
+      const state = await this.read(web, taxonomy)
+      if (!state.groupExists) await this.createGroup(web, taxonomy)
+      else
+        super.log_info(
+          'ensureGroup',
+          `Term group ${taxonomy.TermGroup.Name} already exists`
+        )
+      for (const termSet of termSets)
+        await this.processTermSet(
+          web,
+          taxonomy,
+          termSet,
+          state.sets[termSet.Id],
+          state.defaultLanguage
+        )
+      super.scope_ended()
     } catch (error) {
       super.scope_ended(error)
       throw error
@@ -65,189 +110,276 @@ export class Taxonomy extends HandlerBase {
   }
 
   /**
-   * Ensure the term group exists, creating it with the specified ID if missing.
+   * Checks the ids the template gives before anything is sent: each is written into a request.
    *
-   * @param groupDef - Term group definition
+   * @param taxonomy - The taxonomy part of the template
    */
-  private async ensureGroup(
-    groupDef: ITermGroup
-  ): Promise<SP.Taxonomy.TermGroup> {
-    const groupId = new SP.Guid(groupDef.Id)
-    const existing = this.termStore.getGroup(groupId)
-    if (await this.exists(existing)) {
-      super.log_info(
-        'ensureGroup',
-        `Term group ${groupDef.Name} already exists`
-      )
-      return existing
+  private validate(taxonomy: ITaxonomy): void {
+    const check = (id: string, what: string) => {
+      if (!guidOf(id) || !/^{?[\da-f-]{36}}?$/i.test(String(id).trim()))
+        throw new Error(`${what} has no valid Id (${String(id)}).`)
     }
-    super.log_info('ensureGroup', `Creating term group ${groupDef.Name}`)
-    const group = this.termStore.createGroup(groupDef.Name, groupId)
-    this.termStore.commitAll()
-    await ExecuteJsomQuery(this.jsomContext)
-    return group
+    if (!taxonomy || !taxonomy.TermGroup)
+      throw new Error('The Taxonomy section has no TermGroup.')
+    check(taxonomy.TermGroup.Id, `Term group ${taxonomy.TermGroup.Name}`)
+    for (const termSet of taxonomy.TermSets || []) {
+      check(termSet.Id, `Term set ${termSet.Name}`)
+      for (const term of termSet.Terms || [])
+        check(term.Id, `Term ${term.Name} of term set ${termSet.Name}`)
+    }
   }
 
   /**
-   * Ensure the term set exists under the group, creating it with the specified
-   * ID if missing.
+   * The default site collection term store, as an object path of a request.
    *
-   * @param group - Parent term group
-   * @param termSetDef - Term set definition
-   * @param lcid - Default language of the term store
+   * @param request - The request
    */
-  private async ensureTermSet(
-    group: SP.Taxonomy.TermGroup,
-    termSetDef: ITermSet,
-    lcid: number
-  ): Promise<SP.Taxonomy.TermSet> {
-    const termSetId = new SP.Guid(termSetDef.Id)
-    const existing = this.termStore.getTermSet(termSetId)
-    if (await this.exists(existing)) {
-      super.log_info(
-        'ensureTermSet',
-        `Term set ${termSetDef.Name} already exists`
-      )
-      return existing
-    }
-    super.log_info('ensureTermSet', `Creating term set ${termSetDef.Name}`)
-    const termSet = group.createTermSet(termSetDef.Name, termSetId, lcid)
-    if (termSetDef.Description) {
-      termSet.set_description(termSetDef.Description)
-    }
-    if (typeof termSetDef.IsOpenForTermCreation === 'boolean') {
-      termSet.set_isOpenForTermCreation(termSetDef.IsOpenForTermCreation)
-    }
-    this.termStore.commitAll()
-    await ExecuteJsomQuery(this.jsomContext)
-    return termSet
+  private termStore(request: CsomRequest): number {
+    return request.method(
+      request.staticMethod(TAXONOMY_SESSION, 'GetTaxonomySession'),
+      'GetDefaultSiteCollectionTermStore'
+    )
   }
 
   /**
-   * Ensure all terms exist in the term set (creating missing ones with their
-   * specified IDs and custom properties) and apply the custom sort order.
+   * Reads, in one request, the term store's default language and whether the group, each term set
+   * and each term is there; a term set's custom sort order, and a term's custom properties when
+   * its term set has `UpdateExistingTerms`. Terms and term sets are found by id anywhere in the
+   * store, as before.
    *
-   * @param termSet - Parent term set
-   * @param termSetDef - Term set definition
-   * @param lcid - Default language of the term store
+   * @param web - The web
+   * @param taxonomy - The taxonomy part of the template
    */
-  private async ensureTerms(
-    termSet: SP.Taxonomy.TermSet,
-    termSetDef: ITermSet,
+  private async read(web: IWeb, taxonomy: ITaxonomy): Promise<ITermStoreState> {
+    const request = new CsomRequest()
+    const store = this.termStore(request)
+    const storeFound = request.instantiate(store)
+    const storeRead = request.query(store, ['DefaultLanguage'])
+    const groupFound = request.instantiate(
+      request.method(store, 'GetGroup', guid(taxonomy.TermGroup.Id))
+    )
+    const reads = (taxonomy.TermSets || []).map((termSet) => {
+      const termSetPath = request.method(store, 'GetTermSet', guid(termSet.Id))
+      return {
+        termSet,
+        found: request.instantiate(termSetPath),
+        read: request.query(termSetPath, ['CustomSortOrder']),
+        terms: (termSet.Terms || []).map((term) => {
+          const termPath = request.method(store, 'GetTerm', guid(term.Id))
+          return {
+            term,
+            found: request.instantiate(termPath),
+            read:
+              termSet.UpdateExistingTerms && hasProperties(term)
+                ? request.query(termPath, ['CustomProperties'])
+                : undefined
+          }
+        })
+      }
+    })
+    let results: Record<number, any>
+    try {
+      results = await executeQuery(web, request)
+    } catch (error) {
+      throw new Error(
+        `Failed to read the default term store: ${describeCsomError(error)}`
+      )
+    }
+    if (isNull(results[storeFound]))
+      throw new Error('No default site collection term store is available.')
+    const state: ITermStoreState = {
+      defaultLanguage: results[storeRead] && results[storeRead].DefaultLanguage,
+      groupExists: !isNull(results[groupFound]),
+      sets: {}
+    }
+    for (const read of reads) {
+      const terms: Record<string, ITermState> = {}
+      for (const term of read.terms)
+        terms[term.term.Id] = {
+          exists: !isNull(results[term.found]),
+          customProperties:
+            (term.read !== undefined &&
+              results[term.read] &&
+              results[term.read].CustomProperties) ||
+            {}
+        }
+      state.sets[read.termSet.Id] = {
+        exists: !isNull(results[read.found]),
+        customSortOrder:
+          (results[read.read] && results[read.read].CustomSortOrder) || '',
+        terms
+      }
+    }
+    super.log_info(
+      'read',
+      `Default term store: language ${state.defaultLanguage}, term group ${
+        state.groupExists ? 'exists' : 'is missing'
+      }`
+    )
+    return state
+  }
+
+  /**
+   * Creates the term group with the template's id.
+   *
+   * @param web - The web
+   * @param taxonomy - The taxonomy part of the template
+   */
+  private async createGroup(web: IWeb, taxonomy: ITaxonomy): Promise<void> {
+    const { Id, Name } = taxonomy.TermGroup
+    super.log_info('ensureGroup', `Creating term group ${Name}`)
+    const request = new CsomRequest()
+    const store = this.termStore(request)
+    request.instantiate(request.method(store, 'CreateGroup', Name, guid(Id)))
+    request.call(store, 'CommitAll')
+    try {
+      await executeQuery(web, request)
+    } catch (error) {
+      throw new Error(
+        `Failed to create term group ${Name} (${guidOf(
+          Id
+        )}): ${describeCsomError(error)}`
+      )
+    }
+  }
+
+  /**
+   * Writes what a term set needs, in one request that ends with `CommitAll`; nothing when it needs
+   * nothing.
+   *
+   * @param web - The web
+   * @param taxonomy - The taxonomy part of the template
+   * @param termSet - The term set
+   * @param current - What the term store has of it
+   * @param lcid - The term store's default language
+   */
+  private async processTermSet(
+    web: IWeb,
+    taxonomy: ITaxonomy,
+    termSet: ITermSet,
+    current: ITermSetState,
     lcid: number
   ): Promise<void> {
-    const terms = termSetDef.Terms ?? []
-    let pendingCommit = false
-    for (const termDef of terms) {
-      const termId = new SP.Guid(termDef.Id)
-      const existing = this.termStore.getTerm(termId)
-      if (await this.exists(existing)) {
-        if (
-          termSetDef.UpdateExistingTerms &&
-          (await this.addMissingCustomProperties(existing, termDef))
-        ) {
-          super.log_info(
-            'ensureTerms',
-            `Added missing custom properties on existing term ${termDef.Name}`
+    const request = new CsomRequest()
+    const store = this.termStore(request)
+    let termSetPath: number
+    if (current.exists) {
+      super.log_info('ensureTermSet', `Term set ${termSet.Name} already exists`)
+      termSetPath = request.method(store, 'GetTermSet', guid(termSet.Id))
+    } else {
+      super.log_info('ensureTermSet', `Creating term set ${termSet.Name}`)
+      termSetPath = request.method(
+        request.method(store, 'GetGroup', guid(taxonomy.TermGroup.Id)),
+        'CreateTermSet',
+        termSet.Name,
+        guid(termSet.Id),
+        lcid
+      )
+      request.instantiate(termSetPath)
+      if (termSet.Description)
+        request.set(termSetPath, 'Description', termSet.Description)
+      if (typeof termSet.IsOpenForTermCreation === 'boolean')
+        request.set(
+          termSetPath,
+          'IsOpenForTermCreation',
+          termSet.IsOpenForTermCreation
+        )
+    }
+
+    const terms = termSet.Terms || []
+    for (const term of terms) {
+      const stored = current.terms[term.Id]
+      if (!stored.exists) {
+        super.log_info('ensureTerms', `Creating term ${term.Name}`)
+        const termPath = request.method(
+          termSetPath,
+          'CreateTerm',
+          term.Name,
+          lcid,
+          guid(term.Id)
+        )
+        request.instantiate(termPath)
+        for (const key of Object.keys(term.CustomProperties || {}))
+          request.call(
+            termPath,
+            'SetCustomProperty',
+            key,
+            term.CustomProperties[key]
           )
-          pendingCommit = true
-        } else {
-          super.log_info('ensureTerms', `Term ${termDef.Name} already exists`)
-        }
         continue
       }
-      super.log_info('ensureTerms', `Creating term ${termDef.Name}`)
-      const term = termSet.createTerm(termDef.Name, lcid, termId)
-      this.applyCustomProperties(term, termDef)
-      pendingCommit = true
-    }
-    if (pendingCommit) {
-      this.termStore.commitAll()
-      await ExecuteJsomQuery(this.jsomContext)
-    }
-    await this.applySortOrder(termSet, terms)
-  }
-
-  /**
-   * Apply custom properties to a newly created term.
-   *
-   * @param term - The term
-   * @param termDef - Term definition
-   */
-  private applyCustomProperties(term: SP.Taxonomy.Term, termDef: ITerm): void {
-    if (!termDef.CustomProperties) return
-    for (const key of Object.keys(termDef.CustomProperties)) {
-      term.setCustomProperty(key, termDef.CustomProperties[key])
-    }
-  }
-
-  /**
-   * Add custom properties that are **missing** on an existing term. Each
-   * property in {@link ITerm.CustomProperties} is applied only when the term
-   * does not already have that key; a property that exists with a different
-   * value is left untouched (existing values are never overwritten). Returns
-   * whether anything was added (so the caller knows to commit). The term's
-   * name/labels are left untouched.
-   *
-   * @param term - The existing term (loaded by {@link exists})
-   * @param termDef - Term definition from the template
-   */
-  private async addMissingCustomProperties(
-    term: SP.Taxonomy.Term,
-    termDef: ITerm
-  ): Promise<boolean> {
-    const desired = termDef.CustomProperties
-    if (!desired || Object.keys(desired).length === 0) return false
-    this.jsomContext.clientContext.load(term)
-    await ExecuteJsomQuery(this.jsomContext)
-    let current: Record<string, string> = {}
-    try {
-      current = term.get_customProperties() || {}
-    } catch {
-      current = {}
-    }
-    let added = false
-    for (const key of Object.keys(desired)) {
-      if (current[key] === undefined) {
-        term.setCustomProperty(key, desired[key])
-        added = true
+      const missing = termSet.UpdateExistingTerms
+        ? Object.keys(term.CustomProperties || {}).filter(
+            (key) => stored.customProperties[key] === undefined
+          )
+        : []
+      if (missing.length === 0) {
+        super.log_info('ensureTerms', `Term ${term.Name} already exists`)
+        continue
       }
+      super.log_info(
+        'ensureTerms',
+        `Adding missing custom properties to existing term ${
+          term.Name
+        }: ${missing.join(', ')}`
+      )
+      const termPath = request.method(store, 'GetTerm', guid(term.Id))
+      for (const key of missing)
+        request.call(
+          termPath,
+          'SetCustomProperty',
+          key,
+          term.CustomProperties[key]
+        )
     }
-    return added
-  }
 
-  /**
-   * Apply the custom sort order of a term set based on the `SortOrder` of its
-   * terms.
-   *
-   * @param termSet - The term set
-   * @param terms - Term definitions
-   */
-  private async applySortOrder(
-    termSet: SP.Taxonomy.TermSet,
-    terms: ITerm[]
-  ): Promise<void> {
-    const ordered = terms
-      .filter((term) => typeof term.SortOrder === 'number')
-      .sort((a, b) => a.SortOrder - b.SortOrder)
-    if (ordered.length < 2) return
-    termSet.set_customSortOrder(ordered.map((term) => term.Id).join(':'))
-    this.termStore.commitAll()
-    await ExecuteJsomQuery(this.jsomContext)
-  }
+    const order = sortOrder(terms)
+    if (order && sortKey(order) !== sortKey(current.customSortOrder)) {
+      super.log_info(
+        'applySortOrder',
+        `Setting the custom sort order of term set ${termSet.Name}`
+      )
+      request.set(termSetPath, 'CustomSortOrder', order)
+    }
 
-  /**
-   * Load a taxonomy client object and return whether it exists on the server.
-   *
-   * @param clientObject - The taxonomy client object (group/set/term)
-   */
-  private async exists(clientObject: SP.ClientObject): Promise<boolean> {
-    this.jsomContext.clientContext.load(clientObject)
+    if (request.actionCount === 0) {
+      super.log_info('processTermSet', `Term set ${termSet.Name} is unchanged.`)
+      return
+    }
+    request.call(store, 'CommitAll')
     try {
-      await ExecuteJsomQuery(this.jsomContext)
-      return !clientObject.get_serverObjectIsNull()
-    } catch {
-      return false
+      await executeQuery(web, request)
+    } catch (error) {
+      throw new Error(
+        `Failed to provision term set ${termSet.Name} (${guidOf(
+          termSet.Id
+        )}): ${describeCsomError(error)}`
+      )
     }
   }
+}
+
+/**
+ * Whether a term has custom properties in the template.
+ *
+ * @param term - The term
+ */
+function hasProperties(term: ITerm): boolean {
+  return (
+    !!term.CustomProperties && Object.keys(term.CustomProperties).length > 0
+  )
+}
+
+/**
+ * The custom sort order the template's `SortOrder` values give (`id:id:…`), or `undefined` when
+ * fewer than two terms have one.
+ *
+ * @param terms - The term set's terms
+ */
+function sortOrder(terms: ITerm[]): string | undefined {
+  const ordered = terms
+    .filter((term) => typeof term.SortOrder === 'number')
+    .sort((a, b) => a.SortOrder - b.SortOrder)
+  if (ordered.length > 1)
+    return ordered.map((term) => guidOf(term.Id)).join(':')
 }

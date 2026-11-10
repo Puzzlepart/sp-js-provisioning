@@ -22,6 +22,13 @@ For releases older than 1.3.6, see the git history.
   - A field ref finds its column among the columns the web can use (on a subweb, its parent webs'
     too): by internal name, else by id, else by title.
   - The template's `ContentTypes` array is no longer sorted in place.
+- `Taxonomy` no longer needs JSOM either: it reaches the default term store through CSOM over HTTP,
+  with the template's ids as before. What it does differently:
+  - It reads the store once, in one request, instead of one request per term, and writes a term set
+    only when something is missing or its custom sort order differs: the sort order used to be set
+    and committed on every run. A term set's writes are one commit, all or nothing.
+  - A term store that cannot be read stops the template with the reason. A failed read used to be
+    taken for a missing term set or term, which it then tried to create.
 
 ### Development
 
@@ -57,6 +64,12 @@ For releases older than 1.3.6, see the git history.
   CSOM request, B's changes reaching the child and the bound list, a missing column, a refused
   name. `verify` asked SharePoint for content type ids with `0X` and found none; fixed. The runner
   still leaves ContentTypes out by default until the packages list counts it (step 5).
+- The JSOM exit, step 3: the Taxonomy suite runs against the tenant's term store, in a term group of
+  its own (`SPJS Itest`, `taxonomy.json` and `.b.json`), created by its first run and left in place:
+  nothing is deleted from the term store. It proves the ids, custom properties and sort order, a
+  second apply that only reads, a sort order changed and back, and that `UpdateExistingTerms` does
+  not overwrite a custom property. `verify` compares a term set's custom sort order, and a term's
+  custom properties with `UpdateExistingTerms` (values, description and openness with `--exact`).
 - Integration testing Phase 3, tenant CI: the `Integration` workflow
   (`.github/workflows/integration.yml`) runs the suites against the reserved site with
   prosjektportalen365's CI app. It starts only by hand from `main`, in the protected environment

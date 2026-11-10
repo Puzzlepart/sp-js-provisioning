@@ -150,7 +150,7 @@ The engine uses three transports: `@pnp/sp` REST and CSOM over HTTP (`src/util/c
 | --- | --- | --- |
 | SiteFields, Features, Security, Lists, CustomActions, ComposedLook, ClientSidePages, Navigation, WebSettings, Hooks | runs | REST |
 | ContentTypes | skipped by default | runs in Node (CSOM over HTTP); left out until the packages list counts it (JSOM exit, step 5) |
-| Taxonomy | skipped | JSOM |
+| Taxonomy | skipped by default | runs in Node (CSOM over HTTP), but writes to the tenant's term store, which every site shares: name it with `--handlers` only for a template whose term group may be written |
 | Files | skipped | refuses whenever an SPFx context is set, which the runner always sets |
 | PropertyBagEntries | skipped | rejects in Node |
 

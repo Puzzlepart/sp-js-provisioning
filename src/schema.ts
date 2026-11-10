@@ -30,6 +30,13 @@ export interface Schema {
    * refuses stops the template.
    */
   ContentTypes?: IContentType[]
+  /**
+   * A term group, its term sets and terms in the default site collection term store, with the ids
+   * the template gives them. Missing ones are created; what the store has (by id, anywhere in it)
+   * is left as it is, except the custom sort order, set when it differs, and the custom properties
+   * a term lacks with `UpdateExistingTerms`. Runs first, before the site columns that use the term
+   * sets. A term store that cannot be read or written stops the template.
+   */
   Taxonomy?: ITaxonomy
   Security?: IWebSecurity
   [key: string]: any
@@ -38,21 +45,34 @@ export interface Schema {
 export default Schema
 
 export interface ITermGroup {
+  /** The group's id (a GUID). A group the store has with this id is used as it is. */
   Id: string
+  /** The name a new group gets. */
   Name: string
 }
 
 export interface ITerm {
+  /** The term's id (a GUID). A term the store has with this id, in any term set, is kept. */
   Id: string
+  /** The name a new term gets, in the term store's default language. */
   Name: string
+  /**
+   * The term's place in its term set's custom sort order: with two or more terms that have one,
+   * the order is set when it differs from the term set's.
+   */
   SortOrder?: number
+  /** Set on a new term; on an existing one only those it lacks, with `UpdateExistingTerms`. */
   CustomProperties?: Record<string, string>
 }
 
 export interface ITermSet {
+  /** The term set's id (a GUID). A term set the store has with this id is used as it is. */
   Id: string
+  /** The name a new term set gets, in the term store's default language. */
   Name: string
+  /** Set on a new term set. */
   Description?: string
+  /** Set on a new term set. */
   IsOpenForTermCreation?: boolean
   Terms?: ITerm[]
   /**

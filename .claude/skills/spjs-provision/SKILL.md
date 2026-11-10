@@ -42,9 +42,11 @@ usage error or refused site. `verify`: 0 no finding, 1 a finding.
 
 REST handlers run: SiteFields, Features, Security, Lists, CustomActions, ComposedLook,
 ClientSidePages, Navigation, WebSettings, Hooks. Skipped unless forced (`--handlers`): Taxonomy
-(JSOM), Files (refuses with an SPFx context), PropertyBagEntries, and ContentTypes, which runs in
-Node through CSOM over HTTP but is left out by default until the packages list counts it (JSOM exit,
-step 5); list content type bindings then assume the content types already exist.
+(it runs in Node, but writes to the tenant's term store, which every site shares: name it only for a
+template whose term group may be written), Files (refuses with an SPFx context), PropertyBagEntries,
+and ContentTypes, which runs in Node through CSOM over HTTP but is left out by default until the
+packages list counts it (JSOM exit, step 5); list content type bindings then assume the content
+types already exist.
 
 ## Reading the result
 
