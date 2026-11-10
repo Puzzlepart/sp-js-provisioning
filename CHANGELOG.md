@@ -9,6 +9,12 @@ For releases older than 1.3.6, see the git history.
 
 ### Fixed
 
+- A handler that failed with something other than an `Error` is described in words. A refused JSOM
+  request (the `ContentTypes` handler's `executeQueryAsync` rejects with `{ sender, args }`) made
+  the `ProvisioningError` message «[object Object]» and the log line «Code execution scope ended
+  with error: undefined». Both now read the request's `args.get_message()`, a SharePoint REST
+  error's `message.value`, or else a short JSON of the object (`readableErrorMessage` in
+  `src/provisioningerror.ts`).
 - `schema.json` describes what 1.5.0 changed, copied from the TSDoc in `src/schema.ts`: list
   `Fields`, `RemoveExistingViews` and `RemoveExistingContentTypes`, `SiteFields`, `Navigation` and
   its nodes (`IgnoreExisting`, `Children`), web and list `Security`, role assignments, site groups

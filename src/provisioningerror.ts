@@ -1,4 +1,35 @@
 /**
+ * A readable message for whatever an operation threw or rejected with: a text as it is, an error's
+ * `message` (or `message.value`, as in a SharePoint REST error), a JSOM request's
+ * `args.get_message()` (`executeQueryAsync` rejects with `{ sender, args }`), else a short JSON of
+ * the object, so a message never reads «[object Object]» or «undefined».
+ *
+ * @param error - What was thrown or rejected with
+ * @returns The message, or `undefined` when there is nothing to read
+ */
+export function readableErrorMessage(error: any): string | undefined {
+  if (error === undefined || error === null || error === '') return
+  if (typeof error === 'string') return error
+  if (typeof error !== 'object') return String(error)
+  const message = error.message
+  if (typeof message === 'string' && message) return message
+  if (message && typeof message.value === 'string' && message.value)
+    return message.value
+  if (error.args && typeof error.args.get_message === 'function') {
+    const jsomMessage = error.args.get_message()
+    if (typeof jsomMessage === 'string' && jsomMessage) return jsomMessage
+  }
+  try {
+    const json = JSON.stringify(error)
+    if (json && json !== '{}')
+      return json.length > 200 ? `${json.slice(0, 197)}...` : json
+  } catch {
+    // A cyclic object, such as a JSOM request's sender, has no JSON.
+  }
+  return String(error)
+}
+
+/**
  * Describes the Provisioning Error: the handler that failed, and what it threw or rejected with.
  */
 export class ProvisioningError extends Error {
@@ -23,11 +54,9 @@ export class ProvisioningError extends Error {
    * @param cause - What it threw or rejected with
    */
   private static describe(handler: string, cause: any): string {
-    if (typeof cause === 'string' && cause) return cause
-    if (cause && typeof cause.message === 'string' && cause.message)
-      return cause.message
-    if (cause === undefined || cause === null || cause === '')
-      return `The ${handler} handler failed without an error`
-    return String(cause)
+    return (
+      readableErrorMessage(cause) ??
+      `The ${handler} handler failed without an error`
+    )
   }
 }

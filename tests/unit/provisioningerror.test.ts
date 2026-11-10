@@ -3,7 +3,12 @@ import { describe, it } from 'node:test'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import * as ts from 'typescript'
-import { ProvisioningError } from '../../src/provisioningerror'
+import { FunctionListener, Logger } from '@pnp/logging'
+import { HandlerBase } from '../../src/handlers/handlerbase'
+import {
+  ProvisioningError,
+  readableErrorMessage
+} from '../../src/provisioningerror'
 
 /**
  * The class as `npm run build` emits it (ES5, CommonJS), evaluated: subclasses
@@ -56,6 +61,32 @@ describe('ProvisioningError', () => {
     assert.equal(new ProvisioningError('Hooks', 42).message, '42')
   })
 
+  it("reads SharePoint's JSOM and REST errors, and never says [object Object]", () => {
+    // ContentTypes rejects with JSOM's { sender, args }, whose sender is cyclic: the message was
+    // «[object Object]».
+    const sender: any = {}
+    sender.self = sender
+    const jsom = {
+      sender,
+      args: { get_message: () => 'Innholdstypen finnes allerede.' }
+    }
+    assert.equal(
+      new ProvisioningError('ContentTypes', jsom).message,
+      'Innholdstypen finnes allerede.'
+    )
+    assert.equal(
+      new ProvisioningError('Lists', {
+        message: { lang: 'nb-NO', value: 'Ingen tilgang' }
+      }).message,
+      'Ingen tilgang'
+    )
+    assert.equal(
+      new ProvisioningError('Hooks', { code: 'E1' }).message,
+      '{"code":"E1"}'
+    )
+    assert.equal(readableErrorMessage(undefined), undefined)
+  })
+
   it('stays an instance of itself when compiled to ES5', () => {
     const Es5ProvisioningError = compiledToEs5()
     const error = new Es5ProvisioningError('Files', 'Not here')
@@ -64,5 +95,25 @@ describe('ProvisioningError', () => {
     assert.ok(error instanceof Error)
     assert.equal(error.handler, 'Files')
     assert.equal(error.message, 'Not here')
+  })
+})
+
+describe('HandlerBase.scope_ended', () => {
+  it('logs what a JSOM request rejected with, not undefined', () => {
+    // «Code execution scope ended with error: undefined» was all the setup log said when the
+    // ContentTypes handler's JSOM request was refused.
+    const messages: string[] = []
+    Logger.subscribe(FunctionListener((entry) => messages.push(entry.message)))
+    try {
+      new HandlerBase('ContentTypes').scope_ended({
+        sender: {},
+        args: { get_message: () => 'Innholdstypen finnes allerede.' }
+      })
+      assert.deepEqual(messages, [
+        '(ContentTypes): (ProvisionObjects): Code execution scope ended with error: Innholdstypen finnes allerede.'
+      ])
+    } finally {
+      Logger.clearSubscribers()
+    }
   })
 })

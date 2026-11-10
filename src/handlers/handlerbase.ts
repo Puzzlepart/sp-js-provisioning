@@ -2,6 +2,7 @@ import { Logger, LogLevel } from '@pnp/logging'
 import { IWeb } from '@pnp/sp/presets/all'
 import { IProvisioningConfig } from '../provisioningconfig'
 import { ProvisioningContext } from '../provisioningcontext'
+import { readableErrorMessage } from '../provisioningerror'
 import { Handler } from './exports'
 
 /**
@@ -51,13 +52,16 @@ export class HandlerBase {
   /**
    * Writes to Logger when scope has stopped
    *
-   * @param error - Error
+   * @param error - What the scope threw or rejected with, if anything: an `Error`, or a JSOM
+   * request's `{ sender, args }`, which has no `message` and was logged as «undefined»
    */
-  public scope_ended(error?: Error) {
+  public scope_ended(error?: unknown) {
     if (error)
       this.log_error(
         'ProvisionObjects',
-        `Code execution scope ended with error: ${error.message}`
+        `Code execution scope ended with error: ${
+          readableErrorMessage(error) ?? 'unknown error'
+        }`
       )
     else this.log_info('ProvisionObjects', 'Code execution scope ended')
   }
