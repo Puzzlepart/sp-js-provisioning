@@ -6,10 +6,10 @@
  * Node (it `require`s `.resx` files). The local provisioning runner replaces it
  * with this stub so the engine module graph loads.
  *
- * REST-only handlers (SiteFields, Lists) merely *initialize* a jsom context and
- * never touch it — they keep working. Handlers that actually use JSOM
- * (ContentTypes, Taxonomy) hit the throwing proxy below and fail with a clear
- * message; the runner auto-skips them by default.
+ * Lists merely *initializes* a jsom context and never touches it — it keeps
+ * working. Taxonomy, which actually uses JSOM, hits the throwing proxy below and
+ * fails with a clear message; the runner auto-skips it by default. The JSOM exit
+ * (docs/specs/jsom-exit.md) removes this stub.
  */
 function jsomUnavailable(): never {
   throw new Error(

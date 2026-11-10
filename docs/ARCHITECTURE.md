@@ -232,26 +232,25 @@ File: `src/handlers/contenttypes.ts`
 
 Responsibilities:
 
-- Initializes JSOM with `initSpfxJsom(context.web.ServerRelativeUrl)`.
-- Loads existing web content types and field links into `context.contentTypes`.
-- Resolves configured content type IDs by explicit `ID` or existing name.
-- Creates missing content types.
-- Updates name, description, and group.
-- Adds or updates field links using JSOM.
-- Reorders field links to match template order.
+- Reads the web's content types with their field links (REST) into `context.contentTypes`.
+- Resolves a content type by its `ID`, or by `Name` when the template has no `ID` (a missing one stops the template).
+- Creates a missing content type with the template's id through CSOM over HTTP (`src/util/csom.ts`): `ContentTypes.Add` with a `ContentTypeCreationInformation` and no parent, which SharePoint reads out of the id. REST ignores an explicit id.
+- Writes only what differs, in one CSOM request per content type: a name, description or group; a field link it lacks (`FieldLinks.Add` with the column from `Web.AvailableFields`); a changed `Required` or `Hidden`; `FieldLinks.Reorder` when the named links are not first in the template's order; then `Update(true)`, which pushes the change to the content types and lists that inherit from it. An unchanged content type gets no request.
 
 Key contracts:
 
-- Content types are keyed in context by both `Name` and `ID`.
-- Field link existence is determined from `context.contentTypes`.
-- Content type field refs depend on site fields already existing.
+- Content types are processed in id order, so a parent comes before its children; the template's array is not reordered.
+- Content types are keyed in context by both `Name` and `ID`; a rename removes the old name.
+- A field ref finds its column among the columns the web can use (its own and, on a subweb, its parent webs'): by internal name, else by id, else by title. They are read once per run, only when a link has to be added.
+- A field ref whose column is not there is logged with `log_error`, naming it, and left out; the content type gets its other links. A content type SharePoint refuses to create or update stops the template with SharePoint's words.
+- `Required` and `Hidden` are written only where the template gives them; a link the template does not name is never removed.
 - List content type bindings depend on content types already existing.
 
 Related design notes:
 
 - Deterministic content type ID behavior is specified in `docs/specs/deterministic-content-type-ids.md`.
-- The JSOM explicit-ID decision is tracked in `docs/adr/jsom-explicit-content-type-ids.md`.
-- Context initialization must be awaited before create-versus-update decisions depend on `context.contentTypes`.
+- The transport: `docs/adr/csom-over-http.md` (it supersedes `docs/adr/jsom-explicit-content-type-ids.md`, whose creation rule stands) and `docs/specs/jsom-exit.md`.
+- The suite: `tests/integration/contenttypes.test.ts` with `contenttypes.json` and `.b.json`.
 
 ### `Security`
 
@@ -483,7 +482,7 @@ Important behavior:
 
 ## PnP, JSOM, And Browser Assumptions
 
-This library uses both PnPjs and SharePoint JSOM.
+This library uses PnPjs REST, SharePoint's client object model over HTTP (CSOM, `src/util/csom.ts`) and, until the JSOM exit is done ([spec](./specs/jsom-exit.md)), SharePoint JSOM.
 
 PnPjs is used for most CRUD-style operations:
 
@@ -497,9 +496,14 @@ PnPjs is used for most CRUD-style operations:
 - themes
 - hooks support data
 
-JSOM is used where PnPjs does not cover the needed behavior cleanly or where classic SharePoint APIs are required:
+CSOM over HTTP is used where REST cannot do what a template asks: an XML request posted to `_vti_bin/client.svc/ProcessQuery` through the web's own PnPjs pipeline, so it works signed in however the web is (SPFx in the browser, a bearer token or cookies in Node). `CsomRequest` builds it, `executeQuery` sends it and returns the results by action id, and SharePoint's error comes back as a `CsomError` with its message and type name.
 
-- content type field links and ordering
+- content types with the template's ids, their field links, flags and order (`ContentTypes`)
+- a site group as another group's owner (`Security`)
+
+JSOM is used where neither covers the needed behavior yet (the JSOM exit moves these to CSOM over HTTP or REST):
+
+- the term store (`Taxonomy`)
 - classic web parts on files/pages
 - property bag indexing
 
@@ -602,7 +606,7 @@ When adding or modifying behavior:
 
 ## Known Risk Areas
 
-- Content type creation and update semantics are sensitive to SharePoint ID rules and JSOM/PnP differences.
+- Content type creation and update semantics are sensitive to SharePoint ID rules: REST ignores an explicit id, and an id with a parent set is refused, so creation goes through CSOM over HTTP without a parent.
 - Handler order is a contract. Changing sort values can break token resolution, content type bindings, or page/list references.
 - Token replacement is partial and regex-limited. Do not assume arbitrary token values are supported. Data row string values are now token-replaced, so a literal `{lowercasekey}` in seeded content is only safe if the key is unknown to `TokenHelper`.
 - Some errors are swallowed after logging, especially inside site column, list, file, and content type sub-operations.

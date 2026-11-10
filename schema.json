@@ -106,18 +106,22 @@
         "IContentType": {
             "properties": {
                 "Description": {
+                    "description": "Set when the template has one and it differs.",
                     "type": "string"
                 },
                 "FieldRefs": {
+                    "description": "The site columns of the content type, as the web can use them (its own, and on a subweb its\nparent webs'). A column the content type lacks is linked; one the web does not have is logged\nas an error and left out, and the others are still linked. With two or more, the links are put\nfirst in this order, before the ones the template does not name. A link the template does not\nname is never removed.",
                     "items": {
                         "$ref": "#/definitions/IFieldReference"
                     },
                     "type": "array"
                 },
                 "Group": {
+                    "description": "Set when the template has one and it differs.",
                     "type": "string"
                 },
                 "ID": {
+                    "description": "The content type id, which names its parent: `0x0100…` is a child of Item, `<id>01` a child\nof `<id>`. Without it, the content type the web has with this `Name` is updated, and a\nmissing one stops the template.",
                     "type": "string"
                 },
                 "Name": {
@@ -219,15 +223,19 @@
         "IFieldReference": {
             "properties": {
                 "Hidden": {
+                    "description": "Whether the column is hidden here. Left as it is when the template does not say.",
                     "type": "boolean"
                 },
                 "ID": {
+                    "description": "The site column's id. In a content type it finds the column when none has the internal name\nin `Name`; a list's field ref needs it.",
                     "type": "string"
                 },
                 "Name": {
+                    "description": "The site column's internal name. In a content type a column the web has under this name is\nlinked whatever `ID` says (its title also matches, last).",
                     "type": "string"
                 },
                 "Required": {
+                    "description": "Whether the column is required here. Left as it is when the template does not say.",
                     "type": "boolean"
                 }
             },
@@ -466,15 +474,19 @@
                     "type": "string"
                 },
                 "Hidden": {
+                    "description": "Whether the column is hidden here. Left as it is when the template does not say.",
                     "type": "boolean"
                 },
                 "ID": {
+                    "description": "The site column's id: a list's field ref is found by it.",
                     "type": "string"
                 },
                 "Name": {
+                    "description": "The site column's internal name. In a content type a column the web has under this name is\nlinked whatever `ID` says (its title also matches, last).",
                     "type": "string"
                 },
                 "Required": {
+                    "description": "Whether the column is required here. Left as it is when the template does not say.",
                     "type": "boolean"
                 }
             },
@@ -899,6 +911,7 @@
             "$ref": "#/definitions/IComposedLook"
         },
         "ContentTypes": {
+            "description": "Site content types, created with the id the template gives them, parents before their children\n(in id order). One the web has is matched by id (or by `Name` when it has no `ID`) and gets\nonly what differs: a name, description or group, a field link it lacks, a changed `Required`\nor `Hidden`, a changed order of the links. A change is pushed to the content types and lists\nthat inherit from it; an unchanged content type is not written. A content type SharePoint\nrefuses stops the template.",
             "items": {
                 "$ref": "#/definitions/IContentType"
             },

@@ -41,9 +41,10 @@ usage error or refused site. `verify`: 0 no finding, 1 a finding.
 ## What runs in Node
 
 REST handlers run: SiteFields, Features, Security, Lists, CustomActions, ComposedLook,
-ClientSidePages, Navigation, WebSettings, Hooks. Taxonomy and ContentTypes (JSOM), Files (refuses
-with an SPFx context) and PropertyBagEntries are skipped unless forced; list content type bindings
-then assume the content types already exist.
+ClientSidePages, Navigation, WebSettings, Hooks. Skipped unless forced (`--handlers`): Taxonomy
+(JSOM), Files (refuses with an SPFx context), PropertyBagEntries, and ContentTypes, which runs in
+Node through CSOM over HTTP but is left out by default until the packages list counts it (JSOM exit,
+step 5); list content type bindings then assume the content types already exist.
 
 ## Reading the result
 

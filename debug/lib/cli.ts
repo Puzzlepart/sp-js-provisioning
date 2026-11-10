@@ -10,12 +10,13 @@ import * as path from 'path'
  */
 
 /**
- * Handlers the engine cannot run outside the browser/SPFx today:
- *  - Taxonomy and ContentTypes provision through JSOM (`spfx-jsom` -> `SP.ClientContext`), which
- *    is stubbed out in Node (`debug/stubs/spfx-jsom.ts`).
+ * Handlers the runner leaves out unless `--handlers` names them:
+ *  - Taxonomy provisions through JSOM (`spfx-jsom` -> `SP.ClientContext`), which is stubbed out in
+ *    Node (`debug/stubs/spfx-jsom.ts`).
  *  - Files refuses whenever an SPFx context is set, which the runner always sets.
  *  - PropertyBagEntries rejects in Node.
- * They are skipped unless `--handlers` names them.
+ *  - ContentTypes runs in Node (CSOM over HTTP) but stays out until the packages suite's list
+ *    counts it (docs/specs/jsom-exit.md, step 5).
  */
 export const NODE_UNSUPPORTED = [
   'Taxonomy',

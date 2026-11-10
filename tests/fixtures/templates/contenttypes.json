@@ -1,0 +1,75 @@
+{
+  "$schema": "../../../schema.json",
+  "SiteFields": [
+    "<Field ID=\"{75a1f3c4-507b-4e1d-8a15-2f8c620facc1}\" Name=\"SPJSItestCtText\" StaticName=\"SPJSItestCtText\" DisplayName=\"SPJS Itest Ct Text\" Type=\"Text\" MaxLength=\"100\" Group=\"SPJS Itest\" />",
+    "<Field ID=\"{c3c4fb03-837a-4e8a-a6e9-d9a1875014d9}\" Name=\"SPJSItestCtNumber\" StaticName=\"SPJSItestCtNumber\" DisplayName=\"SPJS Itest Ct Number\" Type=\"Number\" Decimals=\"0\" Group=\"SPJS Itest\" />",
+    "<Field ID=\"{eccff858-2753-42ea-b0ac-f8fecd93a9bc}\" Name=\"SPJSItestCtChoice\" StaticName=\"SPJSItestCtChoice\" DisplayName=\"SPJS Itest Ct Choice\" Type=\"Choice\" Format=\"Dropdown\" Group=\"SPJS Itest\"><CHOICES><CHOICE>Liten</CHOICE><CHOICE>Stor</CHOICE></CHOICES></Field>",
+    "<Field ID=\"{0a15e738-6d0b-4b22-8ba8-169bf77cd1c7}\" Name=\"SPJSItestCtDate\" StaticName=\"SPJSItestCtDate\" DisplayName=\"SPJS Itest Ct Date\" Type=\"DateTime\" Format=\"DateOnly\" Group=\"SPJS Itest\" />",
+    "<Field ID=\"{6e42d741-b9ac-45ca-832c-a11764f7fa4d}\" Name=\"SPJSItestCtNote\" StaticName=\"SPJSItestCtNote\" DisplayName=\"SPJS Itest Ct Note\" Type=\"Note\" NumLines=\"4\" RichText=\"FALSE\" Group=\"SPJS Itest\" />"
+  ],
+  "ContentTypes": [
+    {
+      "ID": "0x0100ED0C3F94FCE968FD1B421031A3141A32",
+      "Name": "SPJS Itest Prosjekt",
+      "Description": "SPJS Itest: a child of Item, its field links in an order of its own",
+      "Group": "SPJS Itest",
+      "FieldRefs": [
+        {
+          "ID": "c3c4fb03-837a-4e8a-a6e9-d9a1875014d9",
+          "Name": "SPJSItestCtNumber",
+          "Required": true
+        },
+        {
+          "ID": "fa564e0f-0c70-4ab9-b863-0177e6ddd247",
+          "Name": "Title",
+          "Hidden": true
+        },
+        {
+          "ID": "75a1f3c4-507b-4e1d-8a15-2f8c620facc1",
+          "Name": "SPJSItestCtText"
+        },
+        {
+          "ID": "eccff858-2753-42ea-b0ac-f8fecd93a9bc",
+          "Name": "SPJSItestCtChoice",
+          "Required": false,
+          "Hidden": false
+        }
+      ]
+    },
+    {
+      "ID": "0x0100ED0C3F94FCE968FD1B421031A3141A3201",
+      "Name": "SPJS Itest Prosjekt (delprosjekt)",
+      "Group": "SPJS Itest",
+      "FieldRefs": [
+        {
+          "Name": "SPJSItestCtNote"
+        }
+      ]
+    },
+    {
+      "ID": "0x010100A0D1F01C823B33452A95A801640901B9",
+      "Name": "SPJS Itest Dokument",
+      "Description": "SPJS Itest: a child of Document, its column named by id only",
+      "Group": "SPJS Itest",
+      "FieldRefs": [
+        {
+          "ID": "0a15e738-6d0b-4b22-8ba8-169bf77cd1c7"
+        }
+      ]
+    }
+  ],
+  "Lists": [
+    {
+      "Title": "SPJS Itest Ct Liste",
+      "Description": "SPJS Itest: bound to the fixture's content type",
+      "Template": 100,
+      "ContentTypesEnabled": true,
+      "ContentTypeBindings": [
+        {
+          "ContentTypeID": "0x0100ED0C3F94FCE968FD1B421031A3141A32",
+          "Name": "SPJS Itest Prosjekt"
+        }
+      ]
+    }
+  ]
+}

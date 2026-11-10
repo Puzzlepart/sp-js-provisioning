@@ -83,12 +83,17 @@ list), `debug/lib/cli.ts` `NODE_UNSUPPORTED` if it cannot run in Node, a reader 
 - A re-apply on a site in use must not lose data (1.5.0): update in place, never delete and
   recreate a field, a view or a node; act on what this setup created (`context.created*`) when the
   template asks to remove.
-- ContentTypes, Taxonomy, PropertyBagEntries and the Files web parts are JSOM (`spfx-jsom`): they do
-  not run in Node, their suites skip, and the JSOM exit replaces them (D3 in
-  `docs/specs/integration-testing.md`; its own spec, `docs/specs/jsom-exit.md`, is still to be
-  written).
-- Handlers mutate their input (WebSettings writes values back, ContentTypes sorts in place): a
-  caller that applies twice passes a fresh copy.
+- What REST cannot do goes through CSOM over HTTP (`src/util/csom.ts`: `CsomRequest`,
+  `executeQuery`, `CsomError`), not JSOM: ContentTypes and the Security group owner do already.
+  Taxonomy, PropertyBagEntries and the Files web parts are still JSOM (`spfx-jsom`), do not run in
+  Node and their suites skip until the JSOM exit moves them (`docs/specs/jsom-exit.md`). Unit-test a
+  CSOM request with `FakeCsom` and `parseCsom` (`tests/helpers/csom.ts`): assert the actions as
+  lines, not the XML.
+- CSOM answers 200 with the error in the body, and stops at the first failing action without
+  undoing the ones before it: read first, group one object's changes in one request, so a re-run
+  picks up where a failed one stopped.
+- Handlers mutate their input (WebSettings writes values back): a caller that applies twice passes
+  a fresh copy.
 - `@pnp/*` is a peer dependency and one physical copy (`tests/unit/package.test.ts`).
 
 ## Verification checklist

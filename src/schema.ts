@@ -21,6 +21,14 @@ export interface Schema {
    * an error and the others still run. Changes do not reach the column's existing list copies.
    */
   SiteFields?: string[]
+  /**
+   * Site content types, created with the id the template gives them, parents before their children
+   * (in id order). One the web has is matched by id (or by `Name` when it has no `ID`) and gets
+   * only what differs: a name, description or group, a field link it lacks, a changed `Required`
+   * or `Hidden`, a changed order of the links. A change is pushed to the content types and lists
+   * that inherit from it; an unchanged content type is not written. A content type SharePoint
+   * refuses stops the template.
+   */
   ContentTypes?: IContentType[]
   Taxonomy?: ITaxonomy
   Security?: IWebSecurity
@@ -66,18 +74,42 @@ export interface ITaxonomy {
 }
 
 export interface IFieldReference {
-  ID: string
+  /**
+   * The site column's id. In a content type it finds the column when none has the internal name
+   * in `Name`; a list's field ref needs it.
+   */
+  ID?: string
+  /**
+   * The site column's internal name. In a content type a column the web has under this name is
+   * linked whatever `ID` says (its title also matches, last).
+   */
   Name?: string
+  /** Whether the column is required here. Left as it is when the template does not say. */
   Required?: boolean
+  /** Whether the column is hidden here. Left as it is when the template does not say. */
   Hidden?: boolean
 }
 
 export interface IContentType {
-  ID: string
+  /**
+   * The content type id, which names its parent: `0x0100…` is a child of Item, `<id>01` a child
+   * of `<id>`. Without it, the content type the web has with this `Name` is updated, and a
+   * missing one stops the template.
+   */
+  ID?: string
   Name: string
-  Description: string
-  Group: string
-  FieldRefs: IFieldReference[]
+  /** Set when the template has one and it differs. */
+  Description?: string
+  /** Set when the template has one and it differs. */
+  Group?: string
+  /**
+   * The site columns of the content type, as the web can use them (its own, and on a subweb its
+   * parent webs'). A column the content type lacks is linked; one the web does not have is logged
+   * as an error and left out, and the others are still linked. With two or more, the links are put
+   * first in this order, before the ones the template does not name. A link the template does not
+   * name is never removed.
+   */
+  FieldRefs?: IFieldReference[]
 }
 
 export interface IClientSideControl {
@@ -449,6 +481,8 @@ export interface IFolder {
 }
 
 export interface IListInstanceFieldReference extends IFieldReference {
+  /** The site column's id: a list's field ref is found by it. */
+  ID: string
   DisplayName?: string
   AdditionalProperties?: Record<string, string>
 }

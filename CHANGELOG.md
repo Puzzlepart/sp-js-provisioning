@@ -7,6 +7,22 @@ For releases older than 1.3.6, see the git history.
 
 ## [Unreleased]
 
+### Changed
+
+- `ContentTypes` no longer needs JSOM: it reaches SharePoint through CSOM over HTTP
+  (`_vti_bin/client.svc/ProcessQuery`, through the web's own PnPjs pipeline), so it runs in Node and
+  the browser alike ([spec](./docs/specs/jsom-exit.md), [ADR](./docs/adr/csom-over-http.md)). A
+  content type is still created with the template's id. What it does differently on a site:
+  - A content type the web has gets only what differs: a name, description or group, a missing
+    field link, a changed `Required` or `Hidden`, a changed order. An unchanged one is not sent
+    `Update(true)`, which pushed it, and every list and child content type that inherits from it,
+    again on each re-run of a hub import.
+  - A field ref whose site column is not on the web is logged as an error, naming it, and the
+    content type gets its other columns; it used to stop the template.
+  - A field ref finds its column among the columns the web can use (on a subweb, its parent webs'
+    too): by internal name, else by id, else by title.
+  - The template's `ContentTypes` array is no longer sorted in place.
+
 ### Development
 
 - Integration testing Phase 2, part 2 ([spec](./docs/specs/integration-testing.md)): `npm run verify`
@@ -33,6 +49,14 @@ For releases older than 1.3.6, see the git history.
   `--exact`; the `parameters` suite covers `{parameter:}`. A DataRows unit test sends DateTime
   values the same in Europe/Oslo, UTC and Asia/Tokyo. `provision` and `verify` fill a fixture's
   `@@user@@`. The `spjs-handlers` and `spjs-release` skills; the coverage floors rise to 80/84/79.
+- The JSOM exit, steps 1 and 2 ([spec](./docs/specs/jsom-exit.md)): `src/util/csom.ts` builds and
+  sends CSOM requests (`CsomRequest`, `executeQuery`, `CsomError`); `tests/helpers/csom.ts` reads a
+  request back as lines and answers it like SharePoint (`parseCsom`, `FakeCsom`). The ContentTypes
+  suite runs (`contenttypes.json`, `.b.json`): content types with the template's ids (a child of
+  Item, its child, a child of Document), their links, flags and order, a second apply that sends no
+  CSOM request, B's changes reaching the child and the bound list, a missing column, a refused
+  name. `verify` asked SharePoint for content type ids with `0X` and found none; fixed. The runner
+  still leaves ContentTypes out by default until the packages list counts it (step 5).
 - Integration testing Phase 3, tenant CI: the `Integration` workflow
   (`.github/workflows/integration.yml`) runs the suites against the reserved site with
   prosjektportalen365's CI app. It starts only by hand from `main`, in the protected environment

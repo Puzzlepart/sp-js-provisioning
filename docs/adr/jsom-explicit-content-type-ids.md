@@ -1,6 +1,7 @@
 # ADR: Use JSOM Creation Information for Explicit Content Type IDs
 
-Status: Proposed
+Status: Superseded by [CSOM over HTTP](./csom-over-http.md) (2026-11-10). The creation rule stands
+(an explicit `Id`, no `ParentContentType`); it is sent through ProcessQuery instead of JSOM.
 
 Date: 2026-05-11
 

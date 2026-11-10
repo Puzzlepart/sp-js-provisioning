@@ -16,22 +16,10 @@ const PASS_THROUGH =
   'passed to SharePoint unchanged with the other settings; the fixtures cover the path with other keys'
 
 const NOT_COVERED: Record<string, string> = {
-  'Schema.ContentTypes': JSOM,
   'Schema.Taxonomy': JSOM,
   'Schema.Version': 'metadata: the engine has no handler for it and skips it',
   'Schema.Parameters':
     'the {parameter:} token is covered by tests/unit (runner, csom); a parameters.json fixture comes with the depth part of Phase 2',
-  'IContentType.Description': JSOM,
-  'IContentType.FieldRefs': JSOM,
-  'IContentType.Group': JSOM,
-  'IContentType.ID': JSOM,
-  'IContentType.Name': JSOM,
-  'IContentTypeBinding.Name':
-    'informational: bindings are matched by ContentTypeID',
-  'IFieldReference.Hidden': `${JSOM} (content type field links)`,
-  'IFieldReference.ID': `${JSOM} (content type field links)`,
-  'IFieldReference.Name': `${JSOM} (content type field links)`,
-  'IFieldReference.Required': `${JSOM} (content type field links)`,
   'IFileObject.Properties': JSOM,
   'IFileObject.RemoveExistingWebParts': JSOM,
   'IFileObject.WebParts': JSOM,

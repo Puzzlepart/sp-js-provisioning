@@ -16,6 +16,7 @@ families (`<name>.json` and its `<name>.b.json` variant), except tenant-invarian
 | --- | --- | --- |
 | `smoke.json` | the 0a runner check (`npm run provision -- --package tests/fixtures/templates/smoke.json --twice --strict`) | A site column, two site groups (one owns itself), a list granted to them |
 | `failures.json` | the 0b runner check (`--handlers Lists\|Files\|PropertyBagEntries --strict`); `sitefields.test.ts` (`SiteFields` only) | A list field SharePoint refuses, a `Files` and a `PropertyBagEntries` entry: each run must exit 1. A site column SharePoint refuses (a formula naming a missing column) followed by a valid one: one error, and the valid column is still created |
+| `contenttypes.json`, `.b.json` | `contenttypes.test.ts` | Five site columns, a content type below Item with four field refs in an order of their own (`Required`, `Hidden`, both given as false), its child (`<id>01`, a field ref by name only), a child of Document (a field ref by id only), a list bound to the first; B renames the first, adds a link before the others and makes a column no longer required |
 | `security.json` | `security.test.ts` | Site groups (owners, join/leave settings, `ClearExistingMembers`), web role assignments, a list granted to one of the groups |
 | `sitefields.json`, `.b.json` | `sitefields.test.ts` | Eleven column types; B renames one and makes it required. The suite also applies inline templates: a narrowing type change, a taxonomy column, a lookup to a list of the same template with a FieldRef copy |
 | `features.json`, `.b.json` | `features.test.ts` | Activate / deactivate the FollowingContent web feature |
@@ -35,6 +36,7 @@ Built-in ids the fixtures use (the same on every tenant):
 | Id | What |
 | --- | --- |
 | `a7a2793e-67cd-4dc1-9fd0-43f61581207a` | FollowingContent web feature |
+| `fa564e0f-0c70-4ab9-b863-0177e6ddd247` | The Title column |
 | `c70391ea-0b10-4ee9-b2b4-006d3fcad0cd` | Quick links web part |
 | `d1d91016-032f-456d-98a4-721247c305e8` | Image web part |
 

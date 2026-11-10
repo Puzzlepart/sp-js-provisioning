@@ -141,18 +141,21 @@ web's own associated groups (a site titled `SPJS Itest` has `SPJS Itest Owners`)
 
 ## What runs in Node
 
-The engine uses two transports: `@pnp/sp` REST, which works in Node, and JSOM (`spfx-jsom` ->
-`SP.ClientContext`), which is browser-only and stubbed out here (`debug/stubs/spfx-jsom.ts`).
+The engine uses three transports: `@pnp/sp` REST and CSOM over HTTP (`src/util/csom.ts`, posted to
+`_vti_bin/client.svc/ProcessQuery` through the same pipeline), which work in Node, and JSOM
+(`spfx-jsom` -> `SP.ClientContext`), which is browser-only and stubbed out here
+(`debug/stubs/spfx-jsom.ts`) until the JSOM exit (`docs/specs/jsom-exit.md`).
 
 | Handler | Runner | Why |
 | --- | --- | --- |
 | SiteFields, Features, Security, Lists, CustomActions, ComposedLook, ClientSidePages, Navigation, WebSettings, Hooks | runs | REST |
-| ContentTypes, Taxonomy | skipped | JSOM |
+| ContentTypes | skipped by default | runs in Node (CSOM over HTTP); left out until the packages list counts it (JSOM exit, step 5) |
+| Taxonomy | skipped | JSOM |
 | Files | skipped | refuses whenever an SPFx context is set, which the runner always sets |
 | PropertyBagEntries | skipped | rejects in Node |
 
 Skipped handlers are left out unless `--handlers` names them; a forced JSOM handler fails with
-"JSOM (spfx-jsom) is not available". Because ContentTypes is skipped, list content type bindings
+"JSOM (spfx-jsom) is not available". Unless ContentTypes is forced, list content type bindings
 assume the content types already exist on the site.
 
 ## How it maps to PP365

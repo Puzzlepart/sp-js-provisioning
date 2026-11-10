@@ -1,7 +1,7 @@
 # Spec: The JSOM Exit
 
 Status: Ready (2026-11-10; the spike below is done, implementation follows in the order of
-"Steps": 1 is done, see the status under "Steps")
+"Steps": 1 and 2 are done, see the status under "Steps")
 
 Owner: Remi Blom-Ohlsen
 
@@ -9,7 +9,7 @@ Related:
 
 - [Integration testing](./integration-testing.md), D3 and Phase 4: this spec
 - [Deterministic content type ids](./deterministic-content-type-ids.md) and its
-  [ADR](../adr/jsom-explicit-content-type-ids.md)
+  [ADR](../adr/jsom-explicit-content-type-ids.md), superseded by [CSOM over HTTP](../adr/csom-over-http.md)
 - `src/util/csom.ts` (CSOM over HTTP, used since 1.5.0 for a site group's owner)
 - PP365 `releases/1.15`: `PackageInstaller.ts` (hub import), `ApplyTemplate` (project setup)
 
@@ -173,8 +173,24 @@ Per file: read the source (J7), `files.addUsingPath` with `Overwrite` (default `
 
 One commit per step; the suites run against the reserved site at each.
 
-Status, 2026-11-10: step 1 is implemented (the request builder, `src/util/csom.ts`, and
-`tests/helpers/csom.ts`, with their unit tests).
+Status, 2026-11-10: steps 1 and 2 are implemented, documented (`docs/ARCHITECTURE.md`, the
+[ADR](../adr/csom-over-http.md), `CHANGELOG.md`, the fixtures README, the skills) and green offline
+and against the reserved site (`npm run test:integration -- contenttypes`, 4 of 4). The runner
+still leaves ContentTypes out by default (`NODE_UNSUPPORTED`) until step 5 regenerates the packages
+list with it; its suite names its handlers.
+
+What the ContentTypes suite showed on SharePoint:
+
+- One request with the new links, their flags, `Reorder` and a single `Update(true)` is enough:
+  the named links come first, in the template's order, and the others after them.
+- `Update(true)` gives a child content type and a bound list's copy a new link, a changed
+  `Required` and the new order.
+- The columns are looked up among `Web.AvailableFields`, so a content type on a subweb can use a
+  parent web's column; they are read only when a link has to be added.
+- A name the web already has is refused in words ("Fant en duplisert innholdstype …",
+  `Microsoft.SharePoint.SPException`), and the handler stops with them.
+- `verify` asked SharePoint for content type ids with `0X` for `0x` and found none; fixed in
+  `readContentType`.
 
 ## Acceptance Criteria
 

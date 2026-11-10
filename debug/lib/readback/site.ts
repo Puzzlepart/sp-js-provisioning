@@ -717,12 +717,15 @@ export async function readListState(
  * Reads a content type available to the web, with its field links, or `null` when there is none.
  *
  * @param conn - The web
- * @param id - The content type id
+ * @param contentTypeId - The content type id
  */
 export async function readContentType(
   conn: ISiteConnection,
-  id: string
+  contentTypeId: string
 ): Promise<IContentTypeState | null> {
+  // SharePoint finds an id whatever the case of its hex digits, but not with `0X` for `0x`
+  // (`verify` compares ids in upper case).
+  const id = contentTypeId.replace(/^0X/, '0x')
   let info: any
   try {
     info = await ContentTypes(conn.web, 'availablecontenttypes')

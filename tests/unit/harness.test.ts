@@ -12,7 +12,9 @@ import {
   stampIn,
   stampOf
 } from '../../debug/lib/scratch'
+import { readContentType } from '../../debug/lib/readback/site'
 import { loadFixture } from '../fixtures/fixtures'
+import { createWireWeb } from '../helpers/transport'
 import { suiteFiles } from '../integration/run'
 
 const site = 'https://contoso.sharepoint.com/sites/spjs-itest'
@@ -294,5 +296,51 @@ describe('harness: fixtures', () => {
 
     assert.equal(loadFixture('smoke').Lists[0].Title, 'SPJS Itest Smoke')
     assert.equal(first.$schema, undefined)
+  })
+})
+
+describe('harness: the content type read-back', () => {
+  it('asks SharePoint for an id as it writes it, also when verify has it in upper case', async () => {
+    // `0X0100…` finds nothing: verify reported every content type of a template as missing.
+    const { web, requests } = createWireWeb((request) =>
+      request.path.includes("('0x0100AB')")
+        ? {
+            Id: { StringValue: '0x0100AB' },
+            Name: 'Prosjekt',
+            FieldLinks: [
+              {
+                Id: 'FA564E0F-0C70-4AB9-B863-0177E6DDD247',
+                Name: 'Title',
+                Required: true
+              }
+            ]
+          }
+        : undefined
+    )
+
+    const state = await readContentType({ web } as any, '0X0100AB')
+
+    assert.deepEqual(
+      requests.map((request) => request.path),
+      [
+        "_api/web/availablecontenttypes('0x0100AB')",
+        "_api/web/contentTypes('0x0100AB')"
+      ]
+    )
+    assert.deepEqual(state, {
+      Id: '0X0100AB',
+      Name: 'Prosjekt',
+      Description: '',
+      Group: '',
+      onWeb: true,
+      fieldLinks: [
+        {
+          Id: 'fa564e0f-0c70-4ab9-b863-0177e6ddd247',
+          Name: 'Title',
+          Required: true,
+          Hidden: false
+        }
+      ]
+    })
   })
 })

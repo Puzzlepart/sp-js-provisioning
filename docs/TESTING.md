@@ -14,7 +14,7 @@ the code disagree, the code wins and this page is fixed in the same change. The 
 | Integration | `tests/integration/*.test.ts`, one suite per handler (and `parameters`), against scratch webs below the reserved site; each `applyTwice` also runs `verify` | yes | `npm run test:integration` locally; in CI the `Integration` workflow (`integration.yml`), started by hand from `main` behind the protected environment `tenant` (Tenant CI, below) |
 | Everything | `tests/integration/everything.test.ts`: `all.node.json`, every Node-capable fixture in one template, applied twice and verified with `--exact` | yes | `npm run test:integration -- all` (the handler suites and this) |
 | Packages | `tests/integration/packages.test.ts`: the prosjektportalen-hosting packages (`INTEGRATION_HOSTING_DIR`), each case on its own scratch web, against an exact list of what the Node run cannot do until the JSOM exit | yes | `npm run test:integration -- packages` |
-| Browser only | Taxonomy, ContentTypes, Files and PropertyBagEntries run through JSOM | yes, in a browser | their suites skip until the JSOM exit (spec, D3) |
+| Browser only | Taxonomy, Files and PropertyBagEntries run through JSOM | yes, in a browser | their suites skip until the JSOM exit ([spec](./specs/jsom-exit.md)); ContentTypes runs through CSOM over HTTP since its step 2 |
 
 ## Which test do I write?
 
@@ -22,6 +22,7 @@ the code disagree, the code wins and this page is fixed in the same change. The 
 | --- | --- |
 | Logic with no SharePoint call (tokens, parsing, plans) | a unit test |
 | What a handler sends (a URL, a body, the order of requests) | a contract test (`tests/contract/wire.test.ts`, `createWireWeb`), or a unit test with a recording web (`tests/unit/webprovisioner.test.ts`, `csom.test.ts`) |
+| A CSOM request (ProcessQuery) | a unit test with `FakeCsom` behind `createWireWeb` (`tests/helpers/csom.ts`): it reads each request into its actions (`parseCsom`), answers them like SharePoint, and gives what ran and what wrote as lines (`tests/unit/contenttypes.test.ts`) |
 | What a re-apply makes true (a new rule for a member) | a `verify` rule in `debug/lib/verify.ts` with its unit test in `tests/unit/verify.test.ts`; the suites then check it on a site |
 | How a handler reacts to a failure (log level, `ProvisioningError`) | a unit test with a throwing fake and `captureLogs` (`tests/helpers/logs.ts`) |
 | What ends up on a site | the handler's integration suite: fixture, read-back, `applyTwice` |
@@ -236,4 +237,5 @@ The second run the same day (`suites=all`, `packages=testprosjekt`, certificate 
 | Parameters | `parameters.test.ts` | `parameters.json` | green (2 tests: `{parameter:}` in field XML and data rows, the row matched by its value on the second run; without the values `verify` names the tokens) | — |
 | Everything | `everything.test.ts` (only with `-- all` or `-- everything`) | `all.node.json` | green: nine sections in one template, applied twice, `verify --exact` finds nothing | — |
 | Packages | `packages.test.ts` (only with `-- packages`) | the prosjektportalen-hosting checkout | green against `packages.expected.ts`: `pp-testprosjekt` as hub import, cloud template and project setup in both locales, the enkel and forskning project setups, the vei hub import | what each list lacks in Node, per case: bindings to content types that are not there, and the columns, view fields and rows that follow from it (until the JSOM exit) |
-| Taxonomy, ContentTypes, Files, PropertyBagEntries | `<name>.test.ts` | — | skipped: JSOM, until the JSOM exit | — |
+| ContentTypes | `contenttypes.test.ts` (it names its handlers: the runner leaves ContentTypes out by default until step 5 of the JSOM exit) | `contenttypes.json`, `.b.json` | green (4 tests: the template's ids, links, flags and order, a second apply without a CSOM request; B reaches the child and the bound list, and back; a missing column is an error and the rest is linked; a refused name stops the run) | — (CSOM over HTTP, [spec](./specs/jsom-exit.md)) |
+| Taxonomy, Files, PropertyBagEntries | `<name>.test.ts` | — | skipped: JSOM, until the JSOM exit | — |
