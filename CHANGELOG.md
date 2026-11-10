@@ -11,7 +11,8 @@ For releases older than 1.3.6, see the git history.
 
 A handler that fails with something other than an `Error`, such as a refused JSOM request, is
 described in words in the `ProvisioningError` and the log instead of «[object Object]» and
-«undefined». `schema.json` describes everything 1.5.0 added.
+«undefined». `schema.json` is generated from `src/schema.ts`, so it describes every section,
+including what 1.5.0 changed and the `Taxonomy`, `DataRows` and `Folders` it lacked.
 
 ### Fixed
 
@@ -33,6 +34,15 @@ described in words in the `ProvisioningError` and the log instead of «[object O
   formatter. `Lists` already sent both again right after creating a view, since SharePoint
   ignores them on create; a unit test now covers that path.
 
+### Changed
+
+- `schema.json` is generated from `src/schema.ts` (`npm run build:schema`) instead of kept by hand,
+  so it now also describes the sections the hand-made one lacked: `Taxonomy` (term groups, term
+  sets, terms), a list's `DataRows` and `Folders`. A hook's `Headers` and `Body` are described as
+  the JSON a template holds (an object of header strings, an object for the body) instead of DOM
+  types. Properties stay optional, as before. Every fixture and every prosjektportalen-hosting
+  template validates against it.
+
 ### Development
 
 - The `@pnp/core`, `@pnp/logging`, `@pnp/queryable` and `@pnp/sp` devDependencies are 4.22.0,
@@ -52,6 +62,14 @@ described in words in the `ProvisioningError` and the log instead of «[object O
   deploy key and the variables are set up, the job only says so.
 - The unused `commitlint` devDependency and its `package.json` config are gone (no hook or CI ran
   it, and the config it extended was no longer installed).
+- Integration testing Phase 2, part 1 ([spec](./docs/specs/integration-testing.md)):
+  `.tasks/generate-schema.js` (`typescript-json-schema` 0.68.0) writes `schema.json`, and
+  `npm run check:schema` fails in CI when it is out of date; `tests/unit/schema.test.ts` validates
+  the fixtures and the hosting templates with `ajv` (now an explicit devDependency), and
+  `tests/unit/fixture-coverage.test.ts` requires every schema property in a fixture or a reason it
+  is not. `tests/contract/` checks what the handlers send through the real PnPjs queryables with a
+  transport that answers in the process (`tests/helpers/transport.ts`): SiteFields, DataRows, the
+  navigation reconcile and WebProvisioner's handler order; `npm test` runs them.
 
 ---
 
@@ -425,7 +443,8 @@ Tooling only; nothing here ships in the package. Plan:
 
 - Content types are created and updated with fixed, deterministic ids from the template.
 
-[Unreleased]: https://github.com/Puzzlepart/sp-js-provisioning/compare/v1.5.0...HEAD
+[Unreleased]: https://github.com/Puzzlepart/sp-js-provisioning/compare/v1.5.1...HEAD
+[1.5.1]: https://github.com/Puzzlepart/sp-js-provisioning/compare/v1.5.0...v1.5.1
 [1.5.0]: https://github.com/Puzzlepart/sp-js-provisioning/compare/v1.4.0...v1.5.0
 [1.4.0]: https://github.com/Puzzlepart/sp-js-provisioning/compare/v1.3.15...v1.4.0
 [1.3.15]: https://github.com/Puzzlepart/sp-js-provisioning/compare/v1.3.14...v1.3.15
