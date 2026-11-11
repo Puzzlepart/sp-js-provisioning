@@ -1,7 +1,8 @@
 # Spec: The JSOM Exit
 
-Status: Implemented (2026-11-11: steps 1 to 5 done and green against the reserved site; the
-`Integration` workflow in certificate mode and the 1.6.0 release are left, see Verification Plan)
+Status: Implemented (2026-11-11: steps 1 to 5 done, green against the reserved site in cookie mode
+and in the `Integration` workflow in certificate mode; Verified once PP365 has taken 1.6.0 and the
+project setup and hub import below have run, see Verification Plan)
 
 Owner: Remi Blom-Ohlsen
 
@@ -205,6 +206,11 @@ origin could not be read that way (with cookies and under SPFx it can). `Files` 
 source through REST (`getFileByUrl`, then `$value`), and the URL itself only for what is not a file
 in a library (a `_layouts` resource).
 
+The second run (2026-11-11, run 42977511130, on that fix): 75 tests, 73 pass, 2 skipped (custom
+script), 0 fail, 26 minutes, every suite of the four and the nine package cases green in
+certificate mode; the report check passed, and the public log holds neither the site's host nor an
+e-mail address.
+
 What the Files and PropertyBagEntries runs showed:
 
 - A web's document library is `Delte dokumenter` on a Norwegian site, and SharePoint answers a
@@ -251,8 +257,8 @@ What the Taxonomy runs showed (the signed-in user, cookies):
   `npm run test:coverage`, `npm run check:schema`, then the step's suite against the reserved
   site and `npm run test:integration -- all` at the end.
 - `npm run test:integration -- packages` with the regenerated list.
-- The `Integration` workflow once in certificate mode (`suites=all`): which of the four an app
-  may do is recorded here.
+- ~~The `Integration` workflow once in certificate mode (`suites=all`): which of the four an app
+  may do is recorded here.~~ Done 2026-11-11 (run 42977511130): all four, the term store included.
 - In PP365, after its bump: a project setup (ContentTypes), a hub import of `pp-testprosjekt`
   (all four) and the same import again.
 

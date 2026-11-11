@@ -220,6 +220,14 @@ report site.
 The second run the same day (`suites=all`, `packages=testprosjekt`, certificate mode): 64 tests,
 63 pass, 1 skipped, 0 fail, 27 minutes, with `everything` and the nine package cases.
 
+After the JSOM exit (2026-11-11), with the ContentTypes, Taxonomy, Files and PropertyBagEntries
+suites running: `npm run test:integration -- all` (cookie mode) 66 tests, 64 pass, 2 skipped (both
+need custom script), 0 fail, 14 minutes; `-- packages` 9 of 9, 9 minutes. The `Integration`
+workflow (`suites=all`, `packages=testprosjekt`, certificate mode, run 42977511130): 75 tests, 73
+pass, 2 skipped, 0 fail, 26 minutes; the report check passed and the log holds neither the site's
+host nor an e-mail address. Its first run (42972561472) failed the Files tests on a source read by
+its own URL, which SharePoint refuses an app-only token (401); fixed by reading it through REST.
+
 | Handler | Suite | Fixture | Status | Pinned (`todo`) |
 | --- | --- | --- | --- | --- |
 | SiteFields | `sitefields.test.ts` | `sitefields.json`, `.b.json`, `failures.json` | green (7 tests: an unchanged second apply writes nothing, B and back, an admin's description kept, a narrowing type change, a lookup to a list of the same template, a taxonomy column, a refused column) | — (re-apply and same-template `{listid:}` fixed, [spec](./specs/sitefields-re-apply.md)) |
