@@ -196,6 +196,15 @@ What the packages showed once the four ran:
 - `pp-testprosjekt`'s property bag entries are refused (custom script blocked), one error per run.
 - Files with a raw.githubusercontent.com source upload in Node.
 
+The first `Integration` run after the exit (2026-11-11, run 42972561472, certificate mode,
+`suites=all`, `packages=testprosjekt`): 75 tests, 71 pass, 2 skipped (custom script), 2 fail.
+ContentTypes, Taxonomy (both tests: the CI app may read and write the term store), the property
+bag refusal, `everything` and the nine package cases pass in certificate mode. The two Files tests
+failed: SharePoint answers an app-only token on a file's own URL with 401, so a source on the web's
+origin could not be read that way (with cookies and under SPFx it can). `Files` now reads such a
+source through REST (`getFileByUrl`, then `$value`), and the URL itself only for what is not a file
+in a library (a `_layouts` resource).
+
 What the Files and PropertyBagEntries runs showed:
 
 - A web's document library is `Delte dokumenter` on a Norwegian site, and SharePoint answers a
@@ -249,7 +258,8 @@ What the Taxonomy runs showed (the signed-in user, cookies):
 
 ## Open Questions
 
-- May PP365's CI app write to the term store, or does the Taxonomy suite skip in certificate mode?
+- ~~May PP365's CI app write to the term store, or does the Taxonomy suite skip in certificate
+  mode?~~ It may: both Taxonomy tests passed in certificate mode (run 42972561472).
 - ~~Is the signed-in test user a term store administrator?~~ It may write to the term store: the
   first Taxonomy run created the group (2026-11-10).
 

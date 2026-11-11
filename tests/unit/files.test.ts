@@ -10,6 +10,8 @@ import { createWireWeb, IWireRequest } from '../helpers/transport'
 const WEB = 'https://contoso.sharepoint.com/sites/demo'
 const TARGET =
   "_api/web/getFileByServerRelativePath(decodedUrl='/sites/demo/SiteAssets/a.png')"
+/** How the handler reads a source on the web's origin: through REST. */
+const BY_URL = '_api/web/getFileByUrl(@p1)/$value'
 const UPLOAD =
   "_api/web/getFolderByServerRelativePath(decodedUrl='/sites/demo/SiteAssets')/files/AddUsingPath(decodedurl='a.png',Overwrite=true)"
 
@@ -48,7 +50,10 @@ const spfxContext = {
 function createSite(
   options: {
     stored?: Uint8Array
+    /** Files in the web's libraries, by their path below the web. */
     sources?: Record<string, Uint8Array>
+    /** Resources on the web's origin that are not files in a library (`_layouts`), by path. */
+    resources?: Record<string, Uint8Array>
     item?: Record<string, any>
     uploadFails?: boolean
   } = {}
@@ -61,8 +66,21 @@ function createSite(
       if (!options.stored) throw notFound()
       return options.stored.slice().buffer
     }
-    if (options.sources && options.sources[request.path])
-      return options.sources[request.path].slice().buffer
+    if (request.path === BY_URL) {
+      // `@p1` is the source's absolute URL, quoted.
+      const path = request.query['@p1']
+        .replace(/^'|'$/g, '')
+        .replace(`${WEB}/`, '')
+      if (options.sources && options.sources[path])
+        return options.sources[path].slice().buffer
+      if (options.resources && options.resources[path])
+        throw Object.assign(new Error('Not a file in a library'), {
+          status: 500
+        })
+      throw notFound()
+    }
+    if (options.resources && options.resources[request.path])
+      return options.resources[request.path].slice().buffer
     if (request.path === UPLOAD) {
       if (options.uploadFails)
         throw Object.assign(new Error('Ingen tilgang'), { status: 403 })
@@ -70,7 +88,6 @@ function createSite(
     }
     if (request.path === `${TARGET}/listItemAllFields`)
       return { ID: 7, ParentList: { Id: 'list-1' }, ...(options.item || {}) }
-    if (request.path.startsWith('SiteAssets/missing')) throw notFound()
     return undefined
   })
   // The upload's body is the bytes: kept to compare.
@@ -149,11 +166,38 @@ describe('Files', () => {
     assert.deepEqual(lines(site.requests), [
       'GET _api/web',
       `GET ${TARGET}/$value`,
-      'GET SiteAssets/source/a.png',
+      `GET ${BY_URL}`,
       `POST ${UPLOAD}`
     ])
     assert.deepEqual(site.uploads, [BINARY])
     assert.deepEqual(fetched, [])
+  })
+
+  it("reads a resource on the web's origin that is not a file in a library from its own URL, and a missing source not at all", async () => {
+    const site = createSite({
+      resources: { '_layouts/15/images/spjs.png': BINARY }
+    })
+
+    const { errors } = await provision(site, [
+      file({ Src: '{sitecollection}/_layouts/15/images/spjs.png' }),
+      file({ Src: '{site}/SiteAssets/missing.png', Url: 'b.png' })
+    ])
+
+    assert.deepEqual(site.uploads, [BINARY])
+    assert.ok(
+      lines(site.requests).includes('GET _layouts/15/images/spjs.png'),
+      lines(site.requests).join('\n')
+    )
+    // A source REST says is not there is not asked for by its URL.
+    assert.ok(
+      !lines(site.requests).some((line) => line.includes('missing.png')),
+      lines(site.requests).join('\n')
+    )
+    assert.equal(errors.length, 1, errors.join('\n'))
+    assert.match(
+      errors[0],
+      /^Failed to provision file SiteAssets\/b\.png: Not Found/
+    )
   })
 
   it('reads a source on another origin with fetch and no credentials', async () => {

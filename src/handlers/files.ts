@@ -174,8 +174,10 @@ export class Files extends HandlerBase {
 
   /**
    * A file's source, as bytes. On the web's origin (or server-relative) it is read through the
-   * web's pipeline, which signs the request in as the web is; elsewhere with a plain `fetch` and no
-   * credentials, which a public URL (one that allows any origin) answers.
+   * web's pipeline, signed in as the web is: through REST (`getFileByUrl`, then `$value`), since
+   * SharePoint refuses an app-only token on a file's own URL (401); a URL that is not a file in a
+   * library (a `_layouts` resource) is then read as it is. Elsewhere it is read with a plain
+   * `fetch` and no credentials, which a public URL (one that allows any origin) answers.
    *
    * @param web - The web
    * @param webInfo - The web's URLs
@@ -189,9 +191,14 @@ export class Files extends HandlerBase {
     const origin = new URL(webInfo.Url).origin
     const url = new URL(source, `${origin}/`)
     if (url.origin === origin)
-      return spGet<ArrayBuffer>(
-        SPInstance([web, url.toString()]).using(BufferParse())
-      )
+      try {
+        return await Web(web).getFileByUrl(url.toString()).getBuffer()
+      } catch (error) {
+        if (notFound(error)) throw error
+        return spGet<ArrayBuffer>(
+          SPInstance([web, url.toString()]).using(BufferParse())
+        )
+      }
     const response = await fetch(url.toString(), { method: 'GET' })
     if (!response.ok)
       throw new Error(

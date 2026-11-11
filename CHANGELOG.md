@@ -42,10 +42,11 @@ the template. Classic web parts in `Files` are no longer supported (Removed). Te
   whenever `config.spfxContext` was set, as PP365 always sets it (a `pp-testprosjekt` hub import
   stopped there). The source is read as bytes, so a binary file is no longer corrupted, and a
   source on another origin is fetched without credentials, as a public URL such as
-  raw.githubusercontent.com requires. A file that already holds the source's bytes is not uploaded
-  again, a property is written only when it differs, and `Overwrite: false` leaves an existing file
-  (and its properties) as it is. A file that fails is logged as an error, naming it, and the next
-  is tried.
+  raw.githubusercontent.com requires; a source on the web's own origin is read through REST, which
+  an app-only sign-in may read where the file's own URL answers 401. A file that already holds the
+  source's bytes is not uploaded again, a property is written only when it differs, and
+  `Overwrite: false` leaves an existing file (and its properties) as it is. A file that fails is
+  logged as an error, naming it, and the next is tried.
 - `PropertyBagEntries` runs under an SPFx context and in Node, and writes PnP's way: an entry whose
   key the web lacks is written even without `Overwrite` (it used to be written only with
   `Overwrite: true`), an existing one only with `Overwrite` and another value, and `Indexed` adds
