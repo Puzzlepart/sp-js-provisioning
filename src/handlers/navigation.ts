@@ -265,7 +265,8 @@ export class Navigation extends HandlerBase {
   }
 
   /**
-   * Adds a node at the end of a level, then its children under it.
+   * Adds a node to a level, then its children under it. SharePoint decides where the node goes:
+   * usually last, but not always (`moveNodes` reads the order).
    *
    * @param collection - The collection
    * @param nodes - Returns the level's nodes
@@ -444,14 +445,18 @@ export class Navigation extends HandlerBase {
    * ends up first. The level is then read back, since SharePoint does not check that both nodes
    * are in the collection (probe N4).
    *
+   * Where this run added nodes, the level is read before the moves too: SharePoint does not always
+   * add a node last. On a group site's Quick Launch it put a node added after its own Områdeinnhold
+   * in front of it, and an order assumed from the adds skipped the move that was needed (PP365 1.15
+   * project setup, 2026-11-13).
+   *
    * @param level - The level
    */
   private async moveNodes(level: ILevel): Promise<number> {
     const deleted = new Set(level.deletes.map((node) => node.Id))
-    const current = [
-      ...level.stored.map((node) => node.Id).filter((Id) => !deleted.has(Id)),
-      ...level.order.filter((node) => node.added).map((node) => node.Id)
-    ]
+    const current = level.order.some((node) => node.added)
+      ? await this.readOrder(level, 'before moving its nodes')
+      : level.stored.map((node) => node.Id).filter((Id) => !deleted.has(Id))
     let moved = 0
     for (let at = 1; at < level.order.length; at++) {
       const node = level.order[at]
@@ -471,18 +476,7 @@ export class Navigation extends HandlerBase {
       moved++
     }
     if (moved === 0) return moved
-    let ids: number[]
-    try {
-      ids = (await level.nodes().select('Id')<Array<{ Id: number }>>()).map(
-        (node) => node.Id
-      )
-    } catch (error) {
-      throw this.failed(
-        `Failed to read ${
-          level.label
-        } back after moving its nodes: ${Navigation.messageOf(error)}`
-      )
-    }
+    const ids = await this.readOrder(level, 'back after moving its nodes')
     if (ids.join() !== level.order.map((node) => node.Id).join())
       throw this.failed(
         `The nodes in ${
@@ -492,6 +486,24 @@ export class Navigation extends HandlerBase {
         )}, expected ${level.order.map((node) => node.Id).join(', ')}.`
       )
     return moved
+  }
+
+  /**
+   * Reads the ids of a level's nodes in display order. A failure is logged and fails the run.
+   *
+   * @param level - The level
+   * @param when - For the message: `before moving its nodes`, `back after moving its nodes`
+   */
+  private async readOrder(level: ILevel, when: string): Promise<number[]> {
+    try {
+      return (await level.nodes().select('Id')<Array<{ Id: number }>>()).map(
+        (node) => node.Id
+      )
+    } catch (error) {
+      throw this.failed(
+        `Failed to read ${level.label} ${when}: ${Navigation.messageOf(error)}`
+      )
+    }
   }
 
   /**

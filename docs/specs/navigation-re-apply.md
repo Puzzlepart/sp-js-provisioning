@@ -66,8 +66,10 @@ for each extension after the main template, all through one `WebProvisioner`. Th
 
 - `src/` stays TypeScript 4.0 / ES5; PnPjs 4's `select()` sets the query on the queryable itself,
   so every read goes through a fresh one.
-- REST `add` only appends; `MoveAfter(nodeId, previousNodeId)` is the only way to reorder, has no
-  "first" position, and checks neither collection nor level (N4).
+- REST `add` takes no position, and SharePoint does not always append: on a group site's Quick
+  Launch, a node added after SharePoint's own Områdeinnhold went in front of it (PP365 1.15
+  project setup, 2026-11-13). `MoveAfter(nodeId, previousNodeId)` is the only way to reorder, has
+  no "first" position, and checks neither collection nor level (N4).
 - SharePoint answers success for a read, update or delete of a node it does not have (X1).
 - A deleted node cannot be restored: a node added again gets a new id and no audiences (N6). So
   nothing is deleted until every add and URL update of both collections was accepted.
@@ -146,8 +148,9 @@ is: deletes cannot be undone, so there is no rollback after step 3 starts.
 
 ### Moves
 
-After its deletes, a level holds only template nodes: the kept ones in their stored order, then
-the added ones in template order. For each template node `t[i]` (`i >= 1`) that is not already
+After its deletes, a level holds only template nodes: the kept ones in their stored order, and
+the added ones where SharePoint put them. A level where this run added nodes is read
+(`select('Id')`) before the moves; another level's order is the stored one. For each template node `t[i]` (`i >= 1`) that is not already
 right after `t[i-1]`, `MoveAfter(t[i], t[i-1])` is sent to that level's collection (for children:
 `getById(parent).children`), and the local order is updated. Both ids come from the same read or
 from this run's adds at that level (N4: a wrong id silently moves a node to another level or
