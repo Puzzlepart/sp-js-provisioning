@@ -62,6 +62,15 @@ the template. Classic web parts in `Files` are no longer supported (Removed). Te
   template of PP365 or prosjektportalen-hosting uses them, and they need a classic page and custom
   script. A file that has them is provisioned, and an error says they were left out.
 
+### Fixed
+
+- `Navigation` reads a level's order before it moves the nodes, where it added nodes there. It
+  assumed SharePoint adds a node last, but on a group site's Quick Launch a node added after
+  SharePoint's own Områdeinnhold went in front of it. The handler then skipped the move that was
+  needed, and the PP365 1.15 project setup stopped with «The nodes in the Quick Launch are not in
+  the template's order after moving them». A template whose new nodes all come before the nodes
+  SharePoint has (as PP365's own) was not affected. One more read per level with added nodes.
+
 ### Development
 
 - Integration testing Phase 2, part 2 ([spec](./docs/specs/integration-testing.md)): `npm run verify`

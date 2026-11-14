@@ -54,6 +54,11 @@ interface IFakeOptions {
   failRead?: (name: string) => boolean
   /** Expand only this many levels, whatever the read asks for */
   expandDepth?: number
+  /**
+   * The title of a node an add goes in front of, where the level has it. SharePoint put a node
+   * added to a group site's Quick Launch in front of its own Områdeinnhold (PP365 1.15).
+   */
+  addBefore?: string
 }
 
 interface IFakeWeb {
@@ -210,7 +215,11 @@ function createFakeWeb(options: IFakeOptions = {}): IFakeWeb {
         Url: stored(url),
         children: []
       }
-      list().push(node)
+      const siblings = list()
+      const before = siblings.findIndex(
+        (sibling) => sibling.Title === options.addBefore
+      )
+      siblings.splice(before === -1 ? siblings.length : before, 0, node)
       return { Id: node.Id, Title: title, Url: node.Url }
     }
     nodes.getById = (id: number) => nodeOf(root, id)
@@ -945,6 +954,79 @@ describe('Navigation: a refused node changes nothing', () => {
         entries,
         /Navigation node 'Added' \(1\), added by this run, is left in the Quick Launch: SharePoint reported success/
       ),
+      LogLevel.Error
+    )
+  })
+})
+
+describe('Navigation: the order SharePoint added the nodes in', () => {
+  it('reads the order before it moves, where SharePoint did not add a node last', async () => {
+    const fake = createFakeWeb({ addBefore: 'Områdeinnhold' })
+    fake.seed('quicklaunch', [
+      { Title: 'Hjem', Url: '/sites/demo' },
+      { Title: 'Notatblokk', Url: '/sites/demo#' },
+      { Title: 'Områdeinnhold', Url: '/sites/demo/_layouts/15/viewlsts.aspx' }
+    ])
+
+    await provision(fake, {
+      QuickLaunch: [
+        { Title: 'Hjem', Url: '' },
+        { Title: 'Prosjektstatus', Url: 'SitePages/Prosjektstatus.aspx' },
+        { Title: 'Notatblokk', Url: '#' },
+        { Title: 'Områdeinnhold', Url: '_layouts/15/viewlsts.aspx' },
+        { Title: 'Papirkurv', Url: '_layouts/15/RecycleBin.aspx' }
+      ]
+    })
+
+    // After the adds the level is Hjem, Notatblokk, Prosjektstatus, Papirkurv, Områdeinnhold.
+    // Assuming the added nodes last, the handler moved Prosjektstatus only, and the read-back
+    // failed with Papirkurv in front of Områdeinnhold.
+    assert.deepEqual(fake.writes(), [
+      "add quicklaunch 'Prosjektstatus' SitePages/Prosjektstatus.aspx",
+      "add quicklaunch 'Papirkurv' _layouts/15/RecycleBin.aspx",
+      'moveAfter quicklaunch 4 1',
+      'moveAfter quicklaunch 3 2'
+    ])
+    assert.deepEqual(
+      fake.tree('quicklaunch').map((node) => node.Title),
+      ['Hjem', 'Prosjektstatus', 'Notatblokk', 'Områdeinnhold', 'Papirkurv']
+    )
+    // One read of the level before the moves, one after.
+    assert.deepEqual(
+      fake.calls.filter((call) => call === 'GET quicklaunch'),
+      ['GET quicklaunch', 'GET quicklaunch']
+    )
+    assert.ok(
+      fake.calls.indexOf('GET quicklaunch') <
+        fake.calls.indexOf('moveAfter quicklaunch 4 1')
+    )
+  })
+
+  it('names the level it could not read before moving', async () => {
+    let reads = 0
+    const fake = createFakeWeb({
+      // The collection's first read (with its children) goes through; the read before the moves fails.
+      failRead: (name) => name === 'quicklaunch' && reads++ > 0
+    })
+    fake.seed('quicklaunch', [{ Title: 'B', Url: '/sites/demo/b' }])
+
+    const { entries } = await captureLogs(() =>
+      assert.rejects(
+        provision(fake, {
+          QuickLaunch: [
+            { Title: 'A', Url: '/sites/demo/a' },
+            { Title: 'B', Url: '/sites/demo/b' }
+          ]
+        }),
+        {
+          message:
+            'Failed to read the Quick Launch before moving its nodes: Too many requests'
+        }
+      )
+    )
+
+    assert.equal(
+      levelOf(entries, /Failed to read the Quick Launch before moving/),
       LogLevel.Error
     )
   })
