@@ -7,14 +7,17 @@ For releases older than 1.3.6, see the git history.
 
 ## [Unreleased]
 
-For 1.6.0 (the JSOM exit, [spec](./docs/specs/jsom-exit.md)): every handler runs in Node and under
-SPFx alike. ContentTypes, Taxonomy and PropertyBagEntries reach SharePoint through CSOM over HTTP,
-Files through REST, and the package no longer depends on `spfx-jsom`. In PP365 a hub import of a
-package with `Files` or `PropertyBagEntries` no longer stops there; a re-run of an unchanged
-template writes no content type, term set, file or property; a field ref to a missing column, a
-failing file and a property bag write a modern site refuses are logged errors that no longer stop
-the template. Classic web parts in `Files` are no longer supported (Removed). Templates written for
-1.5 work unchanged otherwise.
+## [1.6.0] - 2026-11-14
+
+The JSOM exit ([spec](./docs/specs/jsom-exit.md)): every handler runs in Node and under SPFx alike.
+ContentTypes, Taxonomy and PropertyBagEntries reach SharePoint through CSOM over HTTP, Files through
+REST, and the package no longer depends on `spfx-jsom`. In PP365 a hub import of a package with
+`Files` or `PropertyBagEntries` no longer stops there; a re-run of an unchanged template writes no
+content type, term set, file or property; a field ref to a missing column, a failing file and a
+property bag write a modern site refuses are logged errors that no longer stop the template.
+`Navigation` no longer stops a project setup whose extension adds a node after a node SharePoint
+keeps (Fixed). Classic web parts in `Files` are no longer supported (Removed). Templates written for
+1.5 work unchanged otherwise. Like 1.4 and 1.5 it needs PnPjs 4 (PP365 1.15).
 
 ### Changed
 
@@ -579,7 +582,8 @@ Tooling only; nothing here ships in the package. Plan:
 
 - Content types are created and updated with fixed, deterministic ids from the template.
 
-[Unreleased]: https://github.com/Puzzlepart/sp-js-provisioning/compare/v1.5.1...HEAD
+[Unreleased]: https://github.com/Puzzlepart/sp-js-provisioning/compare/v1.6.0...HEAD
+[1.6.0]: https://github.com/Puzzlepart/sp-js-provisioning/compare/v1.5.1...v1.6.0
 [1.5.1]: https://github.com/Puzzlepart/sp-js-provisioning/compare/v1.5.0...v1.5.1
 [1.5.0]: https://github.com/Puzzlepart/sp-js-provisioning/compare/v1.4.0...v1.5.0
 [1.4.0]: https://github.com/Puzzlepart/sp-js-provisioning/compare/v1.3.15...v1.4.0

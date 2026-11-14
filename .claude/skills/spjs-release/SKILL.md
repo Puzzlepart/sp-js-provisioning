@@ -73,6 +73,9 @@ hunks: save `git diff -U3` of the lock, check out the committed lock, `git apply
 - PP365 1.14.x pins 1.3.15 (PnPjs 3). 1.4.0 and later need PnPjs 4 (PP365 1.15): they cannot go into
   a 1.14 hotfix; a v3-era consumer fails every `new WebProvisioner(web)` with "IWeb is not
   assignable".
+- 1.6.0 (the JSOM exit, 2026-11-14) no longer brings `spfx-jsom`: a consumer that imports it declares
+  it itself (PP365's ProjectExtensions, ProjectWebParts and shared-library do). PP365 1.15 takes it;
+  check a project setup and a hub import of `pp-testprosjekt`, twice, on the test channel.
 - prosjektportalen-hosting packages declare `minPPVersion`; a package for 1.14.0 must still work
   with 1.3.15, so a template property that needs a newer engine raises `minPPVersion`.
 - Error messages, log levels and re-apply behaviour are what PP365 users see in the setup and the
