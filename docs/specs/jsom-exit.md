@@ -1,8 +1,8 @@
 # Spec: The JSOM Exit
 
-Status: Implemented (2026-11-11: steps 1 to 5 done, green against the reserved site in cookie mode
-and in the `Integration` workflow in certificate mode; Verified once PP365 has taken 1.6.0 and the
-project setup and hub import below have run, see Verification Plan)
+Status: Verified (2026-11-16: released as 1.6.0 on 2026-11-14; green against the reserved site in
+cookie mode and in the `Integration` workflow in certificate mode; in PP365 1.15 on a fresh hub, a
+project setup and the hub import of `pp-testprosjekt` twice, see Verification Plan)
 
 Owner: Remi Blom-Ohlsen
 
@@ -259,8 +259,34 @@ What the Taxonomy runs showed (the signed-in user, cookies):
 - `npm run test:integration -- packages` with the regenerated list.
 - ~~The `Integration` workflow once in certificate mode (`suites=all`): which of the four an app
   may do is recorded here.~~ Done 2026-11-11 (run 42977511130): all four, the term store included.
-- In PP365, after its bump: a project setup (ContentTypes), a hub import of `pp-testprosjekt`
-  (all four) and the same import again.
+- ~~In PP365, after its bump: a project setup (ContentTypes), a hub import of `pp-testprosjekt`
+  (all four) and the same import again.~~ Done 2026-11-15/16 in PP365's stress test of 1.6.0
+  (`docs/plans/sp-js-provisioning-1.6.0-stresstest.md` in prosjektportalen365, a fresh 1.15.0 hub
+  with 1.6.0): a project setup with the standard template (P1) without a warning or an error, the
+  hub import of `pp-testprosjekt` twice (K3) ending with the expected property bag warning, the
+  hub import of six template packages twice (K1, K2), and the Navigation fix of #9 on re-runs (R3:
+  the menu in the template's order, SharePoint's Områdeinnhold last). No finding was a regression
+  of 1.6.0. `Files` and `PropertyBagEntries` in a project setup could not be tried there: PP365
+  applies its standard template for an imported package (its row 22), so they are covered by the
+  hub import and by this repository's suites.
+
+### Follow-ups from the PP365 stress test
+
+Engine defects it found that predate 1.6.0 (its class B), candidates for 1.6.1; its row numbers:
+
+- Row 5: a list's taxonomy field that a content type binding brought along keeps the term set it
+  came with: the merged `SchemaXml` does not move it, and nothing reads it back. The rows' term
+  values then fail silently (an empty phase in every Veiprosjekt checklist). Set `TermSetId` and
+  `SspId` with the taxonomy field's own properties, read back, and log a data row value that
+  cannot be written.
+- Row 13: `ClientSidePages` leaves a page that exists only as a draft (a setup stopped before it
+  was published) unpublished, and `Navigation` then refuses a node to it: a re-run cannot finish.
+  Publish an existing page that has no published version.
+- Row 11: under throttling, `ClientSidePages` fails on a 406 right after `publish`; a retry with
+  `Retry-After` for 429, 503 and that 406 would let concurrent setups finish.
+- Rows 6 and 17: an unchanged re-run still writes some lists, list fields (a Number field's
+  `Decimals` or `Min`, taxonomy fields, a `Title`) and views (view fields with a lookup
+  projection): no value changes, but each run writes.
 
 ## Open Questions
 
