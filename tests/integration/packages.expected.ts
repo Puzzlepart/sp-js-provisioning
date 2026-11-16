@@ -231,7 +231,24 @@ export const PACKAGE_CASES: IPackageCase[] = [
         fieldRefs: ['GtTestChoice']
       }
     },
-    propertyBag: ['GtTestProjectProvisioned']
+    propertyBag: ['GtTestProjectProvisioned'],
+    // The English template names the document library by its English URL (pp-testprosjekt 1.1.2),
+    // which a Norwegian scratch web does not have.
+    errors: [
+      {
+        handler: 'Files',
+        pattern: /processFile\): Failed to provision file Shared Documents\/Prosjektnotat\.txt: /,
+        why:
+          'the English template puts the file in Shared Documents; the scratch web is Norwegian (Delte dokumenter)'
+      }
+    ],
+    findings: [
+      {
+        handler: 'Files',
+        pattern: /^\[Files\] .*\/Shared Documents\/Prosjektnotat\.txt: expected "a file"/,
+        why: 'the same file: a Norwegian scratch web has no Shared Documents'
+      }
+    ]
   },
   {
     pkg: 'pp-enkel-prosjektmal',
