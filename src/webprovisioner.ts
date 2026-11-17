@@ -11,6 +11,7 @@ import { IProvisioningConfig } from './provisioningconfig'
 import { ProvisioningContext } from './provisioningcontext'
 import { ProvisioningError } from './provisioningerror'
 import { Schema } from './schema'
+import { RetryNotAcceptable } from './util/retry'
 import { TokenHelper } from './util/tokenhelper'
 import { extractWebUrl, IWeb, Site, SPInstance, Web } from '@pnp/sp/presets/all'
 import '@pnp/sp/presets/all'
@@ -34,6 +35,8 @@ export class WebProvisioner {
    * is stale, and a list that exists would look missing.
    */
   private listsLoaded = false
+  /** The caller's web, with its pipeline, trying a GET SharePoint answers 406 again. */
+  private web: IWeb
   /**
    * Creates a new instance of the Provisioner class
    *
@@ -41,9 +44,19 @@ export class WebProvisioner {
    * @param handlerSort - A set of handlers we want to apply. The keys of the map need to match the property names in the template
    */
   constructor(
-    private web: IWeb,
+    web: IWeb,
     public handlerSort: Record<Handler, number> = DefaultHandlerSort
-  ) {}
+  ) {
+    // Every request goes through the caller's pipeline (its sign-in, its retries on throttling);
+    // a GET SharePoint answers 406, as it does under load right after a page is published, is
+    // tried again (src/util/retry.ts). A copy: the caller's web is left as it is.
+    this.web = Web(web).using(
+      RetryNotAcceptable({
+        onRetry: (message) =>
+          this.log(LogLevel.Info, 'RetryNotAcceptable', message)
+      })
+    )
+  }
 
   private async onSetup() {
     if (this.config?.logging) {

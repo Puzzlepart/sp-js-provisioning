@@ -41,7 +41,7 @@ Main orchestrator.
 
 Important responsibilities:
 
-- Holds the target `IWeb`.
+- Holds the target `IWeb`: a copy of the caller's, with the caller's pipeline (its sign-in and its retries on throttling) and `RetryNotAcceptable` (`src/util/retry.ts`) wrapped around its transport: a GET SharePoint answers 406 is tried again, up to three times (1, 2, 4 s, or what `Retry-After` says), and logged at Info. SharePoint answers 406, with an empty body, under load right after a page is published (1.6.1). A 429, 503 or 504 is the caller's pipeline's to retry (PnPjs's `SPFx` behavior has `BrowserFetchWithRetry`), and a write is not tried again.
 - Stores `IProvisioningConfig`.
 - Creates `DefaultHandlerMap(config)` during setup.
 - Loads `context.web` from a fresh copy of the web (`Web(this.web)`), and hands every handler a fresh copy too. PnPjs 4's `select()` sets the query on the queryable itself, so a `$select` a handler left on a shared web made the next `applyTemplate` load only that property (`{sitename}` stayed literal).
@@ -515,6 +515,8 @@ CSOM over HTTP is used where REST cannot do what a template asks: an XML request
 
 - web property bag entries and their indexed keys (`PropertyBagEntries`)
 
+
+Throttling: every request, REST and CSOM alike, goes through the web the caller passed, so the caller's retries apply (PnPjs's `SPFx` behavior tries a 429, 503 or 504 again three times, honouring `Retry-After`; the local runner's transport does the same). The engine adds no retries of its own on throttling, which would multiply the caller's; it only tries a GET again that SharePoint answers 406 (`RetryNotAcceptable`, see `src/webprovisioner.ts` above).
 
 Globals the code reaches, each guarded so it runs in Node too:
 

@@ -15,6 +15,13 @@ For releases older than 1.3.6, see the git history.
   (`Overwrite: false`), so `Navigation` was refused a node to it ("... fordi det er et
   kladdeelement") and the setup could not be completed by running it again. A published page is
   still left as it is.
+- A GET SharePoint answers 406 (Not Acceptable) is tried again, up to three times (1, 2 and 4
+  seconds, or what `Retry-After` says), and logged at Info. Under load SharePoint answers 406, with
+  an empty body, when PnPjs reads a page's item right after publishing it; in PP365 four project
+  setups started at once stopped in `ClientSidePages` with `[406] ::>`. The retry wraps the
+  transport of the web you pass (a copy: your web is left as it is), so your pipeline's own retries
+  on throttling (429, 503, 504 in PnPjs's `SPFx` behavior) are unchanged, and a write is not tried
+  again.
 
 ## [1.6.0] - 2026-11-14
 

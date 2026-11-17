@@ -320,6 +320,12 @@ Node and under SPFx alike ([spec](./docs/specs/jsom-exit.md)):
 - `spfxContext` — the SPFx context; used for URL token resolution in the browser.
 - `logging` — `prefix` and `activeLogLevel` for the built-in `@pnp/logging` console listener.
 
+Every request goes through the web you pass to `WebProvisioner`, with its pipeline: its sign-in and
+its retries on throttling (PnPjs's `SPFx` behavior tries a 429, 503 or 504 again, honouring
+`Retry-After`). The engine adds one retry of its own: a GET SharePoint answers 406 (it does so under
+load, right after a page is published) is tried again up to three times. The web you pass is not
+changed.
+
 Errors are thrown as `ProvisioningError`, carrying the name of the handler that failed (`handler`)
 and what it failed with (`cause`).
 Sub-operations such as individual site columns, data rows, folders, site groups, group members
