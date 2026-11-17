@@ -21,6 +21,7 @@ import {
   targetChanged,
   typeChange
 } from '../util/fieldxml'
+import { compactMarkup } from '../util/markup'
 import { resolvePrincipalId, resolveRoleDefinitionId } from '../util/security'
 import { TokenHelper } from '../util/tokenhelper'
 import { HandlerBase } from './handlerbase'
@@ -56,6 +57,10 @@ export interface ISPField {
   InternalName: string
   SchemaXml: string
   TypeAsString?: string
+  /** The display name, as a field ref compares it. */
+  Title?: string
+  Required?: boolean
+  Hidden?: boolean
 }
 
 /**
@@ -200,11 +205,25 @@ export class Lists extends HandlerBase {
         super.log_info('processList', `List ${lc.Title} already exists.`)
       } else {
         try {
-          await list.update(properties)
-          super.log_info(
-            'processList',
-            `List ${lc.Title} already exists, its settings updated.`
-          )
+          // Only what differs from what the list has: an unchanged list is not written on a re-run
+          // (PP365 stress test row 17: all 12 lists of the project template on every run).
+          const changed = Lists._differing(properties, await list())
+          if (Object.keys(changed).length === 0)
+            super.log_info(
+              'processList',
+              `List ${lc.Title} already exists, with the template's settings.`
+            )
+          else {
+            await list.update(changed)
+            super.log_info(
+              'processList',
+              `List ${
+                lc.Title
+              } already exists, its settings updated: ${Object.keys(
+                changed
+              ).join(', ')}.`
+            )
+          }
         } catch (error) {
           super.log_error(
             'processList',
@@ -626,7 +645,14 @@ export class Lists extends HandlerBase {
       )
       const list = web.lists.getByTitle(lc.Title)
       const [listFields, webFields] = await Promise.all([
-        list.fields.select('Id', 'InternalName', 'SchemaXml')<ISPField[]>(),
+        list.fields.select(
+          'Id',
+          'InternalName',
+          'SchemaXml',
+          'Title',
+          'Required',
+          'Hidden'
+        )<ISPField[]>(),
         web.fields.select('Id', 'InternalName', 'SchemaXml')<ISPField[]>()
       ])
       super.log_info(
@@ -679,37 +705,61 @@ export class Lists extends HandlerBase {
       `Processing field ref '${fieldReference.ID}' for list ${lc.Title}.`
     )
     if (Boolean(listFld)) {
-      const field = list.fields.getById(id)
-      await field.update(
-        {
-          Hidden: fieldReference.Hidden,
-          Required: fieldReference.Required,
-          Title: fieldReference.DisplayName
-        },
-        'SP.Field'
+      // Only what differs from the list's field: an unchanged field ref writes nothing on a
+      // re-run (PP365 stress test rows 6 and 17: every field ref was written on every run).
+      const wanted: Record<string, any> = {}
+      if (
+        fieldReference.Hidden !== undefined &&
+        listFld.Hidden !== fieldReference.Hidden
       )
+        wanted.Hidden = fieldReference.Hidden
+      if (
+        fieldReference.Required !== undefined &&
+        listFld.Required !== fieldReference.Required
+      )
+        wanted.Required = fieldReference.Required
+      if (
+        fieldReference.DisplayName !== undefined &&
+        listFld.Title !== fieldReference.DisplayName
+      )
+        wanted.Title = fieldReference.DisplayName
+      const written = Object.keys(wanted)
+      if (written.length > 0)
+        await list.fields.getById(id).update(wanted, 'SP.Field')
       if (fieldReference.AdditionalProperties) {
-        // Read after the update above: its SchemaXml (and Version) is not the one read before.
-        // Only the additional properties are set; the title stays what the update made it.
-        const { SchemaXml } = await list.fields
-          .getById(id)
-          .select('SchemaXml')<{ SchemaXml: string }>()
+        // Read again after an update above: its SchemaXml (and Version) is not the one read
+        // before. Only the additional properties are set; the title stays what the update made it.
+        const SchemaXml =
+          written.length > 0
+            ? (
+                await list.fields.getById(id).select('SchemaXml')<{
+                  SchemaXml: string
+                }>()
+              ).SchemaXml
+            : listFld.SchemaXml
         const schemaXml = setFieldAttributes(
           SchemaXml,
           fieldReference.AdditionalProperties
         )
-        super.log_info(
-          'processFieldRef',
-          `Additional properties set for field ref '${fieldReference.ID}' for list ${lc.Title}. Attempting to generate schema XML.`,
-          { schemaXml }
-        )
-        await list.fields
-          .getById(id)
-          .update({ SchemaXml: schemaXml }, 'SP.Field')
+        if (!sameFieldXml(schemaXml, SchemaXml)) {
+          super.log_info(
+            'processFieldRef',
+            `Additional properties set for field ref '${fieldReference.ID}' for list ${lc.Title}. Attempting to generate schema XML.`,
+            { schemaXml }
+          )
+          await list.fields
+            .getById(id)
+            .update({ SchemaXml: schemaXml }, 'SP.Field')
+          written.push('AdditionalProperties')
+        }
       }
       super.log_info(
         'processFieldRef',
-        `Field '${fieldReference.ID}' updated for list ${lc.Title}.`
+        written.length > 0
+          ? `Field '${fieldReference.ID}' updated for list ${
+              lc.Title
+            }: ${written.join(', ')}.`
+          : `Field '${fieldReference.ID}' in list ${lc.Title} is unchanged.`
       )
     } else if (Boolean(webFld)) {
       super.log_info(
@@ -871,24 +921,32 @@ export class Lists extends HandlerBase {
     const existingView = web.lists
       .getByTitle(lc.Title)
       .views.getByTitle(lvc.Title)
-    let viewExists = false
+    let stored: Record<string, any>
     try {
-      await existingView()
-      viewExists = true
+      stored = await existingView()
     } catch {}
     try {
-      if (viewExists) {
-        super.log_info(
-          'processView',
-          `View ${lvc.Title} for list ${lc.Title} already exists, updating.`
-        )
-        // No settings, no update: an empty MERGE body is refused (400).
-        if (Lists._hasSettings(lvc))
-          await existingView.update(lvc.AdditionalSettings)
-        super.log_info(
-          'processView',
-          `View ${lvc.Title} successfully updated for list ${lc.Title}.`
-        )
+      if (stored) {
+        // Only the settings that differ from the view's (its `ViewQuery` laid out as SharePoint
+        // stores it): an unchanged view is not written on a re-run (PP365 stress test row 17: all
+        // 26 views of the project template on every run). No settings, no update: an empty MERGE
+        // body is refused (400).
+        const changed = Lists._hasSettings(lvc)
+          ? Lists._differing(lvc.AdditionalSettings, stored)
+          : {}
+        if (Object.keys(changed).length > 0) {
+          await existingView.update(changed)
+          super.log_info(
+            'processView',
+            `View ${lvc.Title} of list ${lc.Title} updated: ${Object.keys(
+              changed
+            ).join(', ')}.`
+          )
+        } else
+          super.log_info(
+            'processView',
+            `View ${lvc.Title} of list ${lc.Title} has the template's settings.`
+          )
         await this.processViewFields(existingView, lvc)
       } else {
         super.log_info(
@@ -945,10 +1003,16 @@ export class Lists extends HandlerBase {
         `Processing view fields for view ${lvc.Title}.`
       )
       const current: { Items?: string[] } = await view.fields()
+      // SharePoint stores an internal name of at most 32 characters: a projected lookup the
+      // template names `GtMeasureIndicatorLookup_GtDesiredValue` is `GtMeasureIndicatorLookup_GtDesir`
+      // in the view (PP365 stress test row 17: the view's fields were rebuilt on every run).
+      const cut = (name: string) => String(name).slice(0, 32)
       if (
         current.Items &&
         current.Items.length === lvc.ViewFields.length &&
-        current.Items.every((name, index) => name === lvc.ViewFields[index])
+        current.Items.every(
+          (name, index) => cut(name) === cut(lvc.ViewFields[index])
+        )
       ) {
         super.log_info(
           'processViewFields',
@@ -1660,6 +1724,34 @@ export class Lists extends HandlerBase {
     }
     for (const xml of fields) visit(xml, [])
     return ordered
+  }
+
+  /**
+   * The settings whose value differs from what a list or view has: a missing one, a `ViewQuery`
+   * laid out otherwise than SharePoint stores it (`compactMarkup`), or a value that is neither the
+   * same nor the same text (an object as JSON).
+   *
+   * @param settings - The template's settings
+   * @param stored - The list or view as REST returns it, without `$select` (every property)
+   */
+  private static _differing(
+    settings: Record<string, any>,
+    stored: Record<string, any>
+  ): Record<string, any> {
+    const changed: Record<string, any> = {}
+    for (const key of Object.keys(settings)) {
+      const want = settings[key]
+      const have = stored ? stored[key] : undefined
+      let same: boolean
+      if (have === undefined) same = false
+      else if (key === 'ViewQuery')
+        same = compactMarkup(want) === compactMarkup(have)
+      else if (want && typeof want === 'object')
+        same = JSON.stringify(want) === JSON.stringify(have)
+      else same = want === have || String(want) === String(have)
+      if (!same) changed[key] = want
+    }
+    return changed
   }
 
   /**

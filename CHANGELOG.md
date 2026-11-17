@@ -33,6 +33,14 @@ For releases older than 1.3.6, see the git history.
 - `Lists` logs a data row's term that SharePoint did not store, naming the row and the value: the
   taxonomy columns the rows wrote are read back after the rows (one request for every 40 items).
   SharePoint drops a term that is not in the column's term set without a word.
+- Re-applying an unchanged template writes no list, field ref, view or view field. `Lists` sent
+  every existing list its settings, every field ref its title, `Required` and `Hidden`, and every
+  view its settings on every run, and rebuilt the fields of a view with a projected lookup
+  (SharePoint stores its name cut to 32 characters): in PP365 1.15 each re-run of the project setup
+  wrote all 12 lists and 26 views of the default template, and a re-import of a hub package its
+  field refs. Now only what differs is written; a `ViewQuery` is compared as SharePoint stores it
+  (whitespace between tags, a space around `=`, single quotes). `verify` compares view fields the
+  same way.
 
 ## [1.6.0] - 2026-11-14
 

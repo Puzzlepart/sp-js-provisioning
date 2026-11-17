@@ -139,7 +139,12 @@ re-imports packages), and that changes no data ([spec](./docs/specs/lists-re-app
   list that existed they do nothing. Neither removes a view the template names, a personal view,
   the default view or the view behind a page's list web part. (PnP Framework removes on every run.)
 - An existing list gets only the settings the template defines; one it leaves out keeps its value.
-- The views the template names are the template's: set when they differ from it.
+  Since 1.6.1 only a setting that differs from the list's is written, and a field ref writes only
+  the `DisplayName`, `Required`, `Hidden` and `AdditionalProperties` that differ from the list
+  field's: re-applying an unchanged template writes no list, field ref or view.
+- The views the template names are the template's: set when they differ from it (a `ViewQuery`
+  compared as SharePoint stores it, without layout whitespace and with double quotes; view fields
+  by their names cut to 32 characters, as SharePoint stores a projected lookup's).
 - List `Security` breaks inheritance only on a list that still inherits; role assignments are
   added, never removed.
 

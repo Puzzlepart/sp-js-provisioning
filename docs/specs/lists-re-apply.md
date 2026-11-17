@@ -151,6 +151,11 @@ an attribute.
   from the template's, so an unchanged view is not touched. When they differ the view gets exactly
   the template's fields; a field that cannot be added is logged as an Error naming the view and the
   field, and the others are still added.
+- 1.6.1 (PP365 stress test rows 6 and 17): the settings too are written only when they differ from
+  the view's (a `ViewQuery` compared as SharePoint stores it), and view fields are compared by their
+  names cut to 32 characters, as SharePoint stores a projected lookup's. An existing list gets only
+  the settings that differ from its own, and a field ref only the properties that differ from the
+  list field's: an unchanged re-run writes no list, field ref, view or view field.
 
 ### Content types (3)
 

@@ -454,6 +454,29 @@ describe('Lists', { skip: skipReason() }, () => {
     )
   })
 
+  it('writes no list setting, field ref, view or view field on an unchanged re-apply', async () => {
+    // PP365 stress test rows 6 and 17: every list, field ref and view was written on every run.
+    // List permissions are added again (SharePoint keeps one of each), so they are not counted.
+    const { conn } = scratch()
+    assertClean(await apply(conn, loadFixture('lists')), 'the first run')
+    const requests: string[] = []
+
+    assertClean(
+      await apply(recording(conn, requests), loadFixture('lists')),
+      'the re-run'
+    )
+
+    assert.ok(requests.length > 0, 'the requests were recorded')
+    assert.deepEqual(
+      requests.filter(
+        (request) =>
+          !request.startsWith('GET ') &&
+          !/\/roleassignments\/addroleassignment\(/i.test(request)
+      ),
+      []
+    )
+  })
+
   it('applies changed list Fields in place (B variant): same ids, values kept, and back', async () => {
     const { conn } = scratch()
     const item = await conn.web.lists

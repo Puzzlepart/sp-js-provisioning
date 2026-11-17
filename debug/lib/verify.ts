@@ -8,6 +8,7 @@ import {
   replaceUrlTokens
 } from '../../src/util'
 import { declaredType, fieldTarget, guidOf } from '../../src/util/fieldxml'
+import { compactMarkup } from '../../src/util/markup'
 import { normaliseNavigationUrl } from '../../src/util/navigationurl'
 import { TokenHelper } from '../../src/util/tokenhelper'
 import { handlerOrder } from './cli'
@@ -1040,21 +1041,8 @@ export function grantsRole(
   )
 }
 
-/**
- * CAML or HTML as SharePoint stores it, for comparing: without the whitespace between tags, around
- * an attribute's `=` and before a tag's end (a template's `<FieldRef Name= "X"/>` is stored as
- * `<FieldRef Name="X" />`).
- */
-const compact = (text: any) =>
-  String(text ?? '')
-    .replace(/>\s+</g, '><')
-    .replace(/<[^<>]+>/g, (tag) =>
-      tag
-        .replace(/\s*=\s*(["'])/g, '=$1')
-        .replace(/\s+/g, ' ')
-        .replace(/\s*(\/?)>$/, (end, slash) => (slash ? ' />' : '>'))
-    )
-    .trim()
+/** CAML or HTML as SharePoint stores it, for comparing (`src/util/markup.ts`). */
+const compact = compactMarkup
 
 /** Text of HTML: tags dropped, whitespace collapsed (a Note column wraps its value). */
 const textOfHtml = (html: any) =>
@@ -1637,7 +1625,11 @@ function diffList(
       f.add('Lists', path, 'a view', 'none')
       continue
     }
-    if (view.fields && !deepEqual(view.fields, stored.fields))
+    // An internal name is at most 32 characters: a projected lookup the template names in full
+    // is stored cut (`GtMeasureIndicatorLookup_GtDesiredValue`, `..._GtDesir`), as Lists compares.
+    const cut = (names: string[]) =>
+      (names || []).map((name) => String(name).slice(0, 32))
+    if (view.fields && !deepEqual(cut(view.fields), cut(stored.fields)))
       f.add('Lists', `${path}/fields`, view.fields, stored.fields)
     for (const key of Object.keys(view.settings)) {
       const have = stored.properties[key]

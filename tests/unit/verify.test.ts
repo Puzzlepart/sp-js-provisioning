@@ -353,6 +353,37 @@ describe('verify: lists', () => {
     )
   })
 
+  it('compares view fields as SharePoint stores the names, cut to 32 characters', () => {
+    // A projected lookup (Nytteoppfølging in the project template) is stored with its name cut.
+    const actual = {
+      lists: {
+        L: list({
+          views: [
+            view('V', {
+              fields: ['LinkTitle', 'GtMeasureIndicatorLookup_GtDesir']
+            })
+          ]
+        })
+      }
+    }
+    const withFields = (fields: string[]) =>
+      schema({ Views: [{ Title: 'V', ViewFields: fields }] })
+    assert.deepEqual(
+      findings(
+        withFields(['LinkTitle', 'GtMeasureIndicatorLookup_GtDesiredValue']),
+        actual
+      ),
+      []
+    )
+    assert.equal(
+      findings(
+        withFields(['LinkTitle', 'GtMeasureIndicatorLookup_GtActualValue']),
+        actual
+      ).length,
+      1
+    )
+  })
+
   it('notes a field ref without an ID instead of reporting the column as missing', () => {
     // pp-testprosjekt 1.1.0's hub template had three list field refs with only a Name (fixed in
     // 1.1.1, 2026-11-10). The handler finds a field ref by its ID, so it logs an error for each

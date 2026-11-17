@@ -132,12 +132,13 @@ describe('Lists: v4 list creation result', () => {
         },
         getById: (id: string) => {
           ids.push(id)
-          return {
+          // Read first (1.6.1): only the settings that differ from the list's are sent.
+          return Object.assign(async () => ({ EnableVersioning: false }), {
             contentTypes: createContentTypes(bound),
             update: async (properties: any) => {
               updates.push(properties)
             }
-          }
+          })
         }
       }
     }
@@ -1101,17 +1102,225 @@ describe('Lists: field ref additional properties', () => {
     )
 
     assert.equal(sent.length, 2)
-    assert.deepEqual(sent[0].properties, {
-      Hidden: undefined,
-      Required: undefined,
-      Title: 'Status'
-    })
+    // Only what differs from the list field (which has no title here): since 1.6.1.
+    assert.deepEqual(sent[0].properties, { Title: 'Status' })
     const schemaXml: string = sent[1].properties.SchemaXml
     assert.match(schemaXml, /ShowInNewForm="FALSE"/)
     assert.match(schemaXml, /DisplayName="Status"/)
     assert.match(schemaXml, /Hidden="FALSE"/)
     assert.doesNotMatch(schemaXml, /Version=/)
     assert.equal(sent[1].type, 'SP.Field')
+  })
+})
+
+describe('Lists: a re-run writes only what differs (PP365 stress test rows 6 and 17)', () => {
+  const TITLE_ID = 'fa564e0f-0c70-4ab9-b863-0177e6ddd247'
+
+  /**
+   * A fake list whose fields record what is sent to them and read back `schemaXml`.
+   *
+   * @param schemaXml - The SchemaXml a field reads back as
+   */
+  function createFieldList(schemaXml: string) {
+    const sent: any[] = []
+    const list: any = {
+      fields: {
+        getById: (id: string) => ({
+          update: async (properties: any, type: string) => {
+            sent.push({ id, properties, type })
+          },
+          select: () => async () => ({ SchemaXml: schemaXml })
+        })
+      }
+    }
+    return { list, sent }
+  }
+  const titleXml = `<Field ID="{${TITLE_ID}}" Name="Title" DisplayName="Endring" Type="Text" Required="TRUE" ShowInNewForm="FALSE" />`
+  const titleField = {
+    Id: TITLE_ID,
+    InternalName: 'Title',
+    SchemaXml: titleXml,
+    Title: 'Endring',
+    Required: true,
+    Hidden: false
+  }
+
+  it('writes nothing for a field ref the list field already has, additional properties included', async () => {
+    // The vei hub wrote its eight field refs, the project template its Title refs, on every run.
+    const handler = createHandler(new ProvisioningContext())
+    const { list, sent } = createFieldList(titleXml)
+
+    const { entries } = await captureLogs(() =>
+      handler.processFieldRef(
+        list,
+        { Title: 'Endringsanalyse' },
+        {
+          ID: TITLE_ID,
+          Name: 'Title',
+          Required: true,
+          DisplayName: 'Endring',
+          AdditionalProperties: { ShowInNewForm: 'FALSE' }
+        },
+        [titleField],
+        []
+      )
+    )
+
+    assert.deepEqual(sent, [])
+    assert.equal(
+      levelOf(
+        entries,
+        /Field 'fa564e0f-.*' in list Endringsanalyse is unchanged/
+      ),
+      LogLevel.Info
+    )
+  })
+
+  it('writes only the properties of a field ref that differ', async () => {
+    const handler = createHandler(new ProvisioningContext())
+    const { list, sent } = createFieldList(titleXml)
+
+    await handler.processFieldRef(
+      list,
+      { Title: 'Endringsanalyse' },
+      {
+        ID: TITLE_ID,
+        Name: 'Title',
+        Required: true,
+        Hidden: true,
+        DisplayName: 'Nyttevirkning'
+      },
+      [titleField],
+      []
+    )
+
+    assert.deepEqual(sent, [
+      {
+        id: TITLE_ID,
+        properties: { Hidden: true, Title: 'Nyttevirkning' },
+        type: 'SP.Field'
+      }
+    ])
+  })
+
+  it("writes only the settings that differ from an existing list's", async () => {
+    // All 12 lists of the project template were written on every run.
+    const context = new ProvisioningContext()
+    context.lists['Endringsanalyse'] = 'list-id'
+    const handler = createHandler(context)
+    const updates: any[] = []
+    const stored = {
+      Title: 'Endringsanalyse',
+      Description: '',
+      ContentTypesEnabled: true,
+      EnableVersioning: true
+    }
+    const web: any = {
+      lists: {
+        getById: () =>
+          Object.assign(async () => stored, {
+            update: async (properties: any) => {
+              updates.push(properties)
+            }
+          })
+      }
+    }
+
+    await handler.processList(web, {
+      Title: 'Endringsanalyse',
+      Description: '',
+      ContentTypesEnabled: true,
+      AdditionalSettings: { EnableVersioning: true }
+    })
+    assert.deepEqual(updates, [])
+
+    await handler.processList(web, {
+      Title: 'Endringsanalyse',
+      Description: 'Endringer',
+      ContentTypesEnabled: true,
+      AdditionalSettings: { EnableVersioning: true, MajorVersionLimit: 50 }
+    })
+    assert.deepEqual(updates, [
+      { Description: 'Endringer', MajorVersionLimit: 50 }
+    ])
+  })
+
+  it("writes only the settings that differ from an existing view's, its ViewQuery laid out as SharePoint stores it", async () => {
+    // All 26 views of the project template were written on every run.
+    const handler = createHandler(new ProvisioningContext())
+    const updates: any[] = []
+    const view: any = Object.assign(
+      async () => ({
+        Title: 'Alle elementer',
+        RowLimit: 50,
+        Paged: true,
+        Scope: 0,
+        ViewQuery:
+          '<OrderBy><FieldRef Name="GtSortOrder" /><FieldRef Name="ID" /></OrderBy><Where><Neq><FieldRef Name="GtChecklistStatus" /><Value Type="Text">Arkivert</Value></Neq></Where>'
+      }),
+      {
+        update: async (settings: any) => {
+          updates.push(settings)
+        },
+        fields: Object.assign(async () => ({ Items: ['LinkTitle'] }), {
+          removeAll: async () => undefined,
+          add: async () => undefined
+        })
+      }
+    )
+    const web: any = {
+      lists: { getByTitle: () => ({ views: { getByTitle: () => view } }) }
+    }
+    const settings = {
+      RowLimit: 50,
+      Paged: true,
+      // As the project template writes it: a line break before </Where>, a space after `=`.
+      ViewQuery:
+        '<OrderBy><FieldRef Name="GtSortOrder" /><FieldRef Name="ID" /></OrderBy><Where><Neq><FieldRef Name= "GtChecklistStatus"/><Value Type="Text">Arkivert</Value></Neq>\n</Where>'
+    }
+    const lc: any = { Title: 'Fasesjekkliste' }
+
+    await handler.processView(web, lc, {
+      Title: 'Alle elementer',
+      ViewFields: ['LinkTitle'],
+      AdditionalSettings: settings
+    })
+    assert.deepEqual(updates, [])
+
+    await handler.processView(web, lc, {
+      Title: 'Alle elementer',
+      ViewFields: ['LinkTitle'],
+      AdditionalSettings: { ...settings, RowLimit: 30, Scope: 1 }
+    })
+    assert.deepEqual(updates, [{ RowLimit: 30, Scope: 1 }])
+  })
+
+  it('sees a projected lookup the view stores with its name cut to 32 characters as the same field', async () => {
+    // Nytteoppfølging's views were rebuilt with removeAll and add on every run.
+    const handler = createHandler(new ProvisioningContext())
+    const calls: string[] = []
+    const view: any = {
+      fields: Object.assign(
+        async () => ({
+          Items: ['LinkTitle', 'GtMeasureIndicatorLookup_GtDesir']
+        }),
+        {
+          removeAll: async () => {
+            calls.push('removeAll')
+          },
+          add: async (name: string) => {
+            calls.push(`add ${name}`)
+          }
+        }
+      )
+    }
+
+    await handler.processViewFields(view, {
+      Title: 'Alle elementer',
+      ViewFields: ['LinkTitle', 'GtMeasureIndicatorLookup_GtDesiredValue']
+    })
+
+    assert.deepEqual(calls, [])
   })
 })
 
