@@ -195,6 +195,36 @@ describe('fieldxml: a taxonomy field pointed at another term set', () => {
     )
   })
 
+  it("compares only the targets named: a taxonomy field's hidden list and its web are not its term set", () => {
+    // The vei hub's list field says WebId="{siteid}"; SharePoint stores the hidden list's web.
+    const withWeb = (termSet: string, web: string) =>
+      taxonomy(termSet).replace('<Field ', `<Field WebId="${web}" `)
+    const stored = withWeb('aaaaaaaa-0000-4000-8000-000000000001', 'root-web')
+    assert.equal(
+      targetChanged(
+        stored,
+        withWeb('aaaaaaaa-0000-4000-8000-000000000001', 'site-id')
+      ),
+      true
+    )
+    assert.equal(
+      targetChanged(
+        stored,
+        withWeb('aaaaaaaa-0000-4000-8000-000000000001', 'site-id'),
+        ['TermSetId', 'SspId']
+      ),
+      false
+    )
+    assert.equal(
+      targetChanged(
+        stored,
+        withWeb('bbbbbbbb-0000-4000-8000-000000000002', 'site-id'),
+        ['TermSetId', 'SspId']
+      ),
+      true
+    )
+  })
+
   it('sees the same term set written with braces as unchanged, so a re-import writes nothing', () => {
     // The hub templates write TermSetId with braces; SharePoint stores it without.
     const stored = taxonomy('aaaaaaaa-0000-4000-8000-000000000001', note)

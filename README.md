@@ -115,7 +115,10 @@ tokens replaced, as the item holds it. Field values are mapped by the field's ty
 user values resolve to item/user ids, taxonomy values (`{ termId, label }`) write the hidden note
 field, and string values (a URL's `Url` and `Description` too) get token replacement. A lookup or
 user value that matches nothing is logged as an error and left out: a new item gets the values
-that resolved, an existing one keeps what it holds in that column.
+that resolved, an existing one keeps what it holds in that column. SharePoint drops a term that is
+not in the column's term set without a word: the taxonomy columns the rows wrote are read back
+after the rows, and a term that is not stored is logged as an error naming the row and the value
+(since 1.6.1).
 
 ### Re-applying lists
 
@@ -127,7 +130,10 @@ re-imports packages), and that changes no data ([spec](./docs/specs/lists-re-app
   `User` to `UserMulti`) is applied; another type change is a warning and leaves the field as it
   is. A lookup pointed at another list, or a taxonomy field at another term set, follows the
   template on a list made in this setup; elsewhere it is a warning and keeps its target, because
-  the stored values belong to it.
+  the stored values belong to it. A taxonomy field is merged as a taxonomy site column is: its
+  `Customization`, hidden list, `WebId` and `ShowField` are SharePoint's and stay as stored, and
+  its term set and term store are set as the field's own properties and read back, an error when
+  SharePoint does not take them (since 1.6.1; a `SchemaXml` update leaves them as they were).
 - `RemoveExistingViews` and `RemoveExistingContentTypes` act on lists made in this setup: created
   by this provisioner, across its `applyTemplate` calls (a template and then its extensions). On a
   list that existed they do nothing. Neither removes a view the template names, a personal view,

@@ -275,19 +275,24 @@ describe('Lists: list fields', () => {
    * A fake list that records what is sent to its fields.
    *
    * @param created - What `createFieldAsXml` resolves with
+   * @param readBack - The `SchemaXml` a field reads back as
    */
-  function createList(created: any = { Id: 'created-field-id' }) {
+  function createList(
+    created: any = { Id: 'created-field-id' },
+    readBack = '<Field />'
+  ) {
     const sent: any[] = []
     const list: any = {
       fields: {
-        getById: (fieldId: string) => ({
-          delete: async () => {
-            sent.push({ delete: fieldId })
-          },
-          update: async (properties: any, type?: string) => {
-            sent.push({ update: fieldId, properties, type })
-          }
-        }),
+        getById: (fieldId: string) =>
+          Object.assign(queryable({ SchemaXml: readBack }), {
+            delete: async () => {
+              sent.push({ delete: fieldId })
+            },
+            update: async (properties: any, type?: string) => {
+              sent.push({ update: fieldId, properties, type })
+            }
+          }),
         createFieldAsXml: async (xml: string) => {
           sent.push({ create: xml })
           if (created instanceof Error) throw created
@@ -558,6 +563,142 @@ describe('Lists: list fields', () => {
       levelOf(entries, /Failed to read the fields of list Risikoer/),
       LogLevel.Error
     )
+  })
+
+  describe('a taxonomy field', () => {
+    const HUB_SET = 'abcfc9d9-a263-4abb-8234-be973c46258a'
+    const VEI_SET = '7ccff67b-acca-4abb-8426-c6a38ec69233'
+    const STORE = '3a4f1b2c-5d6e-4f70-8192-a3b4c5d6e7f8'
+    const property = (name: string, value: string) =>
+      `<Property><Name>${name}</Name><Value xmlns:q1="http://www.w3.org/2001/XMLSchema" p4:type="q1:string" xmlns:p4="http://www.w3.org/2001/XMLSchema-instance">${value}</Value></Property>`
+    /** The template's list field, as the vei hub's Fasesjekkliste declares GtProjectPhase. */
+    const templateTaxonomy = (termSet: string) =>
+      `<Field DisplayName="Fase" ID="{${id}}" Name="GtProjectPhase" ShowField="Term1033" StaticName="GtProjectPhase" Type="TaxonomyFieldType" WebId="{site-id}"><Customization><ArrayOfProperty>${property(
+        'SspId',
+        STORE
+      )}${property(
+        'TermSetId',
+        `{${termSet}}`
+      )}</ArrayOfProperty></Customization></Field>`
+    /** The list field as SharePoint stores it: its hidden list, the site's language, its note field. */
+    const storedTaxonomy = (termSet: string) =>
+      `<Field Type="TaxonomyFieldType" DisplayName="Fase" List="{hidden-list}" WebId="root-web-id" ShowField="Term1044" ID="{${id}}" SourceID="{site-id}" StaticName="GtProjectPhase" Name="GtProjectPhase" Version="3"><Customization><ArrayOfProperty>${property(
+        'SspId',
+        STORE
+      )}${property('TermSetId', termSet)}${property(
+        'TextField',
+        '{note-id}'
+      )}${property(
+        'IsPathRendered',
+        'false'
+      )}</ArrayOfProperty></Customization></Field>`
+    const stored = (termSet: string) => [
+      {
+        Id: id,
+        InternalName: 'GtProjectPhase',
+        TypeAsString: 'TaxonomyFieldType',
+        SchemaXml: storedTaxonomy(termSet)
+      }
+    ]
+
+    it("points it at the template's term set as its own properties on a list made in this setup, and reads it back", async () => {
+      // A SchemaXml MERGE ignores the Customization: the vei hub's Fasesjekkliste kept the hub's
+      // «Fase» its content type brought, and every data row's phase was dropped (stress test row 5).
+      const context = new ProvisioningContext()
+      context.createdLists['Fasesjekkliste'] = true
+      const handler = createHandler(context)
+      const { list, sent } = createList(undefined, storedTaxonomy(VEI_SET))
+
+      const { entries } = await captureLogs(() =>
+        handler.processField(
+          list,
+          { Title: 'Fasesjekkliste' },
+          templateTaxonomy(VEI_SET),
+          stored(HUB_SET)
+        )
+      )
+
+      assert.deepEqual(sent, [
+        {
+          update: id,
+          properties: { TermSetId: VEI_SET },
+          type: 'SP.Taxonomy.TaxonomyField'
+        }
+      ])
+      assert.equal(
+        levelOf(entries, new RegExp(`points at term set ${VEI_SET}`)),
+        LogLevel.Info
+      )
+      assert.deepEqual(
+        entries.filter((entry) => entry.level === LogLevel.Error),
+        []
+      )
+    })
+
+    it('logs an error when SharePoint keeps the term set it had', async () => {
+      const context = new ProvisioningContext()
+      context.createdLists['Fasesjekkliste'] = true
+      const handler = createHandler(context)
+      const { list } = createList(undefined, storedTaxonomy(HUB_SET))
+
+      const { entries } = await captureLogs(() =>
+        handler.processField(
+          list,
+          { Title: 'Fasesjekkliste' },
+          templateTaxonomy(VEI_SET),
+          stored(HUB_SET)
+        )
+      )
+
+      assert.equal(
+        levelOf(
+          entries,
+          new RegExp(
+            `Field GtProjectPhase \\(Fase\\) in list Fasesjekkliste still points at TermSetId ${HUB_SET}, the template says ${VEI_SET}: SharePoint did not take the change`
+          )
+        ),
+        LogLevel.Error
+      )
+    })
+
+    it("writes nothing for an unchanged field: its hidden list, its language and its Customization are SharePoint's", async () => {
+      // Merged as written, the template's ShowField, WebId and Customization made a MERGE on every
+      // run (stress test rows 6 and 17).
+      const handler = createHandler(new ProvisioningContext())
+      const { list, sent } = createList()
+
+      const { entries } = await captureLogs(() =>
+        handler.processField(
+          list,
+          { Title: 'Fasesjekkliste' },
+          templateTaxonomy(VEI_SET),
+          stored(VEI_SET)
+        )
+      )
+
+      assert.deepEqual(sent, [])
+      assert.equal(levelOf(entries, /is unchanged/), LogLevel.Info)
+    })
+
+    it('keeps the term set of a field on a list made before, with a warning', async () => {
+      const handler = createHandler(new ProvisioningContext())
+      const { list, sent } = createList()
+
+      const { entries } = await captureLogs(() =>
+        handler.processField(
+          list,
+          { Title: 'Fasesjekkliste' },
+          templateTaxonomy(VEI_SET),
+          stored(HUB_SET)
+        )
+      )
+
+      assert.deepEqual(sent, [])
+      assert.equal(
+        levelOf(entries, /its stored values belong to the one it has/),
+        LogLevel.Warning
+      )
+    })
   })
 
   it('makes a primary lookup before the dependent lookup that refers to it', async () => {
@@ -1351,6 +1492,8 @@ describe('Lists: DataRows', () => {
     fields: any[]
     matches?: (filter: string) => Array<{ Id: number }>
     source?: Record<string, number>
+    /** What `items.add` resolves with (PnPjs 4: the new item). */
+    added?: any
   }) {
     const calls: string[] = []
     const filters: string[] = []
@@ -1367,6 +1510,7 @@ describe('Lists: DataRows', () => {
             {
               add: async (values: any) => {
                 calls.push(`add ${JSON.stringify(values)}`)
+                return options.added
               },
               getById: (id: number) => ({
                 update: async (values: any) => {
@@ -1665,6 +1809,93 @@ describe('Lists: DataRows', () => {
       ),
       LogLevel.Error
     )
+  })
+
+  describe('a term SharePoint does not store', () => {
+    const TERM = '02abfd34-5d2d-4acb-b9e0-b76d3832ac9b'
+    const fields = [
+      { InternalName: 'Title', TypeAsString: 'Text' },
+      {
+        Id: 'tax-id',
+        InternalName: 'GtProjectPhase',
+        TypeAsString: 'TaxonomyFieldType',
+        TextField: '{note-id}'
+      },
+      { Id: 'note-id', InternalName: 'GtProjectPhase_0', TypeAsString: 'Note' }
+    ]
+    const dataRows = {
+      KeyColumn: 'Title',
+      Rows: [
+        {
+          Title: 'Opprette BIM kontakt',
+          GtProjectPhase: { termId: TERM, label: 'Planlegge' }
+        }
+      ]
+    }
+
+    it('is logged, naming the row and the value, after the rows are written', async () => {
+      // A term outside the column's term set is dropped without a word: the vei hub's 36 checklist
+      // rows got no phase (stress test row 5).
+      const handler = createHandler(new ProvisioningContext())
+      const { web, filters } = createWeb({
+        fields,
+        added: { Id: 7 },
+        matches: (filter) =>
+          filter === 'Id eq 7' ? [{ Id: 7, GtProjectPhase: null } as any] : []
+      })
+
+      const { entries } = await captureLogs(() =>
+        handler.processListDataRows(web, {
+          Title: 'Fasesjekkliste',
+          DataRows: dataRows
+        })
+      )
+
+      assert.deepEqual(filters, ["Title eq 'Opprette BIM kontakt'", 'Id eq 7'])
+      assert.equal(
+        levelOf(
+          entries,
+          new RegExp(
+            `^.*Value \\{"termId":"${TERM}","label":"Planlegge"\\} for column GtProjectPhase in row 0 \\(Title=Opprette BIM kontakt\\) in list Fasesjekkliste is not stored: the column holds no term\\. SharePoint drops a term that is not in the column's term set\\.$`
+          )
+        ),
+        LogLevel.Error
+      )
+    })
+
+    it('is not logged when the column holds the term, on an item that existed', async () => {
+      const handler = createHandler(new ProvisioningContext())
+      const { web, calls, filters } = createWeb({
+        fields,
+        matches: (filter) =>
+          filter.startsWith('Title')
+            ? [{ Id: 4 }]
+            : [
+                {
+                  Id: 4,
+                  GtProjectPhase: {
+                    Label: 'Planlegge',
+                    TermGuid: TERM,
+                    WssId: 3
+                  }
+                } as any
+              ]
+      })
+
+      const { entries } = await captureLogs(() =>
+        handler.processListDataRows(web, {
+          Title: 'Fasesjekkliste',
+          DataRows: dataRows
+        })
+      )
+
+      assert.match(calls[0], /^update 4 /)
+      assert.deepEqual(filters, ["Title eq 'Opprette BIM kontakt'", 'Id eq 4'])
+      assert.deepEqual(
+        entries.filter((entry) => entry.level >= LogLevel.Warning),
+        []
+      )
+    })
   })
 
   it('keeps the stored value of an existing item when a lookup does not resolve', async () => {

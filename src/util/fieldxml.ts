@@ -209,11 +209,17 @@ export function fieldTarget(xml: string, name: string): string | undefined {
  *
  * @param stored - The stored schema XML
  * @param template - The template's schema XML, tokens replaced
+ * @param names - The targets to compare (all of `TARGET` by default; a taxonomy field's are its
+ * `TermSetId` and `SspId`, its `List` and `WebId` being the hidden list SharePoint manages)
  */
-export function targetChanged(stored: string, template: string): boolean {
+export function targetChanged(
+  stored: string,
+  template: string,
+  names: string[] = TARGET
+): boolean {
   const s = parseField(stored)
   const t = parseField(template)
-  return TARGET.some((name) => {
+  return names.some((name) => {
     const [before, after] = [targetValue(s, name), targetValue(t, name)]
     return (
       before !== undefined &&

@@ -1,8 +1,7 @@
 import assert from 'node:assert/strict'
 import { before, describe, it } from 'node:test'
-import { apply, IApplyResult } from '../../debug/lib/apply'
+import { apply } from '../../debug/lib/apply'
 import { ISiteConnection } from '../../debug/lib/connect'
-import { describeError, redact } from '../../debug/lib/redact'
 import {
   bareGuid,
   ITaxonomyState,
@@ -14,25 +13,12 @@ import {
   assertClean,
   connectToSite,
   recording,
-  skipReason
+  skipReason,
+  termStoreRefusal
 } from './helpers'
 
 const HANDLERS = ['Taxonomy']
 const CSOM = 'POST /_vti_bin/client.svc/ProcessQuery'
-
-/**
- * Why a run could not write to the term store, when SharePoint refused it for lack of permission.
- *
- * @param run - The run
- */
-function refusal(run: IApplyResult): string | undefined {
-  const message = run.error ? redact(describeError(run.error)) : ''
-  return /UnauthorizedAccessException|E_ACCESSDENIED|access denied|ingen tilgang/i.test(
-    message
-  )
-    ? message
-    : undefined
-}
 
 /**
  * The Taxonomy handler against the tenant's default term store (docs/specs/jsom-exit.md, J5). The
@@ -75,7 +61,7 @@ describe('Taxonomy', { skip: skipReason() }, () => {
    */
   async function applyOnce(t: any, name: string): Promise<boolean> {
     const run = await apply(conn, loadFixture(name), { handlers: HANDLERS })
-    const refused = refusal(run)
+    const refused = termStoreRefusal(run)
     if (refused && conn.mode === 'certificate') {
       t.skip(`SharePoint refuses the app writes to the term store: ${refused}`)
       return false

@@ -41,7 +41,8 @@ export function loadFixture(
  * store, docs/specs/jsom-exit.md J5), `files.json` (a local server and a source in the web, through
  * `{parameter:}`), `propertybagentries.json` and `customactions-script.json` (custom script),
  * `hooks.json` (a local listener), `clientsidepages-draft.json` (a draft its suite saves first),
- * `failures.json` and `smoke.json` (runner checks) and the `.b` variants.
+ * `lists-taxonomy.json` (the term store), `failures.json` and `smoke.json` (runner checks) and the
+ * `.b` variants.
  */
 export const ALL_PARTS = [
   'sitefields',

@@ -235,6 +235,7 @@ its own URL, which SharePoint refuses an app-only token (401); fixed by reading 
 | Security | `security.test.ts` | `security.json` | green (also a list granted to a group of the same template, and `ClearExistingMembers` removing a member added since) | — |
 | Lists | `lists.test.ts` | `lists.json`, `.b.json` | green; the tests after the first build on its lists, so run the file whole | — (re-apply without data loss, [spec](./specs/lists-re-apply.md)) |
 | Lists (DataRows) | `lists-datarows.test.ts` | `lists-datarows.json`, `.b.json` | green; the tests after the first build on its lists, so run the file whole | — (key, URL and lookup defects fixed by the same spec) |
+| Lists (taxonomy) | `lists-taxonomy.test.ts` (writes a term set to the `SPJS Itest` term group, left in place) | `lists-taxonomy.json`, after `taxonomy.json` | green | — (a list field kept its site column's term set and the rows' terms were dropped, 1.6.1) |
 | CustomActions | `customactions.test.ts` | `customactions.json`, `.b.json`, `customactions-script.json` | green; classic actions skip under NoScript | — (add-only behaviour asserted) |
 | ComposedLook | `composedlook.test.ts` | `composedlook.json` | green | — (palette-only look fixed in Phase 1) |
 | ClientSidePages | `clientsidepages.test.ts` | `clientsidepages.json`, `.b.json`, `clientsidepages-draft.json` | green | — (a page a stopped setup left unpublished is published, 1.6.1) |

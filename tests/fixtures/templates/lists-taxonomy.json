@@ -1,0 +1,77 @@
+{
+  "$schema": "../../../schema.json",
+  "Taxonomy": {
+    "TermGroup": {
+      "Id": "0a9151e2-a998-4a44-b71c-160ef44e81b1",
+      "Name": "SPJS Itest"
+    },
+    "TermSets": [
+      {
+        "Id": "eeb03669-70cc-417c-8c25-5b9a8f6889d3",
+        "Name": "SPJS Itest Faser Vei",
+        "Terms": [
+          {
+            "Id": "f439f4d6-9a04-4aa3-b5b4-152f9e52fcd0",
+            "Name": "SPJS Itest Vei Planlegge"
+          },
+          {
+            "Id": "f70da80c-9039-4b20-9a96-c7f5f6e45ff2",
+            "Name": "SPJS Itest Vei Bygge"
+          }
+        ]
+      }
+    ]
+  },
+  "SiteFields": [
+    "<Field Type=\"TaxonomyFieldType\" DisplayName=\"SPJS Itest Fase\" ID=\"{bdd82dac-2d30-4905-823a-cc0532e81678}\" Name=\"SPJSItestPhase\" StaticName=\"SPJSItestPhase\" ShowField=\"Term1044\" Group=\"SPJS Itest\"><Customization><ArrayOfProperty><Property><Name>SspId</Name><Value xmlns:q1=\"http://www.w3.org/2001/XMLSchema\" p4:type=\"q1:string\" xmlns:p4=\"http://www.w3.org/2001/XMLSchema-instance\">{sitecollectiontermstoreid}</Value></Property><Property><Name>TermSetId</Name><Value xmlns:q2=\"http://www.w3.org/2001/XMLSchema\" p4:type=\"q2:string\" xmlns:p4=\"http://www.w3.org/2001/XMLSchema-instance\">518a580a-11e9-4f6d-b4b5-3099c454535f</Value></Property></ArrayOfProperty></Customization></Field>"
+  ],
+  "ContentTypes": [
+    {
+      "ID": "0x0100695A728B07A148A491AE58EC864BA9F8",
+      "Name": "SPJS Itest Fasesjekkpunkt",
+      "Description": "SPJS Itest: brings the phase column, bound to SPJS Itest Faser, into the list",
+      "Group": "SPJS Itest",
+      "FieldRefs": [
+        {
+          "ID": "bdd82dac-2d30-4905-823a-cc0532e81678",
+          "Name": "SPJSItestPhase"
+        }
+      ]
+    }
+  ],
+  "Lists": [
+    {
+      "Title": "SPJS Itest Fasesjekkliste",
+      "Description": "SPJS Itest: the phase column its content type brings, declared on the list with another term set",
+      "Template": 100,
+      "ContentTypesEnabled": true,
+      "ContentTypeBindings": [
+        {
+          "ContentTypeID": "0x0100695A728B07A148A491AE58EC864BA9F8"
+        }
+      ],
+      "Fields": [
+        "<Field Type=\"TaxonomyFieldType\" DisplayName=\"SPJS Itest Fase\" ID=\"{bdd82dac-2d30-4905-823a-cc0532e81678}\" Name=\"SPJSItestPhase\" StaticName=\"SPJSItestPhase\" ShowField=\"Term1044\"><Customization><ArrayOfProperty><Property><Name>SspId</Name><Value xmlns:q1=\"http://www.w3.org/2001/XMLSchema\" p4:type=\"q1:string\" xmlns:p4=\"http://www.w3.org/2001/XMLSchema-instance\">{sitecollectiontermstoreid}</Value></Property><Property><Name>TermSetId</Name><Value xmlns:q2=\"http://www.w3.org/2001/XMLSchema\" p4:type=\"q2:string\" xmlns:p4=\"http://www.w3.org/2001/XMLSchema-instance\">{eeb03669-70cc-417c-8c25-5b9a8f6889d3}</Value></Property></ArrayOfProperty></Customization></Field>"
+      ],
+      "DataRows": {
+        "KeyColumn": "Title",
+        "Rows": [
+          {
+            "Title": "SPJS Itest sjekkpunkt 1",
+            "SPJSItestPhase": {
+              "termId": "f439f4d6-9a04-4aa3-b5b4-152f9e52fcd0",
+              "label": "SPJS Itest Vei Planlegge"
+            }
+          },
+          {
+            "Title": "SPJS Itest sjekkpunkt 2",
+            "SPJSItestPhase": {
+              "termId": "f70da80c-9039-4b20-9a96-c7f5f6e45ff2",
+              "label": "SPJS Itest Vei Bygge"
+            }
+          }
+        ]
+      }
+    }
+  ]
+}

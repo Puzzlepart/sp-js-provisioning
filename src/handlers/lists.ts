@@ -13,6 +13,7 @@ import {
 import {
   declaredType,
   fieldAttributes,
+  fieldTarget,
   mergeFieldXml,
   sameFieldXml,
   setFieldAttributes,
@@ -23,6 +24,32 @@ import {
 import { resolvePrincipalId, resolveRoleDefinitionId } from '../util/security'
 import { TokenHelper } from '../util/tokenhelper'
 import { HandlerBase } from './handlerbase'
+
+/** The terms a data row wrote to a taxonomy column of an item. */
+interface ITermsWritten {
+  itemId: number
+  /** The column's internal name. */
+  field: string
+  /** The row's value, for the log. */
+  raw: any
+  /** The term ids written, lower case. */
+  termIds: string[]
+  /** The row, for the log. */
+  where: string
+}
+
+/** A taxonomy field's targets, set as its own properties (SiteFields' `TAXONOMY_TARGETS`). */
+const TAXONOMY_TARGETS = ['SspId', 'TermSetId']
+
+/**
+ * What SharePoint manages on a taxonomy field, kept as stored (SiteFields' `TAXONOMY_MANAGED`): the
+ * `Customization` (a `SchemaXml` MERGE ignores it), and the hidden list, its web and the
+ * `ShowField` it sets in the site's language.
+ */
+const TAXONOMY_MANAGED = ['Customization', 'List', 'WebId', 'ShowField']
+
+/** A GUID without braces, lower case. */
+const GUID = /^[\da-f]{8}(?:-[\da-f]{4}){3}-[\da-f]{12}$/
 
 export interface ISPField {
   Id: string
@@ -457,16 +484,31 @@ export class Lists extends HandlerBase {
         )
         return
       }
+      // A taxonomy field is merged as SiteFields merges a taxonomy column: what SharePoint manages
+      // (`TAXONOMY_MANAGED`) stays as stored, so an unchanged field compares as the same, and its
+      // term set and term store are its own properties (a `SchemaXml` MERGE ignores the whole
+      // `Customization`).
+      const taxonomy = String(stored.TypeAsString || '').startsWith(
+        'TaxonomyFieldType'
+      )
+      const keep: string[] = taxonomy ? [...TAXONOMY_MANAGED] : []
       // A new target (a lookup's list, a taxonomy field's term set) follows the template on a
       // list made in this setup, which holds no values yet (a content type can bring the field
       // with another target); elsewhere the stored values belong to the target the field has.
-      const keep: string[] = []
-      if (targetChanged(stored.SchemaXml, template)) {
+      let follow = false
+      if (
+        targetChanged(
+          stored.SchemaXml,
+          template,
+          taxonomy ? TAXONOMY_TARGETS : TARGET
+        )
+      ) {
         if (this.context.createdLists[lc.Title]) {
           super.log_info(
             'processField',
             `Field ${label} points at another list or term set than the template says; the list was made in this setup, so it follows the template.`
           )
+          follow = true
         } else {
           super.log_warn(
             'processField',
@@ -477,21 +519,26 @@ export class Lists extends HandlerBase {
       }
       // The type is merged as SharePoint writes it: `Type="Lookup" Mult="TRUE"` is a LookupMulti.
       const merged = mergeFieldXml(stored.SchemaXml, template, keep)
-      if (sameFieldXml(merged, stored.SchemaXml)) {
+      const changed = !sameFieldXml(merged, stored.SchemaXml)
+      if (!changed && !(follow && taxonomy)) {
         super.log_info('processField', `Field ${label} is unchanged.`)
         return
       }
-      await list.fields
-        .getById(Lists._normGuid(stored.Id))
-        .update({ SchemaXml: merged }, 'SP.Field')
-      super.log_info(
-        'processField',
-        `Field ${label} updated in place${
-          change === 'widening'
-            ? ` (${stored.TypeAsString} to ${declaredType(attributes)})`
-            : ''
-        }.`
-      )
+      if (changed) {
+        await list.fields
+          .getById(Lists._normGuid(stored.Id))
+          .update({ SchemaXml: merged }, 'SP.Field')
+        super.log_info(
+          'processField',
+          `Field ${label} updated in place${
+            change === 'widening'
+              ? ` (${stored.TypeAsString} to ${declaredType(attributes)})`
+              : ''
+          }.`
+        )
+      }
+      if (follow && taxonomy)
+        await this._retargetTaxonomyField(list, stored, template, label)
     } catch (error) {
       super.log_error(
         'processField',
@@ -500,6 +547,66 @@ export class Lists extends HandlerBase {
         } list ${lc.Title}: ${(error && error.message) || error}`
       )
     }
+  }
+
+  /**
+   * Points a list taxonomy field at the template's term set and term store. A `SchemaXml` MERGE
+   * ignores a taxonomy field's `Customization`, so the list field kept the term set its site
+   * column brought (PP365 stress test row 5: a content type brought the hub's «Fase», the
+   * template said «Fase (Vei)», and every data row's phase was dropped); they are set as the
+   * field's own properties, as SiteFields sets a column's, and read back. A field that still
+   * points elsewhere is an error: SharePoint drops a value from the template's term set (a data
+   * row's term) without a word.
+   *
+   * @param list - The list
+   * @param stored - The list's field
+   * @param template - The template's field XML, tokens replaced
+   * @param label - The field, for the log
+   */
+  private async _retargetTaxonomyField(
+    list: IList,
+    stored: ISPField,
+    template: string,
+    label: string
+  ): Promise<void> {
+    // The targets that differ, each a GUID: a value with an unresolved token is not sent.
+    const want: Record<string, string> = {}
+    for (const name of TAXONOMY_TARGETS) {
+      const value = Lists._normGuid(fieldTarget(template, name))
+      if (
+        GUID.test(value) &&
+        value !== Lists._normGuid(fieldTarget(stored.SchemaXml, name))
+      )
+        want[name] = value
+    }
+    const names = Object.keys(want)
+    if (names.length === 0) return
+    const id = Lists._normGuid(stored.Id)
+    await list.fields.getById(id).update(want, 'SP.Taxonomy.TaxonomyField')
+    const { SchemaXml } = await list.fields.getById(id).select('SchemaXml')<{
+      SchemaXml: string
+    }>()
+    const missed = names.filter(
+      (name) => Lists._normGuid(fieldTarget(SchemaXml, name)) !== want[name]
+    )
+    if (missed.length > 0)
+      super.log_error(
+        'processField',
+        `Field ${label} still points at ${missed
+          .map((name) => `${name} ${fieldTarget(SchemaXml, name)}`)
+          .join(' and ')}, the template says ${missed
+          .map((name) => want[name])
+          .join(
+            ' and '
+          )}: SharePoint did not take the change, so it drops the template's terms in the column.`
+      )
+    else
+      super.log_info(
+        'processField',
+        `Field ${label} points at term set ${want.TermSetId || '(unchanged)'}${
+          want.SspId ? ` in term store ${want.SspId}` : ''
+        }.`
+      )
   }
 
   /**
@@ -1020,6 +1127,9 @@ export class Lists extends HandlerBase {
       fields.map((f) => [Lists._normGuid(f.Id), f])
     )
 
+    // The terms written, read back after the rows: SharePoint drops a term that is not in the
+    // column's term set without a word (PP365 stress test row 5).
+    const terms: ITermsWritten[] = []
     for (const [index, row] of Rows.entries()) {
       // The key is matched resolved, as the item holds it, and escaped after: a resolved
       // {sitename} can hold an apostrophe.
@@ -1067,9 +1177,16 @@ export class Lists extends HandlerBase {
           where,
           existing: existingId !== undefined
         })
-        await (existingId === undefined
-          ? list.items.add(values)
-          : list.items.getById(existingId).update(values))
+        const added =
+          existingId === undefined
+            ? await list.items.add(values)
+            : await list.items.getById(existingId).update(values)
+        const itemId =
+          existingId === undefined
+            ? added && (added.Id ?? added.ID)
+            : existingId
+        if (typeof itemId === 'number')
+          terms.push(...Lists._termsOf(byName, row, itemId, where))
       } catch (error) {
         super.log_error(
           'processListDataRows',
@@ -1077,6 +1194,114 @@ export class Lists extends HandlerBase {
         )
       }
     }
+    await this._checkTerms(list, lc, terms)
+  }
+
+  /**
+   * The terms a row writes to the list's taxonomy columns, for {@link _checkTerms}.
+   *
+   * @param byName - The list's fields by internal name
+   * @param row - The data row
+   * @param itemId - The item it was written to
+   * @param where - The row, for the log
+   */
+  private static _termsOf(
+    byName: Map<string, any>,
+    row: IDataRow,
+    itemId: number,
+    where: string
+  ): ITermsWritten[] {
+    const written: ITermsWritten[] = []
+    for (const field of Object.keys(row)) {
+      const def = byName.get(field)
+      const raw = row[field]
+      if (
+        !def ||
+        !String(def.TypeAsString).startsWith('TaxonomyFieldType') ||
+        !raw
+      )
+        continue
+      const termIds = Lists._toArray(raw)
+        .filter((term: any) => term && term.termId && term.label)
+        .map((term: any) => Lists._normGuid(term.termId))
+      if (termIds.length > 0)
+        written.push({ itemId, field, raw, termIds, where })
+    }
+    return written
+  }
+
+  /**
+   * Reads back the taxonomy columns the rows wrote and logs, as an error, each value SharePoint
+   * did not store: it drops a term that is not in the column's term set (a list field that kept
+   * its site column's term set, PP365 stress test row 5) without a word, and the item is left
+   * with no term or its old one. One read for every 40 items.
+   *
+   * @param list - The list
+   * @param lc - The list configuration
+   * @param written - The terms written
+   */
+  private async _checkTerms(
+    list: IList,
+    lc: IListInstance,
+    written: ITermsWritten[]
+  ): Promise<void> {
+    if (written.length === 0) return
+    const fields = written
+      .map((value) => value.field)
+      .filter((field, index, all) => all.indexOf(field) === index)
+    const ids = written
+      .map((value) => value.itemId)
+      .filter((id, index, all) => all.indexOf(id) === index)
+    const stored = new Map<number, Record<string, any>>()
+    try {
+      for (let start = 0; start < ids.length; start += 40) {
+        const chunk = ids.slice(start, start + 40)
+        const items = await list.items
+          .select('Id', ...fields)
+          .filter(chunk.map((id) => `Id eq ${id}`).join(' or '))
+          .top(chunk.length)<Array<Record<string, any>>>()
+        for (const item of items) stored.set(item.Id, item)
+      }
+    } catch (error) {
+      super.log_warn(
+        'processListDataRows',
+        `The terms written to list ${
+          lc.Title
+        } could not be read back, so a term SharePoint did not store goes unnoticed: ${
+          (error && error.message) || error
+        }`
+      )
+      return
+    }
+    for (const value of written) {
+      const item = stored.get(value.itemId)
+      const have = Lists._termGuids(item && item[value.field])
+      if (value.termIds.every((id) => have.includes(id))) continue
+      super.log_error(
+        'processListDataRows',
+        `Value ${JSON.stringify(value.raw)} for column ${value.field} in ${
+          value.where
+        } is not stored: the column holds ${
+          have.length > 0 ? `term ${have.join(', ')}` : 'no term'
+        }. SharePoint drops a term that is not in the column's term set.`
+      )
+    }
+  }
+
+  /**
+   * The term ids of a taxonomy column's value as REST returns it (`{ Label, TermGuid, WssId }`,
+   * an array of them, or `{ results: [...] }`), lower case.
+   *
+   * @param value - The value
+   */
+  private static _termGuids(value: any): string[] {
+    let terms: any[] = []
+    if (Array.isArray(value)) terms = value
+    else if (value && Array.isArray(value.results)) terms = value.results
+    else if (value) terms = [value]
+    return terms
+      .map((term) => Lists._normGuid(term && term.TermGuid))
+      .filter(Boolean)
   }
 
   /**

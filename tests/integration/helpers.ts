@@ -159,6 +159,22 @@ export interface IScratch extends IScratchWeb {
 }
 
 /**
+ * Why a run could not write to the term store, when SharePoint refused it for lack of permission
+ * (in certificate mode the app may lack the right to write to the term store): redacted, as it
+ * reaches the reports.
+ *
+ * @param run - The run
+ */
+export function termStoreRefusal(run: IApplyResult): string | undefined {
+  const message = run.error ? redact(describeError(run.error)) : ''
+  return /UnauthorizedAccessException|E_ACCESSDENIED|access denied|ingen tilgang/i.test(
+    message
+  )
+    ? message
+    : undefined
+}
+
+/**
  * Asserts that a run neither stopped nor logged an error.
  *
  * @param result - The run

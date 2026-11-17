@@ -22,6 +22,17 @@ For releases older than 1.3.6, see the git history.
   transport of the web you pass (a copy: your web is left as it is), so your pipeline's own retries
   on throttling (429, 503, 504 in PnPjs's `SPFx` behavior) are unchanged, and a write is not tried
   again.
+- `Lists` points a list taxonomy field at the term set the template names, where a content type
+  brought its site column with another (on a list made in this setup). A `SchemaXml` update ignores
+  a taxonomy field's `Customization`, so the field kept the site column's term set, and SharePoint
+  dropped every data row's term without a word: in PP365 1.15 each Veiprosjekt hub got a
+  «Fasesjekkliste Vei» whose 36 rows had no phase. The term set and term store are now set as the
+  field's own properties, as `SiteFields` sets a column's, and read back: a field that still points
+  elsewhere is an error. An unchanged taxonomy list field is no longer written on every run (its
+  `Customization`, hidden list, `WebId` and `ShowField` are SharePoint's).
+- `Lists` logs a data row's term that SharePoint did not store, naming the row and the value: the
+  taxonomy columns the rows wrote are read back after the rows (one request for every 40 items).
+  SharePoint drops a term that is not in the column's term set without a word.
 
 ## [1.6.0] - 2026-11-14
 
