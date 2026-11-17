@@ -7,6 +7,19 @@ For releases older than 1.3.6, see the git history.
 
 ## [Unreleased]
 
+## [1.6.1] - 2026-11-17
+
+Fixes from PP365 1.15's stress test of 1.6.0 (rows 13, 11, 5, 6 and 17 of
+`docs/plans/sp-js-provisioning-1.6.0-stresstest.md` in prosjektportalen365). A project setup that
+stopped part way can be finished by running it again: a page it left unpublished is published, so
+`Navigation` can link to it. Setups started at the same time no longer stop on the 406 SharePoint
+answers right after a page is published: a GET it answers 406 is tried again. A list taxonomy field
+points at the term set the template names, not the one its content type's site column brought, so
+the data rows keep their terms. Two failures that were silent are now logged errors: a taxonomy
+field that keeps another term set, and a data row's term SharePoint did not store. Re-applying an
+unchanged template writes no list, field ref, view, view field or web setting. A drop-in for 1.6.0:
+no dependency changes, and like 1.4 to 1.6.0 it needs PnPjs 4 (PP365 1.15).
+
 ### Fixed
 
 - `ClientSidePages` publishes a template page the web has that has never been published, after
@@ -41,6 +54,24 @@ For releases older than 1.3.6, see the git history.
   field refs. Now only what differs is written; a `ViewQuery` is compared as SharePoint stores it
   (whitespace between tags, a space around `=`, single quotes). `verify` compares view fields the
   same way.
+- `WebSettings` reads the web first and writes only the settings that differ: it set the welcome
+  page (and every other setting) on every run, and each PP365 project setup re-run wrote it.
+
+### Development
+
+- The ClientSidePages suite saves a page as a draft that was never published, as a stopped setup
+  leaves it, then applies it with a Quick Launch node to it (`clientsidepages-draft.json`); on
+  1.6.0 the run stops with the stress test's error. The new `Lists (taxonomy)` suite
+  (`lists-taxonomy.json`) gives a list field and its rows another term set than the site column
+  its content type brings: a term set of its own, «SPJS Itest Faser Vei», in the `SPJS Itest`
+  term group, created by its first run and left in place like the rest of the group. The Lists
+  suite pins that an unchanged re-apply writes only the list permissions it adds again. The check
+  for a term store that refuses the app (certificate mode: the suite skips) is shared,
+  `termStoreRefusal` in `tests/integration/helpers.ts`.
+- `compactMarkup` (`src/util/markup.ts`) is the one rule for comparing CAML or HTML as SharePoint
+  stores it, for the Lists handler and `verify`, and `differingSettings` (`src/util/settings.ts`)
+  the one for the settings a re-run writes, for `Lists` and `WebSettings`. The WebSettings suite
+  pins that an unchanged re-apply writes nothing.
 
 ## [1.6.0] - 2026-11-14
 
@@ -617,7 +648,8 @@ Tooling only; nothing here ships in the package. Plan:
 
 - Content types are created and updated with fixed, deterministic ids from the template.
 
-[Unreleased]: https://github.com/Puzzlepart/sp-js-provisioning/compare/v1.6.0...HEAD
+[Unreleased]: https://github.com/Puzzlepart/sp-js-provisioning/compare/v1.6.1...HEAD
+[1.6.1]: https://github.com/Puzzlepart/sp-js-provisioning/compare/v1.6.0...v1.6.1
 [1.6.0]: https://github.com/Puzzlepart/sp-js-provisioning/compare/v1.5.1...v1.6.0
 [1.5.1]: https://github.com/Puzzlepart/sp-js-provisioning/compare/v1.5.0...v1.5.1
 [1.5.0]: https://github.com/Puzzlepart/sp-js-provisioning/compare/v1.4.0...v1.5.0

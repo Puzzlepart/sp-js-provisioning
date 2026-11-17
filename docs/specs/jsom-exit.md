@@ -272,21 +272,28 @@ What the Taxonomy runs showed (the signed-in user, cookies):
 
 ### Follow-ups from the PP365 stress test
 
-Engine defects it found that predate 1.6.0 (its class B), candidates for 1.6.1; its row numbers:
+Engine defects it found that predate 1.6.0 (its class B), fixed in 1.6.1 (2026-11-17, one commit
+each, with unit tests and integration suites on `spjs-itest`); its row numbers:
 
-- Row 5: a list's taxonomy field that a content type binding brought along keeps the term set it
-  came with: the merged `SchemaXml` does not move it, and nothing reads it back. The rows' term
-  values then fail silently (an empty phase in every Veiprosjekt checklist). Set `TermSetId` and
-  `SspId` with the taxonomy field's own properties, read back, and log a data row value that
-  cannot be written.
-- Row 13: `ClientSidePages` leaves a page that exists only as a draft (a setup stopped before it
-  was published) unpublished, and `Navigation` then refuses a node to it: a re-run cannot finish.
-  Publish an existing page that has no published version.
-- Row 11: under throttling, `ClientSidePages` fails on a 406 right after `publish`; a retry with
-  `Retry-After` for 429, 503 and that 406 would let concurrent setups finish.
-- Rows 6 and 17: an unchanged re-run still writes some lists, list fields (a Number field's
-  `Decimals` or `Min`, taxonomy fields, a `Title`) and views (view fields with a lookup
-  projection): no value changes, but each run writes.
+- Row 5 (`fix(lists): point a taxonomy list field at its term set, and log a dropped term`): a
+  list's taxonomy field that a content type binding brought along kept the term set it came with,
+  since a `SchemaXml` MERGE ignores a taxonomy field's `Customization`, and nothing read it back;
+  the rows' terms were then dropped silently (an empty phase in every Veiprosjekt checklist).
+  `TermSetId` and `SspId` are set as the field's own properties and read back, and a data row's
+  term SharePoint did not store is a logged error.
+- Row 13 (`fix(clientsidepages): publish a page a stopped setup left unpublished`): a page that
+  existed only as a draft (a setup stopped before it was published) was skipped, and `Navigation`
+  then refused a node to it, so a re-run could not finish. A page with no published version gets
+  the template's title and content in place and is published.
+- Row 11 (`fix(webprovisioner): try a GET SharePoint answers 406 again`): a GET SharePoint answers
+  406 (under load, right after `publish`) is tried again up to three times. A 429, 503 or 504 is
+  already tried again by the caller's pipeline (PnPjs's `SPFx` behaviour, the local runner); the
+  engine adds no retries on throttling of its own.
+- Rows 6 and 17 (`fix(lists): write only what differs on a re-run`): an unchanged re-run wrote
+  lists, field refs (the "Number field" of row 6 was a field ref, not its `Decimals` or `Min`),
+  taxonomy list fields and views, and rebuilt view fields with a lookup projection. Now only what
+  differs is written. `WebSettings` set the welcome page on every run as well
+  (`fix(websettings): write only the settings that differ`).
 
 ## Open Questions
 
