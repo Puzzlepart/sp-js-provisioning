@@ -13,13 +13,15 @@ const spfxContext = {
 }
 
 /**
- * A fake web that records the bodies of `web.update` and `web.rootFolder.update`.
+ * A fake web that reads as `stored` and records the bodies of `web.update` and
+ * `web.rootFolder.update`.
  *
  * @param fail - The error `web.update` rejects with, if any
+ * @param stored - What the web has (its `WelcomePage` is its root folder's)
  */
-function fakeWeb(fail?: Error) {
+function fakeWeb(fail?: Error, stored: Record<string, any> = {}) {
   const calls = { web: [] as any[], rootFolder: [] as any[] }
-  const web: any = {
+  const web: any = Object.assign(async () => stored, {
     update: (properties: any) => {
       calls.web.push({ ...properties })
       return fail ? Promise.reject(fail) : Promise.resolve()
@@ -30,7 +32,7 @@ function fakeWeb(fail?: Error) {
         return Promise.resolve()
       }
     }
-  }
+  })
   return { web, calls }
 }
 
@@ -93,6 +95,38 @@ describe('WebSettings', () => {
       { SiteLogoUrl: '/sites/hub/SiteAssets/logo.png', RecycleBinEnabled: true }
     ])
     assert.equal(settings.SiteLogoUrl, '/sites/hub/SiteAssets/logo.png')
+  })
+
+  it('writes nothing when the web has the settings already, the welcome page included', async () => {
+    // A PP365 project setup set the welcome page on every run (1.6.1).
+    const { web, calls } = fakeWeb(undefined, {
+      WelcomePage: 'SitePages/Home.aspx',
+      Description: 'SPJS Itest',
+      TreeViewEnabled: true
+    })
+    await new WebSettings({}).ProvisionObjects(web, {
+      WelcomePage: 'SitePages/Home.aspx',
+      Description: 'SPJS Itest',
+      TreeViewEnabled: true
+    })
+    assert.deepEqual(calls, { web: [], rootFolder: [] })
+  })
+
+  it('writes only the settings that differ from the web', async () => {
+    const { web, calls } = fakeWeb(undefined, {
+      WelcomePage: 'SitePages/Home.aspx',
+      Description: 'SPJS Itest',
+      QuickLaunchEnabled: true
+    })
+    await new WebSettings({}).ProvisionObjects(web, {
+      WelcomePage: 'SitePages/Prosjekt.aspx',
+      Description: 'SPJS Itest',
+      QuickLaunchEnabled: false
+    })
+    assert.deepEqual(calls, {
+      web: [{ QuickLaunchEnabled: false }],
+      rootFolder: [{ WelcomePage: 'SitePages/Prosjekt.aspx' }]
+    })
   })
 
   it('rejects with the error of a failed update', async () => {

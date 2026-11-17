@@ -474,6 +474,7 @@ Responsibilities:
 Important behavior:
 
 - `web.update(settings)` runs whether or not `WelcomePage` is set (up to 1.4.0 it ran only together with a welcome page, so settings without one were ignored). Nothing is sent when there is nothing to set.
+- The web is read first (without `$select`: every property, its `WelcomePage` the root folder's) and only what differs is written (`differingSettings`, `src/util/settings.ts`, shared with `Lists`): an unchanged re-run writes nothing (1.6.1; a PP365 project setup set the welcome page on every run). A setting the web does not return is written, as before.
 - The welcome page is split off with object rest (not `object.omit`, which failed as a namespace import in Node).
 
 ### `Hooks`

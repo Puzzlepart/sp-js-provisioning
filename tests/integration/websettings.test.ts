@@ -1,12 +1,19 @@
 import assert from 'node:assert/strict'
 import { before, describe, it } from 'node:test'
+import { apply } from '../../debug/lib/apply'
 import { ISiteConnection } from '../../debug/lib/connect'
 import {
   IWebSettingsState,
   readWebSettings
 } from '../../debug/lib/readback/websettings'
 import { loadFixture } from '../fixtures/fixtures'
-import { applyTwice, skipReason, withScratchWeb } from './helpers'
+import {
+  applyTwice,
+  assertClean,
+  recording,
+  skipReason,
+  withScratchWeb
+} from './helpers'
 
 /**
  * The fixture's settings as the engine applies them: URL tokens replaced in string values, with
@@ -112,6 +119,19 @@ describe('WebSettings', { skip: skipReason() }, () => {
     assert.equal(
       afterFirst.Description,
       `SPJS Itest web settings in ${conn.siteInfo.ServerRelativeUrl}`
+    )
+
+    // An unchanged re-apply writes nothing (1.6.1: a PP365 project setup set the welcome page on
+    // every run).
+    const requests: string[] = []
+    assertClean(
+      await apply(recording(conn, requests), loadFixture('websettings')),
+      'a third run'
+    )
+    assert.ok(requests.length > 0, 'the requests were recorded')
+    assert.deepEqual(
+      requests.filter((request) => !request.startsWith('GET ')),
+      []
     )
   })
 

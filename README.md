@@ -90,7 +90,7 @@ a dedicated handler, applied in this order:
 | 10    | `ClientSidePages`    | Modern pages with sections and web parts; a page the web has is kept, unless `Overwrite` or it was never published                                                                                           |
 | 11    | `PropertyBagEntries` | Property bag values: written when missing, overwritten only with `Overwrite`                                                                                                                                 |
 | 12    | `Navigation`         | Quick Launch and top navigation nodes, reconciled in place: the template owns each collection it names                                                                                                       |
-| 13    | `WebSettings`        | Web properties such as welcome page and master page                                                                                                                                                          |
+| 13    | `WebSettings`        | Web properties such as welcome page and master page, written when they differ from the web's                                                                                                                 |
 | 14    | `Hooks`              | HTTP callbacks after provisioning                                                                                                                                                                            |
 
 [`schema.json`](./schema.json) is a JSON Schema for the template format — reference it from

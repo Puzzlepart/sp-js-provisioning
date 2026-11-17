@@ -21,8 +21,8 @@ import {
   targetChanged,
   typeChange
 } from '../util/fieldxml'
-import { compactMarkup } from '../util/markup'
 import { resolvePrincipalId, resolveRoleDefinitionId } from '../util/security'
+import { differingSettings } from '../util/settings'
 import { TokenHelper } from '../util/tokenhelper'
 import { HandlerBase } from './handlerbase'
 
@@ -207,7 +207,7 @@ export class Lists extends HandlerBase {
         try {
           // Only what differs from what the list has: an unchanged list is not written on a re-run
           // (PP365 stress test row 17: all 12 lists of the project template on every run).
-          const changed = Lists._differing(properties, await list())
+          const changed = differingSettings(properties, await list())
           if (Object.keys(changed).length === 0)
             super.log_info(
               'processList',
@@ -932,7 +932,7 @@ export class Lists extends HandlerBase {
         // 26 views of the project template on every run). No settings, no update: an empty MERGE
         // body is refused (400).
         const changed = Lists._hasSettings(lvc)
-          ? Lists._differing(lvc.AdditionalSettings, stored)
+          ? differingSettings(lvc.AdditionalSettings, stored)
           : {}
         if (Object.keys(changed).length > 0) {
           await existingView.update(changed)
@@ -1724,34 +1724,6 @@ export class Lists extends HandlerBase {
     }
     for (const xml of fields) visit(xml, [])
     return ordered
-  }
-
-  /**
-   * The settings whose value differs from what a list or view has: a missing one, a `ViewQuery`
-   * laid out otherwise than SharePoint stores it (`compactMarkup`), or a value that is neither the
-   * same nor the same text (an object as JSON).
-   *
-   * @param settings - The template's settings
-   * @param stored - The list or view as REST returns it, without `$select` (every property)
-   */
-  private static _differing(
-    settings: Record<string, any>,
-    stored: Record<string, any>
-  ): Record<string, any> {
-    const changed: Record<string, any> = {}
-    for (const key of Object.keys(settings)) {
-      const want = settings[key]
-      const have = stored ? stored[key] : undefined
-      let same: boolean
-      if (have === undefined) same = false
-      else if (key === 'ViewQuery')
-        same = compactMarkup(want) === compactMarkup(have)
-      else if (want && typeof want === 'object')
-        same = JSON.stringify(want) === JSON.stringify(have)
-      else same = want === have || String(want) === String(have)
-      if (!same) changed[key] = want
-    }
-    return changed
   }
 
   /**
