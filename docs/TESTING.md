@@ -237,7 +237,7 @@ its own URL, which SharePoint refuses an app-only token (401); fixed by reading 
 | Lists (DataRows) | `lists-datarows.test.ts` | `lists-datarows.json`, `.b.json` | green; the tests after the first build on its lists, so run the file whole | — (key, URL and lookup defects fixed by the same spec) |
 | CustomActions | `customactions.test.ts` | `customactions.json`, `.b.json`, `customactions-script.json` | green; classic actions skip under NoScript | — (add-only behaviour asserted) |
 | ComposedLook | `composedlook.test.ts` | `composedlook.json` | green | — (palette-only look fixed in Phase 1) |
-| ClientSidePages | `clientsidepages.test.ts` | `clientsidepages.json`, `.b.json` | green | — |
+| ClientSidePages | `clientsidepages.test.ts` | `clientsidepages.json`, `.b.json`, `clientsidepages-draft.json` | green | — (a page a stopped setup left unpublished is published, 1.6.1) |
 | Navigation | `navigation.test.ts` | `navigation.json`, `.b.json` | green (6 tests: a second apply keeps ids and writes nothing, an owner's changes, B, refusals in either collection, a recycled target) | — (re-apply reconciles in place, [spec](./specs/navigation-re-apply.md)) |
 | WebSettings | `websettings.test.ts` | `websettings.json`, `.b.json` | green | — (applying without a welcome page fixed in Phase 1) |
 | Hooks | `hooks.test.ts` | `hooks.json` | green | — (the 202 poll, its `Location` and failures fixed in Phase 1) |

@@ -20,6 +20,11 @@ export interface Schema {
    * sites do by default): logged as an error, and the template goes on.
    */
   PropertyBagEntries?: IPropertyBagEntry[]
+  /**
+   * Modern pages in the web's `SitePages` library, created with their sections and controls,
+   * saved and published. A page the web has is left as it is, unless the template says
+   * `Overwrite` or the page has never been published.
+   */
   ClientSidePages?: IClientSidePage[]
   /**
    * Site columns as schema XML, matched by internal name (`Name`). A missing one is created; one the
@@ -164,12 +169,27 @@ export interface IClientSidePageSection {
 }
 
 export interface IClientSidePage {
+  /** The page's file name in `SitePages` (`Home.aspx`). */
   Name: string
+  /** The page's title. */
   Title: string
+  /**
+   * The page's layout (`Article`, `Home`, ...), set when the page is created; a page the web has
+   * keeps its own.
+   */
   PageLayoutType: any
+  /** Turns the page's comments off (`true`) or on. */
   CommentsDisabled?: boolean
+  /** The page's sections, each with its columns and their controls, in order. */
   Sections?: IClientSidePageSection[]
+  /** The controls of the page's vertical section. */
   VerticalSection?: IClientSideControl[]
+  /**
+   * `true`: a page the web has is deleted and created anew. Otherwise it is left as it is, unless
+   * it has never been published (a setup that stopped part way leaves its page a draft, and
+   * Navigation is refused a node to a draft): then it gets the template's title and content, in
+   * place, and is published.
+   */
   Overwrite?: boolean
 }
 

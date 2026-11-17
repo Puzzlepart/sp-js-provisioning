@@ -87,7 +87,7 @@ a dedicated handler, applied in this order:
 | 7     | `Files`              | Files from a source URL, byte for byte, with item properties and overwrite control                                                                                                                           |
 | 8     | `CustomActions`      | User custom actions, including SPFx extension registrations                                                                                                                                                  |
 | 9     | `ComposedLook`       | Theme (composed look)                                                                                                                                                                                        |
-| 10    | `ClientSidePages`    | Modern pages with sections and web parts                                                                                                                                                                     |
+| 10    | `ClientSidePages`    | Modern pages with sections and web parts; a page the web has is kept, unless `Overwrite` or it was never published                                                                                           |
 | 11    | `PropertyBagEntries` | Property bag values: written when missing, overwritten only with `Overwrite`                                                                                                                                 |
 | 12    | `Navigation`         | Quick Launch and top navigation nodes, reconciled in place: the template owns each collection it names                                                                                                       |
 | 13    | `WebSettings`        | Web properties such as welcome page and master page                                                                                                                                                          |
@@ -192,10 +192,13 @@ its order, children included ([spec](./docs/specs/navigation-re-apply.md)):
 - `Url` may be server-relative, web-relative (`SitePages/Home.aspx`, resolved against the web),
   absolute, or `#`. It takes the URL tokens only (`{site}` is the site collection, also on a
   subweb); `Title` takes none.
-- SharePoint refuses a node whose URL names no existing file or folder. The run then fails with
+- SharePoint refuses a node whose URL names no existing file or folder, or a page that has never
+  been published (a draft). The run then fails with
   `Navigation node '<Title>' (<Url>) was refused by SharePoint: ...`, and the nodes and URLs the
   run had added or changed are undone, so both collections are left as they were. A page, file or
-  list deleted since the last run takes its node with it, so the next run fails on that node.
+  list deleted since the last run takes its node with it, so the next run fails on that node. A
+  template page a setup left unpublished when it stopped part way is published by
+  `ClientSidePages` on the next run (since 1.6.1), before Navigation runs.
 - SharePoint returns the titles of its own nodes (`Hjem`, `Dokumenter`) in the language of the
   account that runs the template, so they match only for an account with the template's
   language; otherwise the node is added again and the stored one deleted.

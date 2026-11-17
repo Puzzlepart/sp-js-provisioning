@@ -1,0 +1,36 @@
+{
+  "$schema": "../../../schema.json",
+  "ClientSidePages": [
+    {
+      "Name": "SPJS-Itest-Draft.aspx",
+      "Title": "SPJS Itest Draft",
+      "PageLayoutType": "Article",
+      "CommentsDisabled": true,
+      "Overwrite": false,
+      "Sections": [
+        {
+          "Columns": [
+            {
+              "Factor": 12,
+              "Controls": [
+                {
+                  "Id": "Text",
+                  "Text": "<p>SPJS Itest draft page</p>",
+                  "Properties": {}
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "Navigation": {
+    "QuickLaunch": [
+      {
+        "Title": "SPJS Itest Draft",
+        "Url": "SitePages/SPJS-Itest-Draft.aspx"
+      }
+    ]
+  }
+}

@@ -37,25 +37,33 @@
         "IClientSidePage": {
             "properties": {
                 "CommentsDisabled": {
+                    "description": "Turns the page's comments off (`true`) or on.",
                     "type": "boolean"
                 },
                 "Name": {
+                    "description": "The page's file name in `SitePages` (`Home.aspx`).",
                     "type": "string"
                 },
                 "Overwrite": {
+                    "description": "`true`: a page the web has is deleted and created anew. Otherwise it is left as it is, unless\nit has never been published (a setup that stopped part way leaves its page a draft, and\nNavigation is refused a node to a draft): then it gets the template's title and content, in\nplace, and is published.",
                     "type": "boolean"
                 },
-                "PageLayoutType": {},
+                "PageLayoutType": {
+                    "description": "The page's layout (`Article`, `Home`, ...), set when the page is created; a page the web has\nkeeps its own."
+                },
                 "Sections": {
+                    "description": "The page's sections, each with its columns and their controls, in order.",
                     "items": {
                         "$ref": "#/definitions/IClientSidePageSection"
                     },
                     "type": "array"
                 },
                 "Title": {
+                    "description": "The page's title.",
                     "type": "string"
                 },
                 "VerticalSection": {
+                    "description": "The controls of the page's vertical section.",
                     "items": {
                         "$ref": "#/definitions/IClientSideControl"
                     },
@@ -919,6 +927,7 @@
     },
     "properties": {
         "ClientSidePages": {
+            "description": "Modern pages in the web's `SitePages` library, created with their sections and controls,\nsaved and published. A page the web has is left as it is, unless the template says\n`Overwrite` or the page has never been published.",
             "items": {
                 "$ref": "#/definitions/IClientSidePage"
             },

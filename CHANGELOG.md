@@ -7,6 +7,15 @@ For releases older than 1.3.6, see the git history.
 
 ## [Unreleased]
 
+### Fixed
+
+- `ClientSidePages` publishes a template page the web has that has never been published, after
+  writing the template's title and content to it in place. A setup that stopped part way (in PP365
+  a throttled project setup) leaves its page a draft, often empty, and the next run skipped it
+  (`Overwrite: false`), so `Navigation` was refused a node to it ("... fordi det er et
+  kladdeelement") and the setup could not be completed by running it again. A published page is
+  still left as it is.
+
 ## [1.6.0] - 2026-11-14
 
 The JSOM exit ([spec](./docs/specs/jsom-exit.md)): every handler runs in Node and under SPFx alike.

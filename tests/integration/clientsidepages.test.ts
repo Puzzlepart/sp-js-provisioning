@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict'
 import { describe, it } from 'node:test'
+import { CreateClientsidePage } from '@pnp/sp/presets/all'
 import { apply, IApplyResult } from '../../debug/lib/apply'
 import { ISiteConnection } from '../../debug/lib/connect'
 import {
@@ -7,6 +8,7 @@ import {
   readClientSidePages,
   withoutVolatile
 } from '../../debug/lib/readback/clientsidepages'
+import { readNavigation } from '../../debug/lib/readback/navigation'
 import { loadFixture } from '../fixtures/fixtures'
 import { applyTwice, assertClean, skipReason, withScratchWeb } from './helpers'
 
@@ -16,6 +18,10 @@ const PREFIX = 'SPJS-Itest-'
 const KEPT = 'SPJS-Itest-Kept.aspx'
 /** The fixtures' page with `Overwrite: true`. */
 const OVERWRITTEN = 'SPJS-Itest-Overwritten.aspx'
+/** `clientsidepages-draft.json`'s page, which the suite saves as a draft first. */
+const DRAFT = 'SPJS-Itest-Draft.aspx'
+/** The prefix of the draft's file and of a second file made for it (the suite shares its web). */
+const DRAFT_PREFIX = 'SPJS-Itest-Draft'
 
 /** The control ids the handler turns into a text control. */
 const TEXT_IDS = ['Text', 'PageText']
@@ -338,5 +344,42 @@ describe('ClientSidePages', { skip: skipReason() }, () => {
       before.pages[OVERWRITTEN].uniqueId
     )
     assert.deepEqual(after.files, [...names].sort())
+  })
+
+  it('publishes a page a stopped setup left as a draft, with the template content, so Navigation can link to it', async () => {
+    const { conn } = scratch()
+    const template = loadFixture('clientsidepages-draft')
+    const page = pageOf(template, DRAFT)
+    // What a setup that stopped part way leaves (PP365 stress test row 13): the page as
+    // `CreateClientsidePage` saves it before its content, a draft that was never published,
+    // titled with its file name. Navigation is refused a node to it.
+    await CreateClientsidePage(
+      conn.web,
+      DRAFT,
+      DRAFT.replace(/\.aspx$/, ''),
+      page.PageLayoutType
+    )
+    const draft = (await readClientSidePages(conn, [DRAFT], DRAFT_PREFIX))
+      .pages[DRAFT]
+    assert.ok(draft, `the draft ${DRAFT} was not saved`)
+    assert.equal(draft.published, false, 'the draft is published')
+
+    const { afterFirst } = await applyTwice(
+      conn,
+      () => loadFixture('clientsidepages-draft'),
+      async (c) => ({
+        state: await readClientSidePages(c, [DRAFT], DRAFT_PREFIX),
+        quickLaunch: (await readNavigation(c)).quickLaunch
+      })
+    )
+
+    // The template's title and content, published, in the draft's own file.
+    assertPage(afterFirst.state.pages[DRAFT], page, conn)
+    assert.equal(afterFirst.state.pages[DRAFT].uniqueId, draft.uniqueId)
+    assert.deepEqual(afterFirst.state.files, [DRAFT])
+    assert.deepEqual(
+      afterFirst.quickLaunch.map((node) => node.Title),
+      ['SPJS Itest Draft']
+    )
   })
 })

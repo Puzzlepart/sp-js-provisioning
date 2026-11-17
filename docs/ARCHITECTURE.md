@@ -375,7 +375,12 @@ Key behavior:
 
 - `Id` values `Text` and `PageText` create `ClientsideText`.
 - Other controls are matched by checking whether the component definition ID contains the configured ID, case-insensitively.
-- If `Overwrite` is false and the page exists, processing is skipped.
+- If `Overwrite` is true and the page exists, it is deleted and created anew.
+- If `Overwrite` is false and the page exists, processing is skipped, unless the page has never
+  been published (its file's `MajorVersion` is 0): a setup that stopped part way leaves its page
+  so, a draft often without its content, and Navigation is refused a node to it. Such a page gets
+  the template's title, sections and comments setting in place (same file and item; its layout is
+  kept, since a page's layout is set when it is created) and is published (1.6.1).
 
 ### `CustomActions`
 

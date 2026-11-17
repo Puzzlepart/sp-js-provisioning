@@ -4,7 +4,8 @@ import {
   CreateClientsidePage,
   IClientsidePage,
   IClientsidePageComponent,
-  IWeb
+  IWeb,
+  Web
 } from '@pnp/sp/presets/all'
 import { IProvisioningConfig } from '../provisioningconfig'
 import { ProvisioningContext } from '../provisioningcontext'
@@ -16,7 +17,14 @@ import '@pnp/sp/presets/all'
 import '@pnp/sp/comments/clientside-page'
 
 /**
- * Describes the Composed Look Object Handler
+ * Describes the ClientSidePages Object Handler.
+ *
+ * Creates each modern page in `SitePages` with its sections, columns and controls, saves and
+ * publishes it, and turns its comments on or off. A page the web has is deleted and created anew
+ * with `Overwrite: true`, and left as it is otherwise, unless it has never been published: a setup
+ * that stopped part way leaves its page so (a draft, often without its content), and Navigation is
+ * refused a node to it. Such a page gets the template's title and content, in place, and is
+ * published.
  */
 export class ClientSidePages extends HandlerBase {
   private tokenHelper: TokenHelper
@@ -55,6 +63,7 @@ export class ClientSidePages extends HandlerBase {
       super.scope_ended(error)
       throw error
     }
+    super.scope_ended()
   }
 
   private _getClientSideWebPart(
@@ -132,6 +141,24 @@ export class ClientSidePages extends HandlerBase {
   }
 
   /**
+   * Whether a page's file has a published (major) version. A page a setup created and did not get
+   * to publish (it stopped part way) has none: it is a draft (0.x) that only its author sees.
+   *
+   * @param web - The web
+   * @param serverRelativeUrl - The page's file
+   */
+  private async _hasPublishedVersion(
+    web: IWeb,
+    serverRelativeUrl: string
+  ): Promise<boolean> {
+    // A fresh queryable: `select()` sets the query on the instance itself.
+    const { MajorVersion } = await Web(web)
+      .getFileByServerRelativePath(serverRelativeUrl)
+      .select('MajorVersion')<{ MajorVersion: number }>()
+    return MajorVersion > 0
+  }
+
+  /**
    * Provision a client side page
    *
    * @param web - The web
@@ -148,11 +175,10 @@ export class ClientSidePages extends HandlerBase {
       `Processing client side page ${clientSidePage.Name}`
     )
     const { ServerRelativeUrl } = await web.select('ServerRelativeUrl')()
+    const serverRelativeUrl = `${ServerRelativeUrl}/SitePages/${clientSidePage.Name}`
     let page: IClientsidePage = null
     try {
-      page = await web.loadClientsidePage(
-        `${ServerRelativeUrl}/SitePages/${clientSidePage.Name}`
-      )
+      page = await web.loadClientsidePage(serverRelativeUrl)
 
       if (clientSidePage.Overwrite && page) {
         super.log_info(
@@ -164,19 +190,28 @@ export class ClientSidePages extends HandlerBase {
     } catch {}
 
     if (!clientSidePage.Overwrite && page) {
+      if (await this._hasPublishedVersion(web, serverRelativeUrl)) {
+        super.log_info(
+          'processClientSidePage',
+          `Client side page ${clientSidePage.Name} already exists and overwrite option is disabled. Skipping`
+        )
+        return
+      }
+      // Written in place: the page keeps its file, its item and its layout (set when a page is
+      // created).
       super.log_info(
         'processClientSidePage',
-        `Client side page ${clientSidePage.Name} already exists and overwrite option is disabled. Skipping`
+        `Client side page ${clientSidePage.Name} exists but has never been published, as a setup that stopped part way leaves it: writing the template's title and content to it and publishing it`
       )
-      return
-    }
-
-    page = await CreateClientsidePage(
-      web,
-      clientSidePage.Name,
-      clientSidePage.Title,
-      clientSidePage.PageLayoutType
-    )
+      page.title = clientSidePage.Title
+      page.sections = []
+    } else
+      page = await CreateClientsidePage(
+        web,
+        clientSidePage.Name,
+        clientSidePage.Title,
+        clientSidePage.PageLayoutType
+      )
     if (clientSidePage.VerticalSection) {
       const verticalSection = page.addVerticalSection()
       for (const control of clientSidePage.VerticalSection) {
