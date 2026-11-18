@@ -76,7 +76,7 @@ hunks: save `git diff -U3` of the lock, check out the committed lock, `git apply
 - 1.6.0 (the JSOM exit, 2026-11-14) no longer brings `spfx-jsom`: a consumer that imports it declares
   it itself (PP365's ProjectExtensions, ProjectWebParts and shared-library do). PP365 1.15 takes it;
   check a project setup and a hub import of `pp-testprosjekt`, twice, on the test channel.
-- 1.6.1 (2026-11-17, PP365's stress test of 1.6.0) is a drop-in for 1.6.0: no dependency changes.
+- 1.6.1 (2026-11-18, PP365's stress test of 1.6.0) is a drop-in for 1.6.0: no dependency changes.
   New errors PP365 users can see: a taxonomy list field that keeps another term set, and a data
   row's term SharePoint did not store (both were silent).
 - prosjektportalen-hosting packages declare `minPPVersion`; a package for 1.14.0 must still work

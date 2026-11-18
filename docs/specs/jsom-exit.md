@@ -272,7 +272,7 @@ What the Taxonomy runs showed (the signed-in user, cookies):
 
 ### Follow-ups from the PP365 stress test
 
-Engine defects it found that predate 1.6.0 (its class B), fixed in 1.6.1 (2026-11-17, one commit
+Engine defects it found that predate 1.6.0 (its class B), fixed in 1.6.1 (2026-11-18, one commit
 each, with unit tests and integration suites on `spjs-itest`); its row numbers:
 
 - Row 5 (`fix(lists): point a taxonomy list field at its term set, and log a dropped term`): a

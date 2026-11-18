@@ -7,7 +7,7 @@ For releases older than 1.3.6, see the git history.
 
 ## [Unreleased]
 
-## [1.6.1] - 2026-11-17
+## [1.6.1] - 2026-11-18
 
 Fixes from PP365 1.15's stress test of 1.6.0 (rows 13, 11, 5, 6 and 17 of
 `docs/plans/sp-js-provisioning-1.6.0-stresstest.md` in prosjektportalen365). A project setup that
