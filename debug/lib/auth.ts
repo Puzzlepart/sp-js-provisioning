@@ -128,7 +128,9 @@ export const REQUEST_TIMEOUT = 120_000
  * PnPjs's `BrowserFetchWithRetry` with a time limit on each attempt. A throttled request (429, 503,
  * 504) waits what `Retry-After` says and tries again with a fresh limit; a network error is tried
  * again; an attempt not answered in time fails the request, as sending it again could repeat a
- * write SharePoint is still carrying out. A request with a signal of its own keeps it.
+ * write SharePoint is still carrying out. A write sent again after a network error or a 504 can
+ * still meet the attempt that failed, carried out: a scratch web's `webs.add` then finds its
+ * address in use (`addScratchWeb` in `scratch.ts`). A request with a signal of its own keeps it.
  *
  * @param ms - The limit per attempt
  * @param retries - Attempts in all

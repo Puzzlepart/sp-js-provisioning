@@ -105,14 +105,7 @@ export async function createScratchWeb(
   const ownerLogin = owner ?? (await defaultOwner(parent))
   try {
     // Inside the try: a webs.add that fails or times out can still have made the web.
-    await parent.web.webs.add(
-      title,
-      url,
-      'Created by the sp-js-provisioning integration tests; deleted afterwards.',
-      'STS#3',
-      parent.webInfo.Language,
-      false
-    )
+    await addScratchWeb(parent, { title, url })
     const conn = await connect(`${parent.url}/${url}`, parent.mode)
     await createAssociatedGroups(conn, title, ownerLogin)
     return { title, url, stamp, conn }
@@ -121,6 +114,92 @@ export async function createScratchWeb(
     await removeScratchWeb(parent, { title, url }).catch(() => undefined)
     throw error
   }
+}
+
+/**
+ * SharePoint's code for a web address that is already in use: `ERROR_ALREADY_EXISTS` as an
+ * HRESULT, `-2147024713, Microsoft.SharePoint.SPException` in the answer.
+ */
+const ADDRESS_IN_USE = -2147024713
+
+/**
+ * Adds a scratch web below the reserved site, in its language, with unique permissions.
+ *
+ * The transport sends a request again after a network error, a 503 or a 504 (`fetchWithRetry`),
+ * and SharePoint may have carried out the attempt that failed. The attempt sent again is then
+ * refused because the address is in use ("Nettstedsadressen ... er allerede i bruk", 2026-11-17),
+ * by the web the first attempt made. A web at the address with this scratch web's title (the suite
+ * and the second it was started; one run uses the reserved site at a time) is that web, and
+ * creation carries on with it. Any other refusal, or a web with another title, fails as before.
+ *
+ * @param parent - The reserved site
+ * @param scratch - The scratch web's title and URL segment
+ * @param onTakenOver - Told when it carries on with a web an attempt that failed made: stderr by
+ * default
+ */
+export async function addScratchWeb(
+  parent: ISiteConnection,
+  scratch: Pick<IScratchWeb, 'title' | 'url'>,
+  onTakenOver: (what: string) => void = (what) =>
+    // eslint-disable-next-line no-console
+    console.error(`# ${what}`)
+): Promise<void> {
+  try {
+    await parent.web.webs.add(
+      scratch.title,
+      scratch.url,
+      'Created by the sp-js-provisioning integration tests; deleted afterwards.',
+      'STS#3',
+      parent.webInfo.Language,
+      false
+    )
+  } catch (error) {
+    if (sharePointCode(error) !== ADDRESS_IN_USE) throw error
+    const found = await webAt(parent, scratch.url).catch(() => undefined)
+    if (!found || found.Title !== scratch.title) throw error
+    onTakenOver(
+      `scratch web ${scratch.url}: an attempt that failed made it; carrying on with it`
+    )
+  }
+}
+
+/**
+ * SharePoint's error code for a request it refused (`odata.error.code`, from the response body
+ * PnPjs puts in its error's message), or `undefined` when there is none.
+ *
+ * @param error - What a request failed with
+ */
+function sharePointCode(error: any): number | undefined {
+  const message = `${(error && error.message) || ''}`
+  const body = message.indexOf('::> ')
+  if (body === -1) return undefined
+  try {
+    const parsed = JSON.parse(message.slice(body + 4))
+    const odata = parsed['odata.error'] || parsed.error
+    const code = parseInt(odata && odata.code, 10)
+    return isNaN(code) ? undefined : code
+  } catch {
+    return undefined
+  }
+}
+
+/**
+ * The web at a scratch web's address, looked up among the reserved site's webs, not by a request
+ * to its URL: that answers 404 for a web that is not there, and for other reasons too.
+ *
+ * @param parent - The reserved site
+ * @param url - The scratch web's URL segment
+ */
+async function webAt(
+  parent: ISiteConnection,
+  url: string
+): Promise<{ Title: string; ServerRelativeUrl: string } | undefined> {
+  const expected = `${parent.webInfo.ServerRelativeUrl}/${url}`.toLowerCase()
+  return (
+    await parent.web.webs.select('Title', 'ServerRelativeUrl')<
+      Array<{ Title: string; ServerRelativeUrl: string }>
+    >()
+  ).find((web) => web.ServerRelativeUrl.toLowerCase() === expected)
 }
 
 /**
@@ -219,7 +298,8 @@ export async function deleteWebTree(web: IWeb): Promise<void> {
 /**
  * Deletes a scratch web by its name, and its site groups, whatever is left of them: for a web
  * whose creation failed half-way or never confirmed (a request that hung), where there is no
- * connection to it. A web that is not there is no error.
+ * connection to it. A web that is not there is no error. A web at the address with another title
+ * is not this scratch web, and is left alone.
  *
  * @param parent - The reserved site
  * @param scratch - The scratch web's title and URL segment
@@ -235,23 +315,14 @@ export async function removeScratchWeb(
   )
     throw new Error(`Not a scratch web: ${scratch.url} (${scratch.title})`)
   const groups = await groupsOfScratchWeb(parent, scratch.title)
-  // Looked up among the reserved site's webs, not by a request to its URL: that answers 404 for a
-  // web that is not there, and for other reasons too.
-  const expected = `${parent.webInfo.ServerRelativeUrl}/${scratch.url}`.toLowerCase()
-  const found = (
-    await parent.web.webs.select('ServerRelativeUrl')<
-      Array<{ ServerRelativeUrl: string }>
-    >()
-  ).find((web) => web.ServerRelativeUrl.toLowerCase() === expected)
-  if (found)
+  const found = await webAt(parent, scratch.url)
+  const own = found && found.Title === scratch.title ? found : undefined
+  if (own)
     await deleteWebTree(
-      Web([
-        parent.web,
-        `${new URL(parent.url).origin}${found.ServerRelativeUrl}`
-      ])
+      Web([parent.web, `${new URL(parent.url).origin}${own.ServerRelativeUrl}`])
     )
   for (const group of groups) await parent.web.siteGroups.removeById(group.Id)
-  return { web: !!found, groups: groups.map((group) => group.Title) }
+  return { web: !!own, groups: groups.map((group) => group.Title) }
 }
 
 /**

@@ -1,11 +1,16 @@
 import assert from 'node:assert/strict'
 import { describe, it } from 'node:test'
 import * as path from 'path'
+import { DefaultParse } from '@pnp/queryable'
+import { DefaultHeaders, DefaultInit, spfi } from '@pnp/sp'
+import { fetchWithRetry } from '../../debug/lib/auth'
 import { parseAge, prefixedArtefacts } from '../../debug/lib/cleanup'
 import { UsageError } from '../../debug/lib/cli'
-import { assertWritable } from '../../debug/lib/connect'
+import { assertWritable, ISiteConnection } from '../../debug/lib/connect'
 import { isWithinSite, readEnv, skipReason } from '../../debug/lib/env'
 import {
+  addScratchWeb,
+  createScratchWeb,
   dateOfStamp,
   removeScratchWeb,
   scratchName,
@@ -57,6 +62,162 @@ describe('harness: scratch web names', () => {
       }),
       /Not a scratch web title/
     )
+  })
+})
+
+describe('harness: creating a scratch web', () => {
+  // The case that failed on 2026-11-17: SharePoint made the web, the first webs.add failed on the
+  // network all the same, and the one the transport sent again found the address in use.
+  const now = new Date(Date.UTC(2026, 10, 17, 16, 10, 44))
+  const name = scratchName('pkg enkel-prosjektmal project', stampOf(now))
+  const add = 'POST _api/web/webs/add'
+  const webs = 'GET _api/web/webs'
+  const groups = 'GET _api/web/siteGroups'
+  const json = (status: number, body: any) =>
+    new Response(JSON.stringify(body), {
+      status,
+      headers: { 'Content-Type': 'application/json' }
+    })
+  const refused = (code: string, value: string) =>
+    json(500, { 'odata.error': { code, message: { lang: 'nb-NO', value } } })
+  /** SharePoint's answer to an address in use, in the reserved site's language. */
+  const inUse = () =>
+    refused(
+      '-2147024713, Microsoft.SharePoint.SPException',
+      `Nettstedsadressen "/sites/spjs-itest/${name.url}" er allerede i bruk.`
+    )
+  /** The reserved site's webs: one at the scratch web's address, with this title. */
+  const websWith = (title: string) =>
+    json(200, {
+      value: [
+        { Title: title, ServerRelativeUrl: `/sites/spjs-itest/${name.url}` }
+      ]
+    })
+  const noGroups = () => json(200, { value: [] })
+
+  /**
+   * Runs `fn` against the reserved site, its requests sent through the runner's transport
+   * (`fetchWithRetry`) to `answers`: per request (`POST _api/web/webs/add`, below the site), its
+   * answers in turn, an Error failing the attempt as a network error does. Returns the requests
+   * sent, what the transport tried again and what `fn` noted.
+   */
+  async function onSite(
+    answers: Record<string, Array<Response | Error>>,
+    fn: (parent: ISiteConnection, notes: string[]) => Promise<unknown>
+  ): Promise<{ sent: string[]; retried: string[]; notes: string[] }> {
+    const sent: string[] = []
+    const retried: string[] = []
+    const notes: string[] = []
+    const realFetch = globalThis.fetch
+    globalThis.fetch = (async (url: string, init: any) => {
+      const method =
+        new Headers(init.headers || {}).get('X-HTTP-Method') || init.method
+      const request = `${method} ${new URL(url).pathname.replace(
+        '/sites/spjs-itest/',
+        ''
+      )}`
+      sent.push(request)
+      const answer = (answers[request] || []).shift()
+      if (answer instanceof Error) throw answer
+      return answer || json(404, { error: `No answer for ${request}` })
+    }) as any
+    const sp = spfi(site).using(
+      DefaultHeaders(),
+      DefaultInit(),
+      fetchWithRetry(1_000, 3, (what) => retried.push(what)),
+      DefaultParse()
+    )
+    const parent = ({
+      url: site,
+      sp,
+      get web() {
+        return sp.web
+      },
+      webInfo: { ServerRelativeUrl: '/sites/spjs-itest', Language: 1044 },
+      mode: 'cookies'
+    } as unknown) as ISiteConnection
+    try {
+      await fn(parent, notes)
+    } finally {
+      globalThis.fetch = realFetch
+    }
+    return { sent, retried, notes }
+  }
+
+  it('carries on with the web an attempt that failed made, when the one sent again finds its address in use', async () => {
+    const { sent, retried, notes } = await onSite(
+      {
+        [add]: [new TypeError('fetch failed'), inUse()],
+        [webs]: [websWith(name.title)]
+      },
+      (parent, notes) => addScratchWeb(parent, name, (what) => notes.push(what))
+    )
+
+    assert.deepEqual(sent, [add, add, webs])
+    assert.deepEqual(retried, ['POST failed (fetch failed)'])
+    assert.deepEqual(notes, [
+      `scratch web ${name.url}: an attempt that failed made it; carrying on with it`
+    ])
+  })
+
+  it('fails as before on another refusal, or on another web at the address, and leaves that web alone', async () => {
+    // Any other refusal is not looked into.
+    const other = await onSite(
+      {
+        [add]: [
+          refused(
+            '-2147467259, Microsoft.SharePoint.SPException',
+            'Beklager, noe gikk galt.'
+          )
+        ]
+      },
+      (parent) =>
+        assert.rejects(
+          addScratchWeb(parent, name, () => undefined),
+          /noe gikk galt/
+        )
+    )
+    assert.deepEqual(other.sent, [add])
+
+    // A web with another title at the address is not this run's: the creation fails, and its
+    // clean-up looks for what to remove without deleting that web.
+    const taken = await onSite(
+      {
+        [add]: [inUse()],
+        [webs]: [websWith('Prosjektområde'), websWith('Prosjektområde')],
+        [groups]: [noGroups()]
+      },
+      (parent) =>
+        assert.rejects(
+          createScratchWeb(
+            parent,
+            'pkg enkel-prosjektmal project',
+            now,
+            'owner'
+          ),
+          /er allerede i bruk/
+        )
+    )
+    assert.deepEqual(taken.sent, [add, webs, groups, webs])
+  })
+
+  it('deletes its own half-made web by name', async () => {
+    const own = `${name.url}/_api/web`
+    const { sent } = await onSite(
+      {
+        [groups]: [noGroups()],
+        [webs]: [websWith(name.title)],
+        [`GET ${own}/webs`]: [json(200, { value: [] })],
+        [`DELETE ${own}`]: [new Response(null, { status: 204 })]
+      },
+      async (parent) =>
+        assert.deepEqual(await removeScratchWeb(parent, name), {
+          web: true,
+          groups: []
+        })
+    )
+
+    assert.deepEqual(sent, [groups, webs, `GET ${own}/webs`, `DELETE ${own}`])
   })
 })
 
